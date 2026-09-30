@@ -22,6 +22,8 @@ npm run dev
 
 開発サーバーは`http://127.0.0.1:4173/`です。PCでの通常の3D表示を確認できます。Questでの没入型VRにはHTTPSとWebXR対応ブラウザーが必要です。Cloudflareへ公開する場合は、自分のアカウント・ドメインに合わせて`wrangler.jsonc`を設定し、認証してから実行してください。元データからの再生成スクリプトには、リポジトリに含まれない元のPLATEAUデータなどを別途用意する必要があります。
 
+開発は **Issue → 短命ブランチ → PR → `@codex review` → CI → squash merge** の順で進めます。Botが利用できない場合は、理由とローカル独立レビューの結果をPRへ記録します。[CONTRIBUTING.md](CONTRIBUTING.md)に検証・レビュー・認証設定の手順、[AGENTS.md](AGENTS.md)にエージェントの作業規約をまとめています。
+
 ## 実装
 
 - 国土交通省PLATEAU 岡崎市2020年度のJR岡崎駅周辺。5メッシュ、58,845三角形。
@@ -136,12 +138,21 @@ npm run deploy
 
 `wrangler.jsonc`は公開用の識別情報と経路のみ。認証情報は含めません。Secretsや元CityGML、APK、テストコードは公開用distに入りません。Pages API権限の追加やアカウント全体の権限変更はしていません。
 
+### GitHubのCIとCodexによる公開
+
+`CI`ワークフローは、全ブランチ宛てのPR、`main`へのpush、手動実行（`workflow_dispatch`）で起動します。`Verify`でNode.js 22を使って`npm ci`・テスト・アセット検証・本番ビルド・`check:production`を実行します。GitHub Actionsは検証だけを担当し、`main`へのpushでも本番へ自動公開しません。`main`の検証済みビルドアーティファクトは保存し、Codexも確認・利用できます。
+
+公開が依頼範囲に含まれる場合だけ、CodexがPRのsquash merge後にマージ済み`main`・リモート一致・cleanな作業ツリー・最終CI・レビュー対応を確認します。その同じコミットをローカルで再検証・ビルドし、`npm run deploy`でCloudflareへ公開します。配信後は全公開ファイルのSHA-256、セキュリティヘッダー、404と必要な操作を確認します。公開前にサイトが新しい版へ更新されたと扱わず、CI合格と公開成功を分けます。
+
+GitHubへのCloudflare Secrets登録は不要です。認証情報はCodexの公開実行環境で管理し、リポジトリやPRへ載せません。詳しい公開ゲートと手順は[CONTRIBUTING.md](CONTRIBUTING.md#codexによる本番公開)、CIの実行結果は[GitHub Actions](https://github.com/bazaarjapan/MetaQuest-Okazaki/actions)を参照してください。
+
 ## 検証
 
 - `npm test`：地点、入力デッドゾーン、Quest軸割当、範囲制限。
 - 品質設定の高精細既定値・旧設定の一度だけの移行・選択の保存・保存失敗時の復帰・描画設定の範囲、左右コントローラー入力の正規化も単体テストの対象です。
 - 広域の区画選択・予算制限・地域内への移動制限、読み込み完了順の競合・旧区画の破棄・部分失敗、ライブ標高のRGBの正負・NoData・補間・隣接タイル境界・取得失敗・キャンセル時の形状保持を単体テストで検証済みです。
-- `npm run check:assets`：配列長、有限値、インデックス範囲、画像参照、ポリゴン数、ファイルサイズ。
+- `npm run check:assets`：リポジトリ内の配信データだけで、配列長、有限値、インデックス範囲、画像参照、ポリゴン数、ファイルサイズ、写真のSHA-256・寸法・復号RGBハッシュを検査します。元Unity資料との比較は含めず、結果の`nativeSourceVerified`は`false`です。
+- `node scripts/check-detail-assets.mjs --with-native-source`：元の隣接Unityプロジェクトにある地面写真を明示的に比較する追加ローカル検査です。元画像のSHA-256とWeb画像とのRGB完全一致を確認し、元画像がない・不一致の場合は失敗します。元資料をGitHubへ同梱したり、見つからないときに合格扱いしたりしません。
 - 追加写真は `scripts/check-detail-assets.mjs` で寸法・ファイルSHA・元画像の全RGB画素一致・同じタイル範囲を検証します。
 - `tests/browser-check.js`：読み込み、3地点、キーボード前進、Home、説明、横はみ出し。
 - `tests/detail-browser-check.js`：画質の往復切替、元形状の保持、左右下HUD、右上ガイド。
