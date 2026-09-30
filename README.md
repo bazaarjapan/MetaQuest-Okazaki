@@ -22,6 +22,8 @@ npm run dev
 
 開発サーバーは`http://127.0.0.1:4173/`です。PCでの通常の3D表示を確認できます。Questでの没入型VRにはHTTPSとWebXR対応ブラウザーが必要です。Cloudflareへ公開する場合は、自分のアカウント・ドメインに合わせて`wrangler.jsonc`を設定し、認証してから実行してください。元データからの再生成スクリプトには、リポジトリに含まれない元のPLATEAUデータなどを別途用意する必要があります。
 
+開発は **Issue → 短命ブランチ → PR → `@codex review` → CI → squash merge** の順で進めます。Botが利用できない場合は、理由とローカル独立レビューの結果をPRへ記録します。[CONTRIBUTING.md](CONTRIBUTING.md)に検証・レビュー・認証設定の手順、[AGENTS.md](AGENTS.md)にエージェントの作業規約をまとめています。
+
 ## 実装
 
 - 国土交通省PLATEAU 岡崎市2020年度のJR岡崎駅周辺。5メッシュ、58,845三角形。
@@ -135,6 +137,14 @@ npm run deploy
 ```
 
 `wrangler.jsonc`は公開用の識別情報と経路のみ。認証情報は含めません。Secretsや元CityGML、APK、テストコードは公開用distに入りません。Pages API権限の追加やアカウント全体の権限変更はしていません。
+
+### GitHubのCIとCodexによる公開
+
+`CI`ワークフローは、全ブランチ宛てのPR、`main`へのpush、手動実行（`workflow_dispatch`）で起動します。`Verify`でNode.js 22を使って`npm ci`・テスト・アセット検証・本番ビルド・`check:production`を実行します。GitHub Actionsは検証だけを担当し、`main`へのpushでも本番へ自動公開しません。`main`の検証済みビルドアーティファクトは保存し、Codexも確認・利用できます。
+
+公開が依頼範囲に含まれる場合だけ、CodexがPRのsquash merge後にマージ済み`main`・リモート一致・cleanな作業ツリー・最終CI・レビュー対応を確認します。その同じコミットをローカルで再検証・ビルドし、`npm run deploy`でCloudflareへ公開します。配信後は全公開ファイルのSHA-256、セキュリティヘッダー、404と必要な操作を確認します。公開前にサイトが新しい版へ更新されたと扱わず、CI合格と公開成功を分けます。
+
+GitHubへのCloudflare Secrets登録は不要です。認証情報はCodexの公開実行環境で管理し、リポジトリやPRへ載せません。詳しい公開ゲートと手順は[CONTRIBUTING.md](CONTRIBUTING.md#codexによる本番公開)、CIの実行結果は[GitHub Actions](https://github.com/bazaarjapan/MetaQuest-Okazaki/actions)を参照してください。
 
 ## 検証
 
