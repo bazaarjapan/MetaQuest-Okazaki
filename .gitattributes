@@ -1,0 +1,13 @@
+* text=auto
+
+# Keep model, terrain and image bytes identical on Windows and other platforms.
+*.bin binary
+*.glb binary
+*.gltf text
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.gz binary
+*.br binary
+*.zip binary

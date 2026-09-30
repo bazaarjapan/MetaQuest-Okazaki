@@ -1,0 +1,73 @@
+{
+    "version": "1.0.0",
+    "city": "JR岡崎駅",
+    "source": "PLATEAU 岡崎市 2020年度",
+    "parts": [
+        {
+            "name": "Mesh-000",
+            "file": "mesh-0.bin",
+            "texture": "",
+            "vertices": 3293,
+            "indices": 7659,
+            "color": [
+                0.21999993920326234,
+                0.24999994039535523,
+                0.2799999415874481
+            ]
+        },
+        {
+            "name": "Mesh-001",
+            "file": "mesh-1.bin",
+            "texture": "",
+            "vertices": 38220,
+            "indices": 64476,
+            "color": [
+                0.7200000286102295,
+                0.7599999904632568,
+                0.7799999713897705
+            ]
+        },
+        {
+            "name": "Mesh-002",
+            "file": "mesh-2.bin",
+            "texture": "",
+            "vertices": 7066,
+            "indices": 4590,
+            "color": [
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        {
+            "name": "Mesh-003",
+            "file": "mesh-3.bin",
+            "texture": "Texture-000.png",
+            "vertices": 5900,
+            "indices": 8616,
+            "color": [
+                1.0,
+                1.0,
+                1.0
+            ]
+        },
+        {
+            "name": "Mesh-004",
+            "file": "mesh-4.bin",
+            "texture": "Texture-001.png",
+            "vertices": 91194,
+            "indices": 91194,
+            "color": [
+                1.0,
+                1.0,
+                1.0
+            ]
+        }
+    ],
+    "station": [
+        95.924560546875,
+        16.5,
+        49.00273132324219
+    ],
+    "triangles": 58845
+}

@@ -1,0 +1,81 @@
+{
+  "version": "1.0.0",
+  "generatedAt": "2026-09-30T02:37:18.383Z",
+  "source": "国土地理院 地理院タイル 全国最新写真（シームレス）",
+  "attributionUrl": "https://maps.gsi.go.jp/development/ichiran.html#seamlessphoto",
+  "sourceUrlTemplate": "https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg",
+  "terrainMesh": "Mesh-004",
+  "originalAtlas": {
+    "file": "Texture-001.png",
+    "width": 768,
+    "height": 512,
+    "zoom": 16,
+    "xMin": 57735,
+    "xMax": 57737,
+    "yMin": 25974,
+    "yMax": 25975
+  },
+  "geographicCoverage": "Exactly the original z16 tile rectangle; north-up; normalized UVs unchanged",
+  "uvValidation": {
+    "samples": 54,
+    "channelsCompared": 162,
+    "exactPixelEquality": true,
+    "orientation": "north-up row-major x57735..57737 y25974..25975",
+    "nativeSourceAtlasSha256": "3f6ec46edf04830951e801ba117b1a373c1b4d174466a8d10cf15928b08ebe08",
+    "webAtlasSha256": "a7f908598e9a8025f75848d86e1ccceba6d9d137a4a1d6337a1b7feab6ac96b5",
+    "decodedPixelSha256": "120322a1e9e8257535e13868df3cf38f16bf8aa85a4bc60cf417168f280747b7",
+    "webAtlasExactPixelEquality": true,
+    "decodedChannelsCompared": 1179648
+  },
+  "provenance": "Original six cached z16 tiles and atlas checked; higher-zoom photographs are genuine source tiles, never enlarged lower-zoom imagery",
+  "acquisitionDate": null,
+  "acquisitionDateNote": "Cache/download dates are not aerial photograph acquisition dates. GSI seamless photography may combine multiple years; building geometry remains PLATEAU 2020.",
+  "profiles": {
+    "standard": {
+      "file": "terrain-standard.webp",
+      "zoom": 17,
+      "width": 1536,
+      "height": 1024,
+      "tileSize": 256,
+      "tileCount": 24,
+      "extent": {
+        "xMin": 115470,
+        "xMax": 115475,
+        "yMin": 51948,
+        "yMax": 51951
+      },
+      "bytes": 572194,
+      "sha256": "1c448326b66ff65fb783e9aa52353e10fd88be1d24a8e61f47d58930028e7d6a",
+      "encoding": "WebP quality 90",
+      "largestTileBytes": 19707,
+      "inputTileFormat": "JPEG, validated exactly 256x256 pixels",
+      "downloadedTiles": 0,
+      "cachedTiles": 24,
+      "earliestCacheDate": "2026-09-30T02:28:54.221Z",
+      "latestCacheDate": "2026-09-30T02:28:54.344Z"
+    },
+    "high": {
+      "file": "terrain-high.webp",
+      "zoom": 18,
+      "width": 3072,
+      "height": 2048,
+      "tileSize": 256,
+      "tileCount": 96,
+      "extent": {
+        "xMin": 230940,
+        "xMax": 230951,
+        "yMin": 103896,
+        "yMax": 103903
+      },
+      "bytes": 1922956,
+      "sha256": "0f45808073b419c387f3d92244db026a82bec325b918cf564bc8947aecbd3dbb",
+      "encoding": "WebP quality 90",
+      "largestTileBytes": 19021,
+      "inputTileFormat": "JPEG, validated exactly 256x256 pixels",
+      "downloadedTiles": 0,
+      "cachedTiles": 96,
+      "earliestCacheDate": "2026-09-30T02:28:54.611Z",
+      "latestCacheDate": "2026-09-30T02:28:55.411Z"
+    }
+  }
+}

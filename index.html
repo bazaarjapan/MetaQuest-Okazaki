@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <meta name="theme-color" content="#112b3d" />
+    <meta
+      name="description"
+      content="国土交通省PLATEAUの岡崎市の広域3Dモデルを、JR岡崎駅を起点にPCやMeta Questで観察する授業用教材。"
+    />
+    <title>岡崎駅 フィールドノート | 3Dまちの観察室</title>
+    <link rel="icon" href="/favicon.svg" />
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="/" aria-label="岡崎駅フィールドノート ホーム"
+        ><span class="mark">岡</span
+        ><span
+          ><small>3Dまちの観察室</small
+          ><strong>岡崎駅 フィールドノート</strong></span
+        ></a
+      >
+      <div class="edition">JR岡崎駅から広域へ <span>PLATEAU / 2020</span></div>
+      <button id="help" class="quiet">使い方</button>
+    </header>
+    <main>
+      <section id="viewport" aria-label="JR岡崎駅周辺の3Dモデル">
+        <div id="loading" role="status">
+          <span class="loader"></span>
+          <h2>岡崎の街をひらいています</h2>
+          <p id="load-message">建物と地形を読み込み中…</p>
+          <button id="retry" hidden>再読み込み</button>
+        </div>
+        <div class="map-label">
+          <span>FIELD / 01</span><strong id="view-title">駅と街を見渡す</strong
+          ><small id="view-description"
+            >上空から、線路と道路のつながりを観察</small
+          >
+        </div>
+        <div id="north" aria-label="画面上方に対する北の向き">
+          <span>↑</span>N
+        </div>
+        <div class="map-bottom">
+          <span id="status" role="status">準備中</span
+          ><button id="home" aria-label="開始地点に戻る" disabled>開始地点に戻る</button
+          ><button id="fullscreen" aria-label="3D画面を全画面表示">
+            全画面
+          </button>
+        </div>
+        <div id="canvas-hint">ドラッグで回転 · ホイールで拡大</div>
+      </section>
+      <aside id="control-panel" aria-label="街の操作パネル">
+        <div class="panel-heading">
+          <h1>街を探索</h1>
+          <button id="quality-shortcut" class="quality-badge" aria-label="画質設定を開く">高精細</button>
+          <button id="panel-close" aria-label="操作パネルを閉じる">閉じる ×</button>
+        </div>
+        <nav class="control-tabs" role="tablist" aria-label="操作の種類">
+          <button id="tab-observe" role="tab" data-panel-target="observe" aria-controls="panel-observe" aria-selected="true">見学</button>
+          <button id="tab-region" role="tab" data-panel-target="region" aria-controls="panel-region" aria-selected="false" tabindex="-1">広域</button>
+          <button id="tab-settings" role="tab" data-panel-target="settings" aria-controls="panel-settings" aria-selected="false" tabindex="-1">設定</button>
+        </nav>
+        <div class="panel-body">
+        <section id="panel-observe" role="tabpanel" aria-labelledby="tab-observe">
+        <p class="panel-caption">JR岡崎駅から、街のつながりを観察。</p>
+        <nav aria-label="見学地点" id="viewpoints">
+          <button data-view="overview" class="view active" disabled>
+            <span class="view-number">01</span
+            ><span
+              ><strong>街を見渡す</strong><small>駅と周辺の広がり</small></span
+            ><span class="view-icon">↗</span></button
+          ><button data-view="east" class="view" disabled>
+            <span class="view-number">02</span
+            ><span
+              ><strong>駅の東側</strong><small>駅前の道路と建物</small></span
+            ><span class="view-icon">↗</span></button
+          ><button data-view="west" class="view" disabled>
+            <span class="view-number">03</span
+            ><span
+              ><strong>駅の西側</strong
+              ><small>東側との違いを比べる</small></span
+            ><span class="view-icon">↗</span>
+          </button>
+        </nav>
+        <section class="question">
+          <small>観察のヒント</small>
+          <h2 id="question">線路は街をどのように分けている？</h2>
+          <p id="question-detail">線路を越えて東西を行き来できる場所を探してみよう。</p>
+        </section>
+        <p class="panel-caption desktop-copy">ドラッグで回転・ホイールで拡大。自由移動をオンにするとWASDで移動できます。</p>
+        <p class="panel-caption mobile-copy">1本指で回転・2本指で拡大。「移動」をオンにすると左右の仮想スティックで飛べます。</p>
+        </section>
+        <section id="panel-region" role="tabpanel" class="region-setting" aria-labelledby="tab-region" hidden>
+          <h2 id="region-title">岡崎市 広域マップ</h2>
+          <p id="region-summary" role="status">広域データの範囲を確認中…</p>
+          <canvas id="region-map" width="600" height="400" role="img" aria-label="岡崎市の建物モデル収録範囲。クリックで上空へ移動"></canvas>
+          <label for="region-cell">建物がある区画へ移動</label>
+          <select id="region-cell" disabled><option value="">区画を読み込み中…</option></select>
+          <button id="region-go" disabled>選んだ区画の上空へ</button>
+          <p id="region-stream-status">駅周辺は常に保持。移動先の周辺だけを読み込みます。</p>
+          <p class="map-legend">灰：建物区画 / 緑：駅 / 橙：現在地。地図をタップ・クリックして移動。</p>
+        </section>
+        <section id="panel-settings" role="tabpanel" aria-labelledby="tab-settings" hidden>
+        <div id="quality-setting" class="quality-setting">
+          <label for="quality-select">画質（VRに入る前に選択）</label>
+          <select id="quality-select" disabled>
+            <option value="performance">軽量</option>
+            <option value="balanced">標準（くっきり）</option>
+            <option value="high" selected>高精細（デフォルト）</option>
+          </select>
+          <p id="quality-note">画質を確認中…</p>
+        </div>
+        <p class="setting-warning">高精細で重く感じる場合は「標準」か「軽量」に変更。VR中の画質変更はできません。</p>
+        <details>
+          <summary>この教材について</summary>
+          <p>
+            岡崎市2020年度の公式3D都市モデルを軽量化した教材です。約25km×19kmはモデルの収録範囲で、行政区域全体を保証するものではありません。現在の街や駅内部の完全な再現ではありません。駅周辺以外は写真のない軽量LOD1建物です。
+          </p>
+          <p>
+            ログイン・名前の入力は不要。学習記録の収集や広告はありません。ホスティング事業者・標高タイル配信元への通信ログは発生します。
+          </p>
+          <a href="/teacher.html" target="_blank" rel="noopener"
+            >先生向け・授業前の確認事項</a
+          >
+        </details>
+        </section>
+        </div>
+        <div class="panel-footer">
+          <div class="move-setting">
+            <label><input id="free-move" type="checkbox" disabled /><span>自由移動<small>オンで操作・離すと停止</small></span></label>
+            <p id="move-help" hidden><span class="desktop-copy">WASD：前後左右 / R・F：上下 / Q・E：旋回。</span><span class="mobile-copy">左：上下・旋回 / 右：前後・左右。指を離すと停止。</span></p>
+          </div>
+          <button id="enter-vr" class="primary" disabled>VR対応を確認中…</button>
+          <p id="vr-note" class="vr-note">PCではそのまま3Dを観察できます。</p>
+        </div>
+      </aside>
+    </main>
+    <nav id="mobile-toolbar" aria-label="スマホの操作">
+      <button data-mobile-panel="observe" aria-controls="control-panel" aria-expanded="false">見学</button>
+      <button data-mobile-panel="region" aria-controls="control-panel" aria-expanded="false">広域</button>
+      <button data-mobile-panel="settings" aria-controls="control-panel" aria-expanded="false">設定</button>
+      <button id="mobile-flight" aria-pressed="false" disabled>移動 OFF</button>
+    </nav>
+    <footer>
+      <span
+        >出典：<a
+          href="https://www.geospatial.jp/ckan/dataset/plateau-23202-okazaki-shi-2020"
+          target="_blank"
+          rel="noopener"
+          >国土交通省 PLATEAU・岡崎市（2020）</a
+        >
+        /
+        <a
+          href="https://maps.gsi.go.jp/development/ichiran.html"
+          target="_blank"
+          rel="noopener"
+          >国土地理院</a
+        >　写真加工・広域標高はライブ取得</span
+      ><span>広域閲覧MVP 1.5 · 同時参加・街の編集は未対応</span>
+    </footer>
+    <dialog id="help-dialog">
+      <button id="close-help" class="dialog-close" aria-label="使い方を閉じる">
+        閉じる ×</button
+      ><small class="eyebrow">FIELD GUIDE</small>
+      <h2>好きな場所から、街を見よう。</h2>
+      <h3>PC・タブレット</h3>
+      <p>
+        地点ボタンを押すと見学場所が切り替わります。ドラッグで回転、ホイールやピンチで拡大。自由移動をオンにすると、WASDで前後左右、R・Fで上下、Q・Eで旋回できます。
+      </p>
+      <h3>スマホ</h3>
+      <p>スマホは画面下の「見学」「広域」「設定」でパネルを開閉。1本指で回転、2本指で拡大。「移動」をオンにすると左の仮想スティックで上下・旋回、右で前後・左右へ移動できます。少し倒すとゆっくり、大きく倒すと速く移動し、指を離すと停止します。</p>
+      <h3>Meta Quest</h3>
+      <p>広域マップをクリックして、岡崎市の別の場所へ上空移動できます。VR中は右上ガイドの「広域マップ」を光線とトリガーで選び、地図内の移動先を選択します。Yボタンでいつでも駅へ戻れます。遠くの建物は軽量LOD1で、現在地付近だけを読み込みます。</p>
+      <p>
+        ガイドは視界の右上、コントローラーの状態は左右下に表示します。円の中の点がスティックの倒し量・方向、色付きのボタンが押下／タッチ、バーがトリガーとグリップの押し込み量です。Xでガイドだけを隠しても操作表示は残ります。
+      </p>
+      <p>
+        Questのブラウザーでこのページを開き、「QuestでVRを見る」を押します。右コントローラーの光線をパネルに合わせ、トリガーで地点を選びます。
+      </p>
+      <p>
+        B：自由移動ON/OFF / A：次の地点 / Y：開始地点 /
+        X短押し：離すとガイド表示切替。自由移動をオンにすると、ドローンのモード2で操作できます。左スティックの上下で上昇・下降、左右で連続旋回。右スティックの上下で前進・後退、左右で横移動します。移動方向はドローンの向きに従い、頭だけ横に向けても進行方向は変わりません。
+      </p>
+      <p>
+        少し倒すとゆっくり、大きく倒すと速く移動します。同じ倒し量なら、倒し続けても速度は一定です。水平は最大12m/s、上下は最大6m/s、旋回は最大30°/秒。スティックを離すと即停止します。Bでその場停止、Yで開始地点へ戻れます。
+      </p>
+      <div class="notice">
+        VRから戻るには、右上に常にある「2D画面に戻る」に光線を合わせてトリガーを押すか、Xを1.5秒長押しします。長押し中はリングが進み、離すと取り消せます。ページは再読み込みせず、見ていた位置・向きでブラウザー表示に戻ります。「VRに戻る」で今の場所から再開でき、自由移動はOFFで始まります。ページを閉じたり再読み込みした場合の視点保存ではありません。
+      </div>
+      <div class="notice">
+        高精細では高解像度の空中写真と陰影を表示します。画質はVRに入る前に選んでください。動きが重い場合は2D画面に戻り「標準」または「軽量」へ変更します。元の写真がない建物の窓や駅内部を再現する機能ではありません。
+      </div>
+      <div class="notice">
+        VRは先生の指示と機器の年齢・利用条件に従って使用してください。安全なプレイエリアを確保し、不快感があればすぐに外してください。PCだけでも同じ街を観察できます。
+      </div>
+      <p class="muted">
+        画像の読み込みにはネット接続が必要です。学校で使う前に、同時に使う台数で動作を確認してください。
+      </p>
+    </dialog>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
