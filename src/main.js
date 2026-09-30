@@ -17,6 +17,8 @@ import { createExitHold, updateExitHold, cancelExitHold } from "./xr-exit-hold.j
 import { captureView, captureXRView, alignRigToView } from "./vr-view.js";
 import { createSurfaceIndex } from "./placement.js";
 import { createWorkshop } from "./workshop.js";
+import { createCreativeControls, constrainCreativeFeet } from "./creative-controls.js";
+import { createBlockAvatar } from "./block-avatar.js";
 import "./style.css";
 import "./layout.css";
 
@@ -27,7 +29,12 @@ const touchControls = createTouchControls(viewport);
 let touchUiKey = "";
 function syncTouchControls() {
   const ui = adaptiveUi.getState();
-  const enabled = ui.mobile && state.free && !state.xr && !ui.open && !document.querySelector("dialog[open]");
+  if (creative && ui.mobile && !state.xr && !xrEntering && !creative.getState().suspendedXR && creative.getState().mode === "creative") {
+    creative.setMode("drone"); setFree(false);
+    $("#control-mode").value = "drone"; $("#creative-help").hidden = true;
+  }
+  if ($("#control-mode")) $("#control-mode option[value=creative]").disabled = ui.mobile;
+  const enabled = ui.mobile && state.free && !state.xr && !xrEntering && !ui.open && !document.querySelector("dialog[open]");
   touchControls.setEnabled(enabled);
   const key = `${enabled}:${state.free}`;
   if (key !== touchUiKey) {
@@ -123,6 +130,32 @@ let placementEnvironment = { terrain: null, obstacles: [], bounds: [-320, -381, 
 const workshop = createWorkshop(THREE, { scene, domElement: renderer.domElement, camera,
   getEnvironment: () => placementEnvironment, getViewPosition: userPosition,
   onChange: () => { renderer.shadowMap.needsUpdate = true; } });
+const ownAvatar = createBlockAvatar(THREE);
+scene.add(ownAvatar.group);
+renderer.domElement.tabIndex = 0;
+let creative = null;
+renderer.domElement.addEventListener("pointerdown", () => {
+  if (creative?.getState().mode === "creative" && !state.xr) renderer.domElement.focus();
+});
+const terrainRay = new THREE.Raycaster();
+function terrainOnlySample(x, z) {
+  if (!terrainMesh) return null;
+  terrainRay.set(new THREE.Vector3(x, 2500, z), down);
+  return terrainRay.intersectObjects([terrainMesh, ...regionStreamer.getGroundMeshes()], false)[0]?.point.y ?? null;
+}
+creative = createCreativeControls(THREE, { camera, rig, domElement: renderer.domElement,
+  getControls: () => controls, avatar: ownAvatar, groundHeight: terrainOnlySample,
+  constrainPosition: (feet) => constrainCreativeFeet(feet, constrainPosition) });
+$("#control-mode").onchange = (event) => {
+  if (state.xr || xrEntering || creative.getState().suspendedXR) { event.target.value = creative.getState().mode; return; }
+  const forcedMobile = adaptiveUi.getState().mobile && event.target.value === "creative";
+  if (forcedMobile) event.target.value = "drone";
+  setFree(false); creative.setMode(event.target.value);
+  try { if (!forcedMobile) preferenceStorage?.setItem("okazaki-control-mode-v1", event.target.value); } catch { /* Optional preference. */ }
+  $("#creative-help").hidden = event.target.value !== "creative";
+  $("#canvas-hint").textContent = event.target.value === "creative"
+    ? "自由移動をON → 3D画面をクリック · Escでマウス解除 · F5で視点切替" : "ドラッグで回転 · ホイールで拡大";
+};
 const exitHold = createExitHold();
 const vrReturnButton = createVRReturnButton(THREE, camera);
 let xrExitPending = false, xrEntering = false, hasVRResume = false;
@@ -243,6 +276,13 @@ async function loadCity() {
     .querySelectorAll("[data-view],#home,#free-move,#mobile-flight")
     .forEach((b) => (b.disabled = false));
   goTo("overview");
+  $("#control-mode").disabled = false;
+  try {
+    if (preferenceStorage?.getItem("okazaki-control-mode-v1") === "creative") {
+      $("#control-mode").value = "creative";
+      $("#control-mode").dispatchEvent(new Event("change"));
+    }
+  } catch { /* Start with original drone mode when preference is unavailable. */ }
   addStationLabel(manifest.station);
   await checkVR();
   loadRegion().catch((error) => {
@@ -251,6 +291,7 @@ async function loadCity() {
   });
 }
 function userPosition() {
+  if (!state.xr && creative?.getState().mode === "creative") return new THREE.Vector3().fromArray(creative.getState().eye);
   return camera.getWorldPosition(new THREE.Vector3());
 }
 function coreBounds() {
@@ -504,6 +545,7 @@ function setDesktopView(position, target, up = new THREE.Vector3(0, 1, 0), maxPo
   controls.maxPolarAngle = maxPolarAngle;
   camera.position.copy(position); controls.target.copy(target); controls.update();
   camera.updateMatrixWorld(true);
+  creative?.syncFromCamera();
 }
 function restoreDesktopView(view) {
   const position = new THREE.Vector3().fromArray(view.position);
@@ -546,7 +588,9 @@ function teleport(position, target) {
   rig.updateMatrixWorld(true);
 }
 function setFree(value) {
-  if (value && !state.xr && state.current !== "region" && !hasVRResume) goTo("east");
+  if (xrEntering && !state.xr) value = false;
+  if (value && !state.xr && creative?.getState().mode !== "creative" && state.current !== "region" && !hasVRResume) goTo("east");
+  creative?.clearInput({ release: !value });
   resetFlight(flight);
   touchControls.releaseAll();
   state.free = value;
@@ -579,6 +623,13 @@ $("#fullscreen").onclick = async () => {
   }
 };
 window.addEventListener("keydown", (e) => {
+  if (!state.xr && creative?.getState().mode === "creative") {
+    if (e.code === "Home" && state.ready && !document.querySelector("dialog[open]") &&
+        !document.activeElement?.matches("input,textarea,select,button,[contenteditable=true]")) {
+      e.preventDefault(); goTo("overview");
+    }
+    return;
+  }
   if (
     document.querySelector("dialog[open]") ||
     document.activeElement?.matches(
@@ -608,6 +659,7 @@ window.addEventListener("keyup", (e) => keys.delete(e.code));
 window.addEventListener("blur", () => {
   keys.clear();
   resetFlight(flight);
+  if (!state.xr && creative?.getState().mode === "creative") setFree(false);
   if (state.xr) { cancelExitHold(exitHold); vrReturnButton.update({ progress: 0 }); }
 });
 document.addEventListener("visibilitychange", () => {
@@ -643,7 +695,9 @@ $("#enter-vr").onclick = async () => {
   try {
     if (!state.ready || state.qualityLoading || state.xr || xrEntering) return;
     xrEntering = true;
-    pendingXRView = hasVRResume ? captureView(camera) : null;
+    $("#control-mode").disabled = true;
+    setFree(false);
+    pendingXRView = creative.getState().mode === "creative" ? creative.captureForXR() : hasVRResume ? captureView(camera) : null;
     $("#enter-vr").disabled = true;
     const session = await navigator.xr.requestSession("immersive-vr", {
       optionalFeatures: ["local-floor"],
@@ -654,14 +708,17 @@ $("#enter-vr").onclick = async () => {
       "VRを開始できませんでした。権限を確認して、もう一度押してください。";
     $("#enter-vr").disabled = false;
     console.warn("XR request rejected", e.name);
+    if (creative.getState().mode === "creative") creative.restoreAfterXR(pendingXRView);
     pendingXRView = null;
   } finally {
     xrEntering = false;
+    if (!state.xr) $("#control-mode").disabled = false;
   }
 };
 renderer.xr.addEventListener("sessionstart", () => {
   simulationSeconds = 0;
   state.xr = true;
+  $("#control-mode").disabled = true;
   state.free = false;
   controllerHud.setXR(true);
   $("#quality-select").disabled = true;
@@ -713,6 +770,8 @@ renderer.xr.addEventListener("sessionend", () => {
   camera.zoom = 1;
   setFree(false);
   restoreDesktopView(view);
+  creative.restoreAfterXR(view);
+  $("#control-mode").disabled = false;
   lastXRView = view;
   updateLabels(state.current);
   $("#status").textContent = "2Dで観察中 · 移動OFF · VRに戻れます";
@@ -1016,6 +1075,7 @@ renderer.setAnimationLoop((time, frame) => {
   if (state.ready) {
     syncTouchControls();
     if (state.xr) {
+      creative.step(0, { xr: true, enabled: false });
       if (pendingXRView && frame) {
         const pose = frame.getViewerPose(renderer.xr.getReferenceSpace());
         if (pose) {
@@ -1026,8 +1086,10 @@ renderer.setAnimationLoop((time, frame) => {
       xrMove(dt, time);
     }
     else {
-      desktopMove(dt);
-      controls.update();
+      creative.step(dt, { enabled: state.free, xr: false,
+        blocked: Boolean(document.querySelector("dialog[open]")) || workshop.getState().picking ||
+          (adaptiveUi.getState().mobile && adaptiveUi.getState().open) });
+      if (creative.getState().mode === "drone") { desktopMove(dt); controls.update(); }
       const dir = camera.getWorldDirection(new THREE.Vector3());
       $("#north span").style.transform =
         `rotate(${Math.atan2(dir.x, -dir.z)}rad)`;
@@ -1040,7 +1102,7 @@ renderer.setAnimationLoop((time, frame) => {
       const hit = raycaster.intersectObjects([...city.children, ...regionStreamer.getMeshes()], false)[0];
       ground = hit?.point.y ?? 16.5;
     }
-    if (state.free || state.current === "region") {
+    if ((state.free || state.current === "region") && (state.xr || creative.getState().mode === "drone")) {
       const p = state.xr ? rig.position : camera.position;
       if (p.y < ground + 2) {
         const delta = ground + 2 - p.y;
@@ -1094,6 +1156,8 @@ window.__okazaki = {
   getState: () => ({
     ...state,
     workshop: workshop.getState(),
+    creative: creative.getState(),
+    avatar: ownAvatar.getState(),
     camera: camera.position.toArray(),
     cameraQuaternion: camera.quaternion.toArray(),
     rig: rig.position.toArray(),
@@ -1108,7 +1172,7 @@ window.__okazaki = {
       hasResume: hasVRResume, view: lastXRView ? {
         position: [...lastXRView.position], quaternion: [...lastXRView.quaternion],
       } : null,
-      button: vrReturnButton.getState(), pendingResume: Boolean(pendingXRView) },
+      button: vrReturnButton.getState(), pendingResume: Boolean(pendingXRView), entering: xrEntering },
     ui: adaptiveUi.getState(),
     touch: touchControls.getState(),
     guide: { position: panel.position.toArray(), size: [0.82, 0.41] },

@@ -102,6 +102,11 @@
           <p class="map-legend">灰：建物区画 / 緑：駅 / 橙：現在地。地図をタップ・クリックして移動。</p>
         </section>
         <section id="panel-settings" role="tabpanel" aria-labelledby="tab-settings" hidden>
+        <div class="quality-setting">
+          <label for="control-mode">PCの操作モード（Questは常にモード2）</label>
+          <select id="control-mode" disabled><option value="drone">ドローン・見学（従来の操作）</option><option value="creative">クリエイティブ風・アバター視点</option></select>
+          <p id="creative-help" hidden>自由移動をONにして3D画面をクリック。WASD：移動、Space：上昇、Shift：下降、Ctrl：高速、Space二度押し：飛行/歩行。F5：一人称→後方→前方、Esc：マウス解除。歩行の壁衝突は未実装。スマホはドローン操作をおすすめします。</p>
+        </div>
         <div id="quality-setting" class="quality-setting">
           <label for="quality-select">画質（VRに入る前に選択）</label>
           <select id="quality-select" disabled>
