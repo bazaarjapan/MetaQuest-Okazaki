@@ -43,6 +43,7 @@
         <div class="map-bottom">
           <span id="status" role="status">準備中</span
           ><button id="home" aria-label="開始地点に戻る" disabled>開始地点に戻る</button
+          ><button id="open-workshop" disabled>STL作品</button
           ><button id="fullscreen" aria-label="3D画面を全画面表示">
             全画面
           </button>
@@ -156,8 +157,32 @@
           rel="noopener"
           >国土地理院</a
         >　写真加工・広域標高はライブ取得</span
-      ><span>広域閲覧MVP 1.5 · 同時参加・街の編集は未対応</span>
+      ><span>MVP 1.6 · STL作品の端末内編集 · 共同参加・クラウド保存は準備中</span>
     </footer>
+    <dialog id="workshop-dialog" aria-labelledby="workshop-title">
+      <button id="workshop-close" class="dialog-close">閉じる ×</button>
+      <h2 id="workshop-title">自分のSTL作品を街に置く</h2>
+      <p class="workshop-note">現在はこの端末で試す作品編集です。ページを閉じると作品は消えます。クラウド保存・共同参加は準備中。配置は地形と元建物を確認できる駅周辺だけです。赤い下書きは配置できません。</p>
+      <div class="workshop-files">
+        <label for="stl-files">STLを追加（複数選択可・1作品2万三角形まで）<input id="stl-files" type="file" accept=".stl" multiple></label>
+        <div class="workshop-options">
+          <label for="stl-up">STLの上方向<select id="stl-up"><option value="z">Z軸（多くのCAD）</option><option value="y">Y軸</option></select></label>
+          <label for="stl-units">読み込み時の大きさ<select id="stl-units"><option value="fit10">最長辺を10mに合わせる</option><option value="mm">元データはmm（実寸）</option><option value="m">元データはm（実寸）</option></select></label>
+        </div>
+        <label for="workshop-list">作品を選ぶ<select id="workshop-list" size="3" aria-label="作品一覧"></select></label>
+      </div>
+      <div class="workshop-fields">
+        <label for="object-x">東西X（m）<input id="object-x" type="number" step="0.1"></label>
+        <label for="object-z">南北Z（m）<input id="object-z" type="number" step="0.1"></label>
+        <label for="object-scale">縮尺（倍率）<input id="object-scale" type="number" min="0.000001" max="100" step="0.01"></label>
+        <label for="object-rx">X軸回転（°）<input id="object-rx" type="number" step="5"></label>
+        <label for="object-ry">Y軸回転（°）<input id="object-ry" type="number" step="5"></label>
+        <label for="object-rz">Z軸回転（°）<input id="object-rz" type="number" step="5"></label>
+      </div>
+      <p id="object-y">読み込んだ作品の底面を実地面に合わせます。</p>
+      <div class="workshop-actions"><button id="object-pick">地面をクリックして移動</button><button id="object-apply">配置を確定</button><button id="object-remove">作品を削除</button></div>
+      <p id="workshop-status" role="status">STLファイルを選んでください。高さは地面に自動で合わせます。</p>
+    </dialog>
     <dialog id="help-dialog">
       <button id="close-help" class="dialog-close" aria-label="使い方を閉じる">
         閉じる ×</button
