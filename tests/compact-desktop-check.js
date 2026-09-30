@@ -4,7 +4,7 @@
   const assert = (ok, name, detail) => { results.push({ok:Boolean(ok),name,detail}); if(!ok) throw new Error(name+': '+JSON.stringify(detail)); };
   const visible = el => Boolean(el && el.getBoundingClientRect().width && getComputedStyle(el).visibility !== 'hidden');
   const inside = el => { const r=el.getBoundingClientRect(); return r.left>=0 && r.top>=0 && r.right<=innerWidth+1 && r.bottom<=innerHeight+1; };
-  assert(s().ready && !s().ui.mobile && s().version==='1.5.0','compact-desktop-ready');
+  assert(s().ready && !s().ui.mobile && s().version==='1.6.0','compact-desktop-ready');
   assert(document.documentElement.scrollHeight<=innerHeight+1 && document.documentElement.scrollWidth<=innerWidth+1,
     'entire-workspace-fits-one-window',{width:innerWidth,height:innerHeight,scrollHeight:document.documentElement.scrollHeight});
   assert(['#viewport','#control-panel','#home','#fullscreen','#free-move','#enter-vr','.control-tabs'].every(id=>inside(document.querySelector(id))),

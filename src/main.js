@@ -15,6 +15,8 @@ import { createTouchControls } from "./touch-controls.js";
 import { createVRReturnButton } from "./vr-return-button.js";
 import { createExitHold, updateExitHold, cancelExitHold } from "./xr-exit-hold.js";
 import { captureView, captureXRView, alignRigToView } from "./vr-view.js";
+import { createSurfaceIndex } from "./placement.js";
+import { createWorkshop } from "./workshop.js";
 import "./style.css";
 import "./layout.css";
 
@@ -25,7 +27,7 @@ const touchControls = createTouchControls(viewport);
 let touchUiKey = "";
 function syncTouchControls() {
   const ui = adaptiveUi.getState();
-  const enabled = ui.mobile && state.free && !state.xr && !ui.open && !$("#help-dialog").open;
+  const enabled = ui.mobile && state.free && !state.xr && !ui.open && !document.querySelector("dialog[open]");
   touchControls.setEnabled(enabled);
   const key = `${enabled}:${state.free}`;
   if (key !== touchUiKey) {
@@ -117,6 +119,10 @@ let frameTime = 0,
 const controllers = [],
   previousButtons = new Map();
 const flight = createFlightState();
+let placementEnvironment = { terrain: null, obstacles: [], bounds: [-320, -381, 315, 372], terrainMeshes: [] };
+const workshop = createWorkshop(THREE, { scene, domElement: renderer.domElement, camera,
+  getEnvironment: () => placementEnvironment, getViewPosition: userPosition,
+  onChange: () => { renderer.shadowMap.needsUpdate = true; } });
 const exitHold = createExitHold();
 const vrReturnButton = createVRReturnButton(THREE, camera);
 let xrExitPending = false, xrEntering = false, hasVRResume = false;
@@ -222,6 +228,12 @@ async function loadCity() {
     city.add(mesh);
   }
   applyRenderQuality();
+  placementEnvironment = { terrain: createSurfaceIndex(terrainMesh.geometry.attributes.position.array,
+      terrainMesh.geometry.index?.array),
+    obstacles: city.children.filter((mesh) => mesh !== terrainMesh).map((mesh) =>
+      createSurfaceIndex(mesh.geometry.attributes.position.array, mesh.geometry.index?.array)),
+    bounds: coreBounds(), terrainMeshes: [terrainMesh] };
+  $("#open-workshop").disabled = false;
   state.ready = true;
   $("#quality-select").disabled = false;
   state.triangles = manifest.triangles;
@@ -568,7 +580,7 @@ $("#fullscreen").onclick = async () => {
 };
 window.addEventListener("keydown", (e) => {
   if (
-    $("#help-dialog").open ||
+    document.querySelector("dialog[open]") ||
     document.activeElement?.matches(
       "input:not([type=checkbox]),textarea,select",
     )
@@ -942,7 +954,7 @@ function xrMove(dt, now) {
   constrainPosition(rig.position);
 }
 function desktopMove(dt) {
-  if (!state.free || $("#help-dialog").open) { resetFlight(flight); return; }
+  if (!state.free || document.querySelector("dialog[open]") || workshop.getState().picking) { resetFlight(flight); return; }
   if (adaptiveUi.getState().mobile && adaptiveUi.getState().open) {
     resetFlight(flight); return;
   }
@@ -1081,6 +1093,7 @@ renderer.domElement.addEventListener("webglcontextlost", (e) => {
 window.__okazaki = {
   getState: () => ({
     ...state,
+    workshop: workshop.getState(),
     camera: camera.position.toArray(),
     cameraQuaternion: camera.quaternion.toArray(),
     rig: rig.position.toArray(),
@@ -1089,7 +1102,7 @@ window.__okazaki = {
       ? camera.getWorldPosition(new THREE.Vector3()).toArray()
       : null,
     panelVisible: panel.visible,
-    version: "1.5.0",
+    version: "1.6.0",
     vrReturn: { buttonVisible: vrReturnButton.mesh.visible,
       holdProgress: vrReturnButton.getState().progress, exiting: xrExitPending,
       hasResume: hasVRResume, view: lastXRView ? {

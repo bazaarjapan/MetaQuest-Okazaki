@@ -2,7 +2,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 
-const workflow = await readFile(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8');
+const normalizeNewlines = (source) => source.replace(/\r\n?/g, '\n');
+const workflow = normalizeNewlines(await readFile(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8'));
+
+test('CI policy inspection treats Windows CRLF and Linux LF identically', () => {
+  assert.equal(normalizeNewlines(workflow.replace(/\n/g, '\r\n')), workflow);
+  assert.equal(normalizeNewlines(workflow), workflow);
+});
 
 test('CI runs verification on pull requests, main pushes and manual requests', () => {
   assert.match(workflow, /\n  pull_request:\n  push:/);

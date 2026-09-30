@@ -2,7 +2,7 @@
 (async () => {
   const s=()=>window.__okazaki.getState(), results=[],wait=ms=>new Promise(r=>setTimeout(r,ms));
   const assert=(ok,name,detail)=>{results.push({ok:Boolean(ok),name,detail});if(!ok)throw new Error(name);};
-  assert(s().xr&&s().ui.mobile&&s().version==='1.5.0','mobile-settings-vr-entry-works');
+  assert(s().xr&&s().ui.mobile&&s().version==='1.6.0','mobile-settings-vr-entry-works');
   assert(!s().touch.enabled&&s().touch.activePointers===0,'immersive-vr-disables-html-virtual-sticks');
   const before=s().quality.id;
   assert(before==='high'&&s().quality.xrScale===1.2&&document.querySelector('#quality-select').disabled,

@@ -9,7 +9,7 @@
   const selector = document.querySelector("#quality-select");
   const initial = state().quality.id;
   assert(state().ready && !state().xr && !selector.disabled, "desktop-quality-selector-ready");
-  assert(state().version === "1.5.0", "current-detail-release-loaded", state().version);
+  assert(state().version === "1.6.0", "current-detail-release-loaded", state().version);
   for (const [id, size, shadows, outline] of [
     ["performance", [768, 512], false, false],
     ["balanced", [1536, 1024], false, true],
