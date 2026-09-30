@@ -2,6 +2,16 @@ export const creativeConfig = Object.freeze({ eyeHeight: 1.65, walkSpeed: 4.3,
   flySpeed: 12, sprintMultiplier: 1.5, mouseSensitivity: 0.002,
   doubleSpaceMs: 350, thirdPersonDistance: 5, gravity: 20, jumpSpeed: 6 });
 export const creativeViews = Object.freeze(["first", "back", "front"]);
+
+// Reuse the city's XZ/ceiling limits without its drone-only minimum eye
+// altitude. Walking feet must reach actual DEM, including ground below 20m.
+export function constrainCreativeFeet(feet, constrainEye) {
+  const height = feet.y;
+  const eye = feet.clone(); eye.y += creativeConfig.eyeHeight;
+  const bounded = constrainEye(eye) ?? eye;
+  feet.set(bounded.x, Math.min(height, bounded.y - creativeConfig.eyeHeight), bounded.z);
+  return feet;
+}
 const movementCodes = new Set(["KeyW", "KeyA", "KeyS", "KeyD", "Space",
   "ShiftLeft", "ShiftRight", "ControlLeft", "ControlRight"]);
 

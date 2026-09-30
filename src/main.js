@@ -17,7 +17,7 @@ import { createExitHold, updateExitHold, cancelExitHold } from "./xr-exit-hold.j
 import { captureView, captureXRView, alignRigToView } from "./vr-view.js";
 import { createSurfaceIndex } from "./placement.js";
 import { createWorkshop } from "./workshop.js";
-import { createCreativeControls } from "./creative-controls.js";
+import { createCreativeControls, constrainCreativeFeet } from "./creative-controls.js";
 import { createBlockAvatar } from "./block-avatar.js";
 import "./style.css";
 import "./layout.css";
@@ -29,12 +29,12 @@ const touchControls = createTouchControls(viewport);
 let touchUiKey = "";
 function syncTouchControls() {
   const ui = adaptiveUi.getState();
-  if (creative && ui.mobile && !state.xr && creative.getState().mode === "creative") {
+  if (creative && ui.mobile && !state.xr && !xrEntering && !creative.getState().suspendedXR && creative.getState().mode === "creative") {
     creative.setMode("drone"); setFree(false);
     $("#control-mode").value = "drone"; $("#creative-help").hidden = true;
   }
   if ($("#control-mode")) $("#control-mode option[value=creative]").disabled = ui.mobile;
-  const enabled = ui.mobile && state.free && !state.xr && !ui.open && !document.querySelector("dialog[open]");
+  const enabled = ui.mobile && state.free && !state.xr && !xrEntering && !ui.open && !document.querySelector("dialog[open]");
   touchControls.setEnabled(enabled);
   const key = `${enabled}:${state.free}`;
   if (key !== touchUiKey) {
@@ -145,12 +145,9 @@ function terrainOnlySample(x, z) {
 }
 creative = createCreativeControls(THREE, { camera, rig, domElement: renderer.domElement,
   getControls: () => controls, avatar: ownAvatar, groundHeight: terrainOnlySample,
-  constrainPosition: (feet) => {
-    const eye = feet.clone(); eye.y += 1.65; constrainPosition(eye);
-    feet.copy(eye); feet.y -= 1.65; return feet;
-  } });
+  constrainPosition: (feet) => constrainCreativeFeet(feet, constrainPosition) });
 $("#control-mode").onchange = (event) => {
-  if (state.xr) { event.target.value = creative.getState().mode; return; }
+  if (state.xr || xrEntering || creative.getState().suspendedXR) { event.target.value = creative.getState().mode; return; }
   const forcedMobile = adaptiveUi.getState().mobile && event.target.value === "creative";
   if (forcedMobile) event.target.value = "drone";
   setFree(false); creative.setMode(event.target.value);
@@ -591,6 +588,7 @@ function teleport(position, target) {
   rig.updateMatrixWorld(true);
 }
 function setFree(value) {
+  if (xrEntering && !state.xr) value = false;
   if (value && !state.xr && creative?.getState().mode !== "creative" && state.current !== "region" && !hasVRResume) goTo("east");
   creative?.clearInput({ release: !value });
   resetFlight(flight);
@@ -697,6 +695,8 @@ $("#enter-vr").onclick = async () => {
   try {
     if (!state.ready || state.qualityLoading || state.xr || xrEntering) return;
     xrEntering = true;
+    $("#control-mode").disabled = true;
+    setFree(false);
     pendingXRView = creative.getState().mode === "creative" ? creative.captureForXR() : hasVRResume ? captureView(camera) : null;
     $("#enter-vr").disabled = true;
     const session = await navigator.xr.requestSession("immersive-vr", {
@@ -712,6 +712,7 @@ $("#enter-vr").onclick = async () => {
     pendingXRView = null;
   } finally {
     xrEntering = false;
+    if (!state.xr) $("#control-mode").disabled = false;
   }
 };
 renderer.xr.addEventListener("sessionstart", () => {
@@ -1171,7 +1172,7 @@ window.__okazaki = {
       hasResume: hasVRResume, view: lastXRView ? {
         position: [...lastXRView.position], quaternion: [...lastXRView.quaternion],
       } : null,
-      button: vrReturnButton.getState(), pendingResume: Boolean(pendingXRView) },
+      button: vrReturnButton.getState(), pendingResume: Boolean(pendingXRView), entering: xrEntering },
     ui: adaptiveUi.getState(),
     touch: touchControls.getState(),
     guide: { position: panel.position.toArray(), size: [0.82, 0.41] },

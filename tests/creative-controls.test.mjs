@@ -1,8 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as THREE from "three";
-import { createCreativeControls, creativeConfig } from "../src/creative-controls.js";
+import { createCreativeControls, creativeConfig, constrainCreativeFeet } from "../src/creative-controls.js";
 import { createBlockAvatar } from "../src/block-avatar.js";
+import { clampPosition } from "../src/motion.js";
+import { clampToRegion } from "../src/region-plan.js";
 
 function emitter(extra = {}) {
   const handlers = new Map();
@@ -38,6 +40,26 @@ function fixture(options = {}) {
 function close(actual, expected, tolerance = 1e-8) {
   assert.ok(Math.abs(actual - expected) < tolerance, `${actual} != ${expected}`);
 }
+
+test("main's creative boundary allows low DEM walking/jump while preserving core and region limits", () => {
+  for (const constrainEye of [clampPosition, (eye) => clampToRegion(eye, [-500, -600, 500, 600], 1200)]) {
+    const f = fixture({ groundHeight: () => 16.5,
+      constrainPosition: (feet) => constrainCreativeFeet(feet, constrainEye) });
+    f.camera.position.set(10, 20, 20); f.enable();
+    f.key("Space"); f.release("Space"); f.advance(100); f.key("Space"); f.release("Space");
+    assert.equal(f.control.getState().flying, false);
+    for (let i = 0; i < 30; i++) f.control.step(0.1, { enabled: true });
+    close(f.control.getState().anchor[1], 16.5);
+    f.advance(400); f.key("Space"); f.control.step(0.1, { enabled: true });
+    assert.ok(f.control.getState().anchor[1] > 16.5, "jump must launch from real low ground");
+    f.release("Space");
+    const feet = new THREE.Vector3(9999, 2000, -9999);
+    constrainCreativeFeet(feet, constrainEye);
+    assert.ok(feet.x < 9999 && feet.z > -9999);
+    assert.ok(feet.y <= 1200 - creativeConfig.eyeHeight);
+    f.control.dispose();
+  }
+});
 
 test("default drone mode does not capture keys or alter the existing camera", () => {
   const f = fixture(), before = f.camera.position.clone();
