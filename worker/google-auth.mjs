@@ -1,17 +1,40 @@
 import { decode64url, fail } from "./school-common.mjs";
 
 const JWKS_URL = "https://www.googleapis.com/oauth2/v3/certs";
-let cachedKeys = null, keysExpireAt = 0;
+const KEYS_RETRY_SECONDS = 60;
+// Production always uses the same global fetch. A WeakMap also keeps explicit
+// test fetch dependencies isolated without a reset flag or client-selectable kid cache.
+const keyCaches = new WeakMap();
 async function googleKeys(fetchImpl, now, force = false) {
-  if (!force && cachedKeys && keysExpireAt > now) return cachedKeys;
-  const response = await fetchImpl(JWKS_URL, { redirect: "error", signal: AbortSignal.timeout(10000) });
-  if (!response.ok) fail(503, "google_keys_unavailable");
-  const result = await response.json();
-  if (!Array.isArray(result.keys) || result.keys.length > 20) fail(503, "google_keys_unavailable");
-  cachedKeys = result.keys;
-  const age = Number((response.headers.get("Cache-Control") ?? "").match(/max-age=(\d+)/)?.[1] ?? 300);
-  keysExpireAt = now + Math.min(3600, Math.max(60, age));
-  return cachedKeys;
+  let cache = keyCaches.get(fetchImpl);
+  if (!cache) {
+    cache = { keys: null, expiresAt: 0, lastAttemptAt: -Infinity, inFlight: null };
+    keyCaches.set(fetchImpl, cache);
+  }
+  if (!force && cache.keys && cache.expiresAt > now) return cache.keys;
+  if (cache.inFlight) return cache.inFlight;
+  // Count the first fetch and failed fetches too. An unknown kid must not cause
+  // a second cold-cache fetch or one new Google request per invalid credential.
+  if (now < cache.lastAttemptAt + KEYS_RETRY_SECONDS) {
+    if (cache.keys && cache.expiresAt > now) return cache.keys;
+    fail(503, "google_keys_unavailable");
+  }
+  cache.lastAttemptAt = now;
+  const pending = (async () => {
+    try {
+      const response = await fetchImpl(JWKS_URL, { redirect: "error", signal: AbortSignal.timeout(10000) });
+      if (!response.ok) fail(503, "google_keys_unavailable");
+      const result = await response.json();
+      if (!Array.isArray(result.keys) || result.keys.length > 20 || result.keys.some((key) => !key || typeof key !== "object")) fail(503, "google_keys_unavailable");
+      const age = Number((response.headers.get("Cache-Control") ?? "").match(/max-age=(\d+)/)?.[1] ?? 300);
+      cache.keys = result.keys;
+      cache.expiresAt = now + Math.min(3600, Math.max(60, age));
+      return cache.keys;
+    } catch { fail(503, "google_keys_unavailable"); }
+  })();
+  cache.inFlight = pending;
+  try { return await pending; }
+  finally { if (cache.inFlight === pending) cache.inFlight = null; }
 }
 
 // Tests can pass generated public keys/fetch through dependencies; no environment flag can

@@ -62,12 +62,14 @@ npx wrangler d1 migrations apply okazaki-school-worlds --remote
 ## 5. 検証と完成の判断
 
 ```powershell
-node --test tests/school-backend.test.mjs
+npm test
 npm run test:school-runtime
 npm run check:worker
 ```
 
-前者は Node＋ローカル SQLite の17テストです。実際に生成した RSA 鍵で JWT 署名を検証しますが、**実 Google アカウントでログインした証明ではありません**。後者はローカル workerd、D1／R2 と31本の TCP WebSocket を用いる別の統合検証です。ローカルの試験用セッションを使い、本番の認証、Cloudflare 本番、Quest での性能を代替しません。最終結果は当該コミットの実行ログと PR に記録します。
+単体は全255件、うち学校基盤17・設定3・認証制限15・復元失敗回復10件です。実際に生成した RSA 鍵で JWT 署名を検証しますが、**実 Google アカウントでログインした証明ではありません**。runtimeはローカル workerd、D1／R2 と31本の TCP WebSocket を用いる別の10統合検証です。ローカルの試験用セッションを使い、本番の認証、Cloudflare 本番、Quest での性能を代替しません。最終結果は当該コミットの実行ログと PR に記録します。
+
+不正な鍵IDでもGoogleへの鍵取得は初回/失敗を含め60秒のクールダウンと並列取得共有で制限し、事前ログインごとの毎分8試行をD1で原子的に制限します。復元ではDOを正本とした永続recovery journalを使い、D1/DO間の失敗・再起動を補償/前進回復します。回復未完了は503で明示し後続操作を止めます。通知中に1接続が失敗しても、残りの接続へ継続します。これらも本番の障害・負荷をすべて保証する試験ではありません。
 
 完成には、少なくとも次の確認が残っています。
 

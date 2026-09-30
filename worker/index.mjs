@@ -1,6 +1,6 @@
 import { LIMITS, errorResponse, fail, json, publicAvatar, readJson, requireConfigured, requireOrigin, sessionCookie, sha256 } from "./school-common.mjs";
 import { verifyGoogleToken, roleFromClaims } from "./google-auth.mjs";
-import { PREAUTH_COOKIE, SESSION_COOKIE, all, assetPublic, authorizeWorld, consumeChallenge, createSession, createUser, createWorld, getChallenge, joinWorld, newChallenge, requestSession, requireCsrf, run, updateAvatar, worldPublic } from "./school-store.mjs";
+import { PREAUTH_COOKIE, SESSION_COOKIE, all, assetPublic, authorizeWorld, consumeChallenge, createSession, createUser, createWorld, getChallenge, joinWorld, limitGoogleAttempt, newChallenge, requestSession, requireCsrf, run, updateAvatar, worldPublic } from "./school-store.mjs";
 import { downloadAsset, uploadAsset } from "./school-assets.mjs";
 export { SchoolRoom } from "./school-room.mjs";
 
@@ -39,6 +39,7 @@ export async function handleSchoolRequest(request, env, dependencies = {}) {
   if (path === "/api/auth/google" && request.method === "POST") {
     const data = await readJson(request), challenge = await getChallenge(request, env.DB, now);
     if (data.csrf !== challenge.csrf) fail(403, "invalid_csrf");
+    await limitGoogleAttempt(env.DB, challenge, now);
     const claims = await verifyGoogleToken(data.credential, { ...(dependencies.googleVerification ?? {}),
       audience: env.GOOGLE_CLIENT_ID, nonce: challenge.nonce, now });
     await consumeChallenge(env.DB, challenge, now);

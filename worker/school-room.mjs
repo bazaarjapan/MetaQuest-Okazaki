@@ -45,7 +45,10 @@ export class SchoolRoom {
       const attachment = socket.deserializeAttachment();
       if (attachment?.userId && attachment.sessionHash && socket.readyState === 1) this.sessions.set(socket, attachment);
     }
-    const initialize = async () => { this.state = await ctx.storage.get("world-state") ?? null; };
+    const initialize = async () => {
+      this.state = await ctx.storage.get("world-state") ?? null;
+      this.restoreRecovery = await ctx.storage.get("restore-recovery") ?? null;
+    };
     this.ready = ctx.blockConcurrencyWhile ? ctx.blockConcurrencyWhile(initialize) : initialize();
   }
   serial(task) {
@@ -72,6 +75,7 @@ export class SchoolRoom {
   fetch(request) { return this.serial(() => this.handleFetch(request)); }
   async handleFetch(request) {
     try {
+      await this.recoverRestore();
       const path = new URL(request.url).pathname;
       const caller = await this.caller(request, ["/save", "/restore"].includes(path));
       if (path === "/socket" && request.method === "GET") {
@@ -151,7 +155,7 @@ export class SchoolRoom {
     const earliest = Math.min(...[...this.sessions.values()].map((attachment) => Math.min(attachment.expiresAt * 1000, attachment.lastSeenAt + 60001)));
     await this.ctx.storage.setAlarm(Math.max(this.now() + 1000, earliest));
   }
-  alarm() { return this.serial(async () => { await this.pruneExpired(); this.broadcastPresence(); await this.scheduleAlarm(); }); }
+  alarm() { return this.serial(async () => { await this.recoverRestore(); await this.pruneExpired(); this.broadcastPresence(); await this.scheduleAlarm(); }); }
   webSocketClose(socket) { return this.serial(() => { if (this.sessions.has(socket)) { this.remove(socket, 1000, "disconnected"); this.broadcastPresence(); } }); }
   webSocketError(socket) { return this.serial(() => { this.remove(socket, 1011, "connection error"); this.broadcastPresence(); }); }
   webSocketMessage(socket, data) {
@@ -168,6 +172,7 @@ export class SchoolRoom {
         if (typeof data !== "string" || new TextEncoder().encode(data).length > LIMITS.messageBytes) fail(413, "message_too_large");
         try { value = JSON.parse(data); } catch { fail(400, "invalid_message"); }
         if (!value || typeof value !== "object" || Array.isArray(value)) fail(400, "invalid_message");
+        await this.recoverRestore();
         const now = Math.floor(this.now() / 1000);
         let authorization;
         try {
@@ -277,6 +282,7 @@ export class SchoolRoom {
     return { id, revision: this.state.revision, createdAt: now };
   }
   async restore(caller, value) {
+    await this.recoverRestore();
     if (!validId(value.snapshotId) || !Number.isSafeInteger(value.revision) || value.revision !== this.state.revision) fail(409, "stale_revision");
     const row = await first(this.env.DB, "SELECT * FROM school_snapshots WHERE id=? AND world_id=?", value.snapshotId, this.state.worldId);
     if (!row) fail(404, "snapshot_not_found");
@@ -288,18 +294,98 @@ export class SchoolRoom {
       const asset = await getAsset(this.env.DB, this.state.worldId, object.assetId);
       if (asset.owner_id !== object.ownerId) fail(503, "snapshot_asset_invalid");
     }
-    const next = { ...this.state, revision: this.state.revision + 1, objects: saved.objects, recent: [] };
-    await this.ctx.storage.put("world-state", next);
-    this.state = next;
-    const statements = [this.env.DB.prepare("UPDATE school_members SET pose_json=NULL WHERE world_id=?").bind(this.state.worldId)];
-    for (const [userId, pose] of Object.entries(saved.poses)) statements.push(this.env.DB.prepare("UPDATE school_members SET pose_json=? WHERE world_id=? AND user_id=?").bind(JSON.stringify(pose), this.state.worldId, userId));
-    await this.env.DB.batch(statements);
-    await this.pruneExpired();
-    for (const [socket, attachment] of this.sessions) {
-      if (saved.poses[attachment.userId]) attachment.pose = saved.poses[attachment.userId];
-      socket.serializeAttachment(attachment);
-      socket.send(JSON.stringify({ type: "state", ...await this.snapshot(caller.world, await sessionByHash(this.env.DB, attachment.sessionHash, Math.floor(this.now() / 1000))) }));
+    const commitId = crypto.randomUUID();
+    const next = { ...this.state, revision: this.state.revision + 1, objects: saved.objects, recent: [], restoreCommit: commitId };
+    const members = await all(this.env.DB, "SELECT user_id,pose_json FROM school_members WHERE world_id=?", this.state.worldId);
+    const intent = { worldId: this.state.worldId, revision: next.revision, commitId,
+      before: Object.fromEntries(members.map((member) => [member.user_id, member.pose_json])),
+      after: Object.fromEntries(Object.entries(saved.poses).map(([userId, pose]) => [userId, JSON.stringify(pose)])),
+      poses: saved.poses };
+    // D1 and DO storage cannot share a transaction. Durable world-state is the
+    // authoritative commit point; journal first, D1 mirror second, DO commit last.
+    // A failed/interrupted attempt is rolled back or completed from the durable
+    // DO commit marker before subsequent fetch/message/save uses its pose mirror.
+    try { await this.ctx.storage.put("restore-recovery", intent); }
+    catch (error) {
+      // A rejected journal write may also have an uncertain outcome. Resolve its
+      // actual durable presence before another edit can advance the room revision.
+      try {
+        this.restoreRecovery = await this.ctx.storage.get("restore-recovery") ?? null;
+        await this.recoverRestore();
+      } catch {
+        this.restoreRecovery = intent;
+        await this.armRestoreRecovery();
+        fail(503, "restore_recovery_pending");
+      }
+      throw error;
+    }
+    this.restoreRecovery = intent;
+    try {
+      await this.writePoseMirror(intent.worldId, intent.after);
+      await this.ctx.storage.put("world-state", next);
+      this.state = next;
+    } catch (error) {
+      await this.recoverRestore();
+      // A storage error can have an uncertain outcome. Recovery reads the actual
+      // durable revision, never assumes that a rejected write did/did not commit.
+      if (this.state.restoreCommit !== commitId) throw error;
+      return { revision: this.state.revision, snapshotId: row.id };
+    }
+    await this.notifyRestoredState(saved.poses);
+    try {
+      await this.ctx.storage.put("restore-recovery", null);
+      this.restoreRecovery = null;
+    } catch {
+      await this.armRestoreRecovery();
+      fail(503, "restore_recovery_pending");
     }
     return { revision: this.state.revision, snapshotId: row.id };
+  }
+  async writePoseMirror(worldId, poses) {
+    const statements = [this.env.DB.prepare("UPDATE school_members SET pose_json=NULL WHERE world_id=?").bind(worldId)];
+    for (const [userId, pose] of Object.entries(poses)) if (pose !== null) statements.push(this.env.DB.prepare("UPDATE school_members SET pose_json=? WHERE world_id=? AND user_id=?").bind(pose, worldId, userId));
+    await this.env.DB.batch(statements);
+  }
+  async armRestoreRecovery() {
+    // Recovery must run even when all browsers have left the room. If scheduling
+    // fails, the durable journal still blocks/retries the next operation; alarms
+    // also throw on recovery failure so the runtime applies its retry policy.
+    try { if (this.ctx.storage.setAlarm) await this.ctx.storage.setAlarm(this.now() + 1000); } catch { /* next operation retries the durable journal */ }
+  }
+  async recoverRestore() {
+    const intent = this.restoreRecovery;
+    if (!intent) return;
+    try {
+      const authoritative = await this.ctx.storage.get("world-state");
+      if (!authoritative || authoritative.worldId !== intent.worldId) fail(503, "restore_recovery_pending");
+      this.state = authoritative;
+      // A unique commit marker avoids treating an unrelated edit with the same
+      // revision as a restore if an earlier journal write had an uncertain result.
+      const committed = typeof intent.commitId === "string" && authoritative.restoreCommit === intent.commitId;
+      await this.writePoseMirror(intent.worldId, committed ? intent.after : intent.before);
+      if (committed) await this.notifyRestoredState(intent.poses);
+      await this.ctx.storage.put("restore-recovery", null);
+      this.restoreRecovery = null;
+    } catch {
+      await this.armRestoreRecovery();
+      fail(503, "restore_recovery_pending");
+    }
+  }
+  async notifyRestoredState(poses) {
+    for (const [socket, attachment] of this.sessions) {
+      try {
+        const now = Math.floor(this.now() / 1000);
+        if (attachment.expiresAt <= now || this.now() - attachment.lastSeenAt > 60000) fail(401, "room_login_required");
+        const authorized = await authorizeRoomSession(this.env.DB, this.state.worldId, attachment.sessionHash, now);
+        if (poses[attachment.userId]) attachment.pose = poses[attachment.userId];
+        socket.serializeAttachment(attachment);
+        socket.send(JSON.stringify({ type: "state", ...await this.snapshot(authorized.world, authorized.session) }));
+      } catch (error) {
+        this.remove(socket, error instanceof SchoolError && error.status === 401 ? 1008 : 1011, "restored state unavailable");
+      }
+    }
+    // A failed recipient must not stop healthy recipients or remain visible as a
+    // ghost in their earlier per-recipient snapshot. Reconnecting gets the commit.
+    this.broadcastPresence();
   }
 }

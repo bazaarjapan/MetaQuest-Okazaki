@@ -31,6 +31,18 @@ export async function consumeChallenge(db, challenge, now) {
   const used = await first(db, "DELETE FROM school_auth_challenges WHERE token_hash=? AND expires_at>? RETURNING token_hash", challenge.token_hash, now);
   if (!used) fail(401, "login_challenge_expired");
 }
+export async function limitGoogleAttempt(db, challenge, now) {
+  // The authoritative challenge hash is supplied by getChallenge, never by JSON
+  // or an IP header. Prefixes keep issuance and credential-attempt budgets apart.
+  // One conditional SQL write admits at most eight attempts per minute even
+  // across concurrent Worker isolates. Failed credentials do not consume nonce.
+  const result = await first(db, `INSERT INTO school_auth_limits(bucket,window_at,counter,expires_at) VALUES(?,?,1,?)
+    ON CONFLICT(bucket) DO UPDATE SET counter=CASE WHEN window_at=excluded.window_at THEN counter+1 ELSE 1 END,
+    window_at=excluded.window_at,expires_at=excluded.expires_at
+    WHERE school_auth_limits.window_at<>excluded.window_at OR school_auth_limits.counter<8 RETURNING counter`,
+  `google-attempt:${challenge.token_hash}`, Math.floor(now / 60), challenge.expires_at);
+  if (!result) fail(429, "login_rate_limit");
+}
 export async function createUser(db, claims, role, now) {
   const id = crypto.randomUUID();
   const color = ["#4a90e2", "#e67e22", "#2ecc71", "#9b59b6", "#e74c3c", "#16a085"][parseInt((await sha256(claims.sub)).slice(0, 4), 16) % 6];

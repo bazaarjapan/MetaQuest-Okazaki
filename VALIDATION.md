@@ -22,6 +22,8 @@ PR #12/#13を独立レビュー、最終CI、squash merge後、Codexから公開
 
 バックエンド #6/#7 の別開発ブランチでは、Google署名/nonce/CSRF/セッション/先生権限、専用D1保存、private R2のSTL、所有者制限、31人DOの同期を実装。Nodeの17件と設定3件、実ローカルworkerdの10統合項目が合格した。実TCP WebSocket31接続・32人目拒否・155 poseの4,805配信・実DO eviction後の復帰・実PLATEAU原本SHA検証/配置・先生保存復元・他人編集拒否・再接続・期限切れを確認した。依存を直接固定し、CIへローカルruntimeと公開しないWorker dry-runを追加。このAPIは本番未公開で、Googleの実アカウント交換、フロント接続、パスキー、Cloudflare本番、学校30実機の統合受入は未完了。試験は一時D1のランダムなfixtureセッションのみで、productionに認証bypassを追加していない。詳細は `docs/school-backend-setup.md`。
 
+Draft PR #14の独立レビューで見つかったP2を修正：未知kidによるJWKS取得を60秒cooldown/同時取得共有とD1のpreauthごと毎分8試行で制限。復元はDOを正本とし、D1 pose mirrorとの間の永続recovery journal/一意commit markerで失敗・再起動時に補償/前進回復。未回復は503で明示し次操作を停止、alarm/次アクセスで再試行する。1接続のsend/attachment失敗は除去して他接続へ継続。新規認証15/復元10の故障注入を含む255単体と実workerd10項目を再確認（exit0、正常teardown）。本番Google/Cloudflare/実機の未確認は残る。最終コミットの独立再レビューとCIはPRコメントで別記する。
+
 - 続くIssue #5ではPCクリエイティブ風の設定、WASD/Space/Shift/Ctrl/Space二度押し、F5の一人称/アバター後方/前方、pointer lock/解除を追加。Questは従来Mode2、スマホは従来ドローンへ安全に戻す。入力欄/ダイアログ/blurで停止し、プレイヤー足元と後方カメラを分離。
 - Issue #5の専用単体19件、実PCブラウザー操作17項目、後方視点→IWER VR→安全な一人称復帰/作品保持10項目、スマホ表示/入力20項目が合格。アバターの後方表示を実ブラウザーのスクリーンショットで目視確認した。実機Quest受入ではない。
 - PR #13の独立レビューで、ドローンの最低高度20mが歩行へ混入する問題と、VRの許可待ち中のモード変更・モバイル幅変更の競合を発見・修正。実地面16.5mへの着地/ジャンプと、core/region境界の回帰テストを追加した。実ブラウザーの遅延XR拒否fixtureで、開始待ちのモードロック/強制DOM変更/390×844への実resize/拒否後の安全な停止と位置保持の20項目も成功。fixtureは試験中だけXR要求を遅延させ、終了時に元APIへ復元する。アプリの座標/入力処理/実matchMediaは置換しない。
