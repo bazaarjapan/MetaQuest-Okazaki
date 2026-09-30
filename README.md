@@ -151,7 +151,8 @@ GitHubへのCloudflare Secrets登録は不要です。認証情報はCodexの公
 - `npm test`：地点、入力デッドゾーン、Quest軸割当、範囲制限。
 - 品質設定の高精細既定値・旧設定の一度だけの移行・選択の保存・保存失敗時の復帰・描画設定の範囲、左右コントローラー入力の正規化も単体テストの対象です。
 - 広域の区画選択・予算制限・地域内への移動制限、読み込み完了順の競合・旧区画の破棄・部分失敗、ライブ標高のRGBの正負・NoData・補間・隣接タイル境界・取得失敗・キャンセル時の形状保持を単体テストで検証済みです。
-- `npm run check:assets`：配列長、有限値、インデックス範囲、画像参照、ポリゴン数、ファイルサイズ。
+- `npm run check:assets`：リポジトリ内の配信データだけで、配列長、有限値、インデックス範囲、画像参照、ポリゴン数、ファイルサイズ、写真のSHA-256・寸法・復号RGBハッシュを検査します。元Unity資料との比較は含めず、結果の`nativeSourceVerified`は`false`です。
+- `node scripts/check-detail-assets.mjs --with-native-source`：元の隣接Unityプロジェクトにある地面写真を明示的に比較する追加ローカル検査です。元画像のSHA-256とWeb画像とのRGB完全一致を確認し、元画像がない・不一致の場合は失敗します。元資料をGitHubへ同梱したり、見つからないときに合格扱いしたりしません。
 - 追加写真は `scripts/check-detail-assets.mjs` で寸法・ファイルSHA・元画像の全RGB画素一致・同じタイル範囲を検証します。
 - `tests/browser-check.js`：読み込み、3地点、キーボード前進、Home、説明、横はみ出し。
 - `tests/detail-browser-check.js`：画質の往復切替、元形状の保持、左右下HUD、右上ガイド。
