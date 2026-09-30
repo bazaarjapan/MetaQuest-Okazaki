@@ -8,11 +8,17 @@
 
 Cloudflare Worker：`okazaki-school-xr`
 
-確認済みの公開バージョン：`7ee8f859-5565-4ff9-92c3-1297800966c3`（MVP 1.5.0）
+確認済みの公開バージョン：`d3c2b18b-b4e1-49cb-a101-4a28034ba9cb`（閲覧・端末内STL/操作版 1.6.0。学校共有MVPは未完成）
 
-直前公開バージョン：`3cc67e41-0644-4bb0-a5d0-32ad79f9803d`（MVP 1.4.0）
+直前公開バージョン：`7ee8f859-5565-4ff9-92c3-1297800966c3`（MVP 1.5.0）
 
 ## 2026-10-01：学校MVPのIssue化・STL編集1.6（公開前検証）
+
+### 1.6の公開結果（学校共有APIとは別）
+
+PR #12/#13を独立レビュー、最終CI、squash merge後、Codexから公開した。公開sourceは `a05d99b3c07f9247d5a30dedaaa6e13dc2a513c7`、最終main CIは [36760731927](https://github.com/bazaarjapan/MetaQuest-Okazaki/actions/runs/36760731927) SUCCESS。main/origin parity 0/0、clean treeでnpm ciと210単体・元アセット・本番ビルド・エミュレーター除外を再確認。公開版IDは上記。全1,097ファイル139,661,301bytesが最終distとSHA256一致、HTTP200/CSP/WebXR Permissions-Policy/404成功。容量は全配布物で、初回ロード量ではない。
+
+公開URLでPCコンパクト10・クリエイティブ17・実フォームによるSTL19・スマホ390×844の20項目が成功（計66項目）、ブラウザー実行エラーなし。STL試験は開発サーバー専用の`/src` importを除き、公開アプリの実フォームと配置判定へ入力する方法で再実行。失敗した途中のrunner設定は合格に数えない。`test-results/creative-production-*.json`、`workshop-production.json/png`、`deployment.json`。端末内STLは再読込で消える。共有編集/本番認証は公開していない。
 
 バックエンド #6/#7 の別開発ブランチでは、Google署名/nonce/CSRF/セッション/先生権限、専用D1保存、private R2のSTL、所有者制限、31人DOの同期を実装。Nodeの17件と設定3件、実ローカルworkerdの10統合項目が合格した。実TCP WebSocket31接続・32人目拒否・155 poseの4,805配信・実DO eviction後の復帰・実PLATEAU原本SHA検証/配置・先生保存復元・他人編集拒否・再接続・期限切れを確認した。依存を直接固定し、CIへローカルruntimeと公開しないWorker dry-runを追加。このAPIは本番未公開で、Googleの実アカウント交換、フロント接続、パスキー、Cloudflare本番、学校30実機の統合受入は未完了。試験は一時D1のランダムなfixtureセッションのみで、productionに認証bypassを追加していない。詳細は `docs/school-backend-setup.md`。
 
@@ -27,7 +33,7 @@ Cloudflare Worker：`okazaki-school-xr`
 - 作品を配置した同じページでIWER Quest 3エミュレーターへ入り、従来のVR/2D復帰37項目が合格。エミュレーターと実機は区別する。
 - 独立レビューで指摘された過大変換をGPUへ渡す問題と、ASCII改行による大量配列生成を修正。Windows CRLFで従来CI構成テストが失敗する問題を #11で追跡・改行正規化で修正。
 - 初回Cloudflare OAuthはD1権限不足（read-only listで10000エラー）だったが、ユーザー本人の追加認可後にD1 list成功を確認。専用D1 `okazaki-school-worlds` と専用非公開R2 `okazaki-school-assets` を作成した。他アプリのDB/バケットは変更していない。Google client ID/先生allowlistは未設定。実Google認証・クラウド保存・31接続の実環境試験は未達成。秘密/生徒データを偽ログインで代用しない。
-- この段階のPR/最終CI/本番公開は未完了。実機Questの作品表示・性能、学校30台の操作も未確認。
+- 端末内STL/PC操作のPR #12/#13と本番公開は上記のとおり完了。学校共有APIはDraft PR #14で別管理し未公開。実機Questの作品表示・性能、学校30台の操作も未確認。
 
 ## VRから2Dへ戻る MVP 1.5.0 — 公開・エミュレーター検証済み、実機確認待ち
 
