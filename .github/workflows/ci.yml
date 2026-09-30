@@ -31,12 +31,16 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Unit tests
         run: npm test
+      - name: Verify local school runtime (ephemeral sessions, no production access)
+        run: npm run test:school-runtime
       - name: Verify model and image assets
         run: npm run check:assets
       - name: Build production app
         run: npm run build
       - name: Reject XR emulation code in production
         run: npm run check:production
+      - name: Validate Worker bundle without publication
+        run: npm run check:worker
       - name: Save verified production build for Codex
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
