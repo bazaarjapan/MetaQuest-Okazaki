@@ -85,4 +85,3 @@ test("avatar nickname and approved color updates are bounded; snapshot cannot mu
   assert.equal(view.actors[0].color, "#e67e22"); view.actors[0].position[0] = 999;
   assert.equal(f.presence.getState().actors[0].position[0], 1); f.presence.dispose();
 });
-
