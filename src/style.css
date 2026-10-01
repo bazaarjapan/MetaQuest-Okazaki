@@ -298,6 +298,54 @@ nav {
   line-height: 1.7;
   margin: 0 0 14px;
 }
+.movement-controls {
+  margin: 0 0 12px;
+  padding: 10px;
+  border: 1px solid #b4d8cd;
+  border-radius: 9px;
+  background: #f0f8f5;
+}
+.movement-controls > label {
+  display: block;
+  margin: 0 0 5px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.movement-controls select {
+  width: 100%;
+  min-height: 36px;
+  padding: 7px;
+  margin-bottom: 6px;
+  border: 1px solid #acc9bd;
+  border-radius: 7px;
+  background: white;
+  color: #173447;
+  font: inherit;
+  font-size: 12px;
+}
+.movement-state {
+  display: inline-block;
+  min-width: 30px;
+  padding: 1px 5px;
+  margin-left: 4px;
+  border-radius: 4px;
+  color: #526e7c;
+  background: #e2ebef;
+  font-size: 10px;
+}
+.movement-controls[data-free="true"] .movement-state {
+  color: #145d50;
+  background: #c9ebdc;
+}
+.movement-controls > p {
+  font-size: 10px;
+  line-height: 1.6;
+  margin: 6px 0 0;
+}
+.movement-controls .movement-note {
+  color: #627d8b;
+  font-size: 9px;
+}
 .primary {
   width: 100%;
   background: #153b4e;
@@ -422,6 +470,12 @@ dialog p {
     animation: none;
   }
 }
+@media (max-width: 1000px) and (max-height: 500px) {
+  .movement-controls select {
+    min-height: 44px;
+    font-size: 16px;
+  }
+}
 @media (min-width: 1600px) {
   aside {
     padding: 35px 30px;
@@ -434,6 +488,10 @@ dialog p {
   }
 }
 @media (max-width: 800px) {
+  .movement-controls select {
+    min-height: 44px;
+    font-size: 16px;
+  }
   header {
     height: 73px;
     padding: 0 16px;

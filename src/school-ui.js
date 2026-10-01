@@ -25,6 +25,13 @@ const ERROR_TEXT = {
   gis_unavailable: "Googleログインを読み込めませんでした。通信・ブラウザの制限を確認し、もう一度お試しください。",
   invalid_csrf: "ログインの準備が更新されました。もう一度Googleログインを表示してください。",
   already_logged_in: "このブラウザではログイン済みです。教室を選んで参加してください。",
+  google_keys_unavailable: "Googleの本人確認に必要な公開鍵を取得できませんでした。1分ほど待ってから、もう一度Googleログインを表示してください。",
+  invalid_token: "Googleのログイン情報を確認できませんでした。もう一度Googleログインを表示し、アカウントを選び直してください。",
+  login_challenge_required: "ログインの準備情報が見つかりません。もう一度Googleログインを表示してください。続く場合は、このサイトのCookieが許可されているか確認してください。",
+  login_challenge_expired: "ログインの準備が期限切れ、または使用済みです。もう一度Googleログインを表示してからログインしてください。",
+  invalid_origin: "ログインするページのURLを確認できませんでした。https://metaquest001.gigach.net/ を開き直してお試しください。",
+  login_cancelled: "ログイン中にアカウントの状態が変わりました。現在の状態を確認し、必要ならもう一度Googleログインを表示してください。",
+  login_failed: "Googleログインの通信を完了できませんでした。通信を確認してから、もう一度Googleログインを表示してください。",
 };
 export function explainSchoolError(error) {
   const code = error?.code ?? error?.message ?? error;

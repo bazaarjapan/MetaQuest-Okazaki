@@ -24,6 +24,7 @@
     );
   }
   document.querySelector("#free-move").click();
+  document.querySelector("#viewport > canvas").focus();
   await wait(150);
   const before = state().camera;
   window.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyW" }));

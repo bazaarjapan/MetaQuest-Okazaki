@@ -14,13 +14,13 @@
   const mode = document.querySelector("#control-mode"), canvas = document.querySelector("#viewport > canvas");
   check(state().ready && !state().ui.mobile, "PC-loaded");
   check(state().creative.mode === "creative", "fresh-PC-default-is-creative");
-  document.querySelector("#tab-settings").click();
+  document.querySelector("#tab-observe").click();
   const initial = [...state().camera];
   mode.value = "creative"; mode.dispatchEvent(new Event("change", {bubbles:true}));
   await wait(100);
   check(state().creative.mode === "creative" && !state().free, "mode-change-stops-movement");
   check(distance(state().creative.eye, initial) < 1e-6, "mode-change-keeps-original-view-position");
-  document.querySelector("#free-move").click(); canvas.focus();
+  if (!state().free) document.querySelector("#free-move").click(); canvas.focus();
   await until(() => state().free && state().creative.enabled, "creative-enabled-rAF");
   check(state().free && state().creative.enabled, "creative-enabled-without-start-reset");
   const anchor = [...state().creative.anchor];

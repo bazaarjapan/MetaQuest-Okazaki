@@ -41,9 +41,11 @@
   assert(state().region.terrainHeights.length > 0 && state().region.terrainHeights.every(t =>
     t.heightMode === 'live-gsi-dem' && t.validVertices > 0 && t.noDataVertices === 0 && t.heightRange[1] > 1),
     'live-gsi-png-decoded-and-nonflat-height-applied', state().region.terrainHeights);
+  document.querySelector('#tab-observe').click();
   document.querySelector('#free-move').click();
   assert(state().free && state().current === 'region' && state().camera[0] > 10000,
     'free-flight-enabled-in-place-not-reset-to-station');
+  document.querySelector('#tab-region').click();
   const canvas = document.querySelector('#region-map'), rect = canvas.getBoundingClientRect();
   const click = new MouseEvent('click', { bubbles: true,
     clientX: rect.left + rect.width * 0.2, clientY: rect.top + rect.height * 0.25 });

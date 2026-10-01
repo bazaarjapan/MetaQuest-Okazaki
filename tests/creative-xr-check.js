@@ -4,16 +4,18 @@
   const check = (ok, name) => { results.push({ok:Boolean(ok),name}); if (!ok) throw new Error(name); };
   const until = async (predicate) => { const end = performance.now() + 10000; while (!predicate() && performance.now() < end) await wait(100); check(predicate(), "async-XR-transition-completed"); };
   const distance = (a, b) => Math.hypot(...a.map((v, i) => v - b[i]));
+  const stoppedBadge = () => document.querySelector("#free-move-state").textContent === "OFF" &&
+    document.querySelector("#movement-controls").dataset.free === "false" && !document.querySelector("#free-move").checked;
   const expected = window.__creativeXRExpected;
   check(expected && state().xr && state().creative.mode === "creative", "creative-enters-real-emulated-XR");
   await until(() => !state().vrReturn.pendingResume && state().vrReturn.view);
   check(distance(state().vrReturn.view.position, expected.eye) < .025, "XR-starts-at-player-eye-not-rear-camera");
-  check(!state().avatar.visible && !state().free, "VR-hides-own-avatar-and-stops-motion");
+  check(!state().avatar.visible && !state().free && stoppedBadge(), "VR-hides-own-avatar-and-stops-motion");
   check(document.querySelector("#control-mode").disabled, "mode-cannot-change-during-XR");
   const left = window.__xrTestDevice.controllers.left;
   left.updateButtonValue("x-button", 0); await wait(150);
   left.updateButtonValue("x-button", 1); await until(() => !state().xr); left.setButtonValueImmediate("x-button", 0);
-  check(state().creative.viewMode === "first" && !state().free && !state().avatar.visible, "creative-return-is-safe-first-person-motion-OFF");
+  check(state().creative.viewMode === "first" && !state().free && !state().avatar.visible && stoppedBadge(), "creative-return-is-safe-first-person-motion-OFF");
   check(distance(state().creative.eye, expected.eye) < .025 && distance(state().camera, state().creative.eye) < 1e-6, "creative-return-keeps-player-view");
   check(JSON.stringify(state().workshop.objects.map((o) => ({id:o.id,position:o.position,rotation:o.rotation,scale:o.scale}))) === expected.objects, "STL-transforms-retained-across-creative-XR");
   check(!document.querySelector("#control-mode").disabled && !state().creative.suspendedXR, "desktop-controls-unsuspended");

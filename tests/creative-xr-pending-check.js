@@ -16,6 +16,8 @@
     if (!predicate()) throw new Error("Pending-XR regression timed out waiting for the real page transition");
   };
   const distance = (a, b) => Math.hypot(...a.map((value, index) => value - b[index]));
+  const stoppedBadge = () => document.querySelector("#free-move-state").textContent === "OFF" &&
+    document.querySelector("#movement-controls").dataset.free === "false" && !document.querySelector("#free-move").checked;
   const key = (code, type = "keydown") => window.dispatchEvent(
     new KeyboardEvent(type, { code, bubbles: true, cancelable: true }));
   const mode = document.querySelector("#control-mode");
@@ -50,7 +52,7 @@
     canvas.focus();
     enter.click();
     await until(() => requests === expectedRequests && state().creative.suspendedXR);
-    check(mode.disabled && enter.disabled, `request-${expectedRequests}-locks-mode-before-XR-session-resolves`);
+    check(mode.disabled && enter.disabled && stoppedBadge(), `request-${expectedRequests}-locks-mode-before-XR-session-resolves`);
     check(state().creative.mode === "creative" && !state().xr,
       `request-${expectedRequests}-suspends-creative-before-session-is-created`);
   }
@@ -64,11 +66,11 @@
         return new Promise((_resolve, reject) => { rejectPending = reject; });
       } });
     window.__pendingXRStage = { phase: "desktop-rejection", viewport: [innerWidth, innerHeight] };
-    document.querySelector("#tab-settings").click();
+    document.querySelector("#tab-observe").click();
     mode.value = "creative";
     mode.dispatchEvent(new Event("change", { bubbles: true }));
     await until(() => state().creative.mode === "creative");
-    document.querySelector("#free-move").click();
+    if (!state().free) document.querySelector("#free-move").click();
     canvas.focus();
     await until(() => state().free && state().creative.enabled);
     key("F5");
@@ -83,7 +85,7 @@
     check(errors.length === 0, "forced-pending-mode-change-causes-no-uncaught-exception", errors);
     rejectRequest();
     await until(() => !state().creative.suspendedXR && !mode.disabled && !enter.disabled);
-    check(!state().free && !state().creative.enabled && state().creative.pressedKeys.length === 0,
+    check(!state().free && !state().creative.enabled && state().creative.pressedKeys.length === 0 && stoppedBadge(),
       "desktop-request-rejection-unlocks-with-motion-OFF");
     check(state().creative.mode === "creative" && state().creative.viewMode === "first" && !state().avatar.visible,
       "desktop-rejection-restores-safe-first-person-mode");
@@ -91,7 +93,7 @@
       Math.abs(state().creative.yaw - firstYaw) < 1e-6, "desktop-rejection-keeps-player-view-not-rear-camera");
 
     // A second delayed request crosses the actual desktop/mobile breakpoint.
-    document.querySelector("#free-move").click();
+    if (!state().free) document.querySelector("#free-move").click();
     canvas.focus();
     await until(() => state().free && state().creative.enabled);
     const secondEye = [...state().creative.eye];
@@ -113,7 +115,7 @@
     window.__pendingXRStage = { phase: "rejecting-mobile-request", viewport: [innerWidth, innerHeight] };
     rejectRequest();
     await until(() => !state().creative.suspendedXR && state().creative.mode === "drone" && !mode.disabled);
-    check(!state().free && !state().creative.enabled && !state().avatar.visible &&
+    check(!state().free && !state().creative.enabled && !state().avatar.visible && stoppedBadge() &&
       state().creative.pressedKeys.length === 0, "mobile-fallback-is-drone-with-inputs-and-motion-stopped");
     check(mode.value === "drone" && mode.querySelector('option[value="creative"]').disabled,
       "mobile-fallback-selector-matches-actual-mode-and-disables-creative-option");

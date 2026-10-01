@@ -17,7 +17,7 @@ import { createExitHold, updateExitHold, cancelExitHold } from "./xr-exit-hold.j
 import { captureView, captureXRView, alignRigToView, resolveXRExitView, resolveXREntryView } from "./vr-view.js";
 import { createSurfaceIndex } from "./placement.js";
 import { createWorkshop } from "./workshop.js";
-import { createCreativeControls, constrainCreativeFeet, readControlMode, controlPreferenceKey } from "./creative-controls.js";
+import { createCreativeControls, constrainCreativeFeet, readControlMode, controlPreferenceKey, initialPCMovement } from "./creative-controls.js";
 import { createBlockAvatar } from "./block-avatar.js";
 import { createSchoolClient } from "./school-client.js";
 import { createSchoolUI } from "./school-ui.js";
@@ -63,6 +63,7 @@ const state = {
   regionReady: false,
   regionError: null,
 };
+let initialMovementInterrupted = false;
 const scene = new THREE.Scene();
 scene.background = new THREE.Color("#dce9ee");
 scene.fog = new THREE.Fog("#dce9ee", 800, 1700);
@@ -160,9 +161,9 @@ $("#control-mode").onchange = (event) => {
   if (forcedMobile) event.target.value = "drone";
   setFree(false); creative.setMode(event.target.value);
   try { if (!forcedMobile) preferenceStorage?.setItem(controlPreferenceKey, event.target.value); } catch { /* Optional preference. */ }
-  $("#creative-help").hidden = event.target.value !== "creative";
+  syncMovementHelp();
   $("#canvas-hint").textContent = event.target.value === "creative"
-    ? "自由移動をON → 3D画面をクリック · Escでマウス解除 · F5で視点切替" : "ドラッグで回転 · ホイールで拡大";
+    ? "自由移動ONでWASD · 3D画面をクリックして見回す · Escでマウス解除 · F5で視点切替" : "ドラッグで回転 · ホイールで拡大";
 };
 const exitHold = createExitHold();
 const vrReturnButton = createVRReturnButton(THREE, camera);
@@ -322,6 +323,14 @@ async function loadCity() {
   $("#control-mode").value = readControlMode(preferenceStorage);
   $("#control-mode").dispatchEvent(new Event("change"));
   adoptSchoolPose();
+  if (initialPCMovement({ ready: state.ready, mobile: adaptiveUi.getState().mobile,
+    hidden: document.hidden, interrupted: initialMovementInterrupted,
+    dialogOpen: Boolean(document.querySelector("dialog[open]")), xr: state.xr,
+    xrEntering, restoredWorld })) {
+    // This only enables input. Never request pointer lock, replay held keys,
+    // or teleport the initial view (including a remembered drone preference).
+    setFree(true, { preserveView: true });
+  }
   addStationLabel(manifest.station);
   await checkVR();
   loadRegion().catch((error) => {
@@ -407,9 +416,7 @@ function visitRegionPoint(x, z) {
   const target = new THREE.Vector3(position.x, Math.max(10, position.y - 100), position.z - 250);
   resetFlight(flight);
   touchControls.releaseAll();
-  state.free = false;
-  $("#free-move").checked = false;
-  $("#move-help").hidden = true;
+  setFree(false);
   state.current = "region";
   if (state.xr) teleport(position, target);
   else {
@@ -561,9 +568,7 @@ function goTo(id) {
   resetFlight(flight);
   touchControls.releaseAll();
   adaptiveUi.close();
-  state.free = false;
-  $("#free-move").checked = false;
-  $("#move-help").hidden = true;
+  setFree(false);
   const v = viewpoints[id];
   if (state.xr) {
     const position = new THREE.Vector3(...v.position);
@@ -630,16 +635,27 @@ function teleport(position, target) {
   rig.position.copy(position).sub(offset);
   rig.updateMatrixWorld(true);
 }
-function setFree(value) {
+function syncMovementHelp() {
+  const creativeMode = creative?.getState().mode === "creative";
+  $("#creative-help").hidden = !creativeMode;
+  $("#move-help").hidden = !state.free || creativeMode;
+  $("#free-move-state").textContent = state.free ? "ON" : "OFF";
+  $("#movement-controls").dataset.free = String(state.free);
+}
+function setFree(value, { preserveView = false } = {}) {
+  value = Boolean(value);
+  if (value && !state.ready) value = false;
+  if (value && !state.xr && (document.hidden || document.querySelector("dialog[open]"))) value = false;
   if (state.xr && vrWorkshop?.getState().picking) value = false;
   if (xrEntering && !state.xr) value = false;
-  if (value && !state.xr && creative?.getState().mode !== "creative" && state.current !== "region" && !hasVRResume && !restoredWorld) goTo("east");
+  if (value && !preserveView && !state.xr && creative?.getState().mode !== "creative" && state.current !== "region" && !hasVRResume && !restoredWorld) goTo("east");
+  keys.clear();
   creative?.clearInput({ release: !value });
   resetFlight(flight);
   touchControls.releaseAll();
   state.free = value;
   $("#free-move").checked = value;
-  $("#move-help").hidden = !value;
+  syncMovementHelp();
   updateLabels(state.current);
   syncTouchControls();
   if (panel) drawPanel();
@@ -653,7 +669,7 @@ $("#mobile-flight").onclick = () => {
   if (!state.ready) return;
   adaptiveUi.close(); setFree(!state.free);
 };
-$("#help").onclick = () => $("#help-dialog").showModal();
+$("#help").onclick = () => { setFree(false); $("#help-dialog").showModal(); };
 $("#close-help").onclick = () => $("#help-dialog").close();
 $("#help-dialog").addEventListener("click", (e) => {
   if (e.target === $("#help-dialog")) $("#help-dialog").close();
@@ -701,17 +717,26 @@ window.addEventListener("keydown", (e) => {
 });
 window.addEventListener("keyup", (e) => keys.delete(e.code));
 window.addEventListener("blur", () => {
+  initialMovementInterrupted = true;
   keys.clear();
   resetFlight(flight);
-  if (!state.xr && creative?.getState().mode === "creative") setFree(false);
+  setFree(false);
   if (state.xr) { cancelExitHold(exitHold); vrReturnButton.update({ progress: 0 }); }
 });
 document.addEventListener("visibilitychange", () => {
   keys.clear();
-  if (document.hidden && state.xr) {
-    setFree(false); cancelExitHold(exitHold); vrReturnButton.update({ progress: 0 });
+  if (document.hidden) {
+    initialMovementInterrupted = true; setFree(false);
+    if (state.xr) { cancelExitHold(exitHold); vrReturnButton.update({ progress: 0 }); }
   }
 });
+// All dialogs (including workshop and auth) stop input without restarting it
+// when closed. The initial desktop default never overrides an open modal.
+new MutationObserver(() => {
+  if (document.querySelector("dialog[open]")) {
+    initialMovementInterrupted = true; setFree(false);
+  }
+}).observe(document.body, { subtree: true, attributes: true, attributeFilter: ["open"] });
 async function checkVR() {
   const button = $("#enter-vr");
   try {
@@ -764,7 +789,7 @@ renderer.xr.addEventListener("sessionstart", () => {
   simulationSeconds = 0;
   state.xr = true;
   $("#control-mode").disabled = true;
-  state.free = false;
+  setFree(false);
   controllerHud.setXR(true);
   $("#quality-select").disabled = true;
   $("#quality-note").textContent = `${quality.label} · 画質変更は2D画面に戻ってから。`;
@@ -785,7 +810,6 @@ renderer.xr.addEventListener("sessionstart", () => {
     cancelExitHold(exitHold); vrReturnButton.update({ progress: 0 });
     syncButtons(session);
   });
-  $("#free-move").checked = false;
   controls.enabled = false;
   keys.clear(); touchControls.releaseAll(); adaptiveUi.close();
   camera.position.set(0, 0, 0);
@@ -1100,7 +1124,8 @@ function desktopMove(dt) {
     const delta = facing.multiplyScalar(movement.forward * dt).addScaledVector(side, movement.strafe * dt);
     delta.y = movement.rise * dt;
     const before = camera.position.clone();
-    camera.position.add(delta); constrainPosition(camera.position);
+    camera.position.add(delta);
+    if (delta.lengthSq() > 0) constrainPosition(camera.position);
     controls.target.add(camera.position.clone().sub(before));
     if (movement.yaw) {
       const direction = controls.target.clone().sub(camera.position).applyAxisAngle(new THREE.Vector3(0, 1, 0), movement.yaw * dt);
@@ -1124,7 +1149,7 @@ function desktopMove(dt) {
   delta.y = ((keys.has("KeyR") ? 1 : 0) - (keys.has("KeyF") ? 1 : 0)) * dt * 8;
   const before = camera.position.clone();
   camera.position.add(delta);
-  constrainPosition(camera.position);
+  if (delta.lengthSq() > 0) constrainPosition(camera.position);
   controls.target.add(camera.position.clone().sub(before));
   const yaw =
     ((keys.has("KeyQ") ? 1 : 0) - (keys.has("KeyE") ? 1 : 0)) * dt * 0.6;

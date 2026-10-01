@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import * as THREE from "three";
 import { createCreativeControls, creativeConfig, constrainCreativeFeet, readControlMode, controlPreferenceKey } from "../src/creative-controls.js";
 import { createBlockAvatar } from "../src/block-avatar.js";
-import { clampPosition } from "../src/motion.js";
+import { clampPosition, viewpoints } from "../src/motion.js";
 import { clampToRegion } from "../src/region-plan.js";
 
 function emitter(extra = {}) {
@@ -111,6 +111,30 @@ test("default drone mode does not capture keys or alter the existing camera", ()
   assert.equal(f.key("F5").prevented, false);
   assert.equal(f.orbit.enabled, true);
   close(f.camera.position.distanceTo(before), 0);
+});
+
+test("initial ON preserves the overview from its first enabled frame while region bounds are pending", () => {
+  let regionReady = false, constraintCalls = 0;
+  const f = fixture({ groundHeight: () => null, constrainPosition: feet => {
+    constraintCalls++;
+    return constrainCreativeFeet(feet, eye => regionReady
+      ? clampToRegion(eye, [-4000, -4000, 4000, 4000], 1200) : clampPosition(eye));
+  } });
+  f.camera.position.fromArray(viewpoints.overview.position);
+  f.camera.lookAt(new THREE.Vector3().fromArray(viewpoints.overview.target));
+  const before = f.camera.getWorldQuaternion(new THREE.Quaternion());
+  f.enable(); // Includes the first actual enabled step, before region is ready.
+  assert.deepEqual(f.control.getState().eye, viewpoints.overview.position);
+  for (let i = 0; i < 30; i++) f.control.step(.1, { enabled: true });
+  assert.deepEqual(f.control.getState().eye, viewpoints.overview.position);
+  assert.equal(constraintCalls, 0);
+  assert.ok(f.camera.getWorldQuaternion(new THREE.Quaternion()).angleTo(before) < 1e-7);
+  regionReady = true; f.control.step(.1, { enabled: true });
+  assert.deepEqual(f.control.getState().eye, viewpoints.overview.position);
+  regionReady = false; f.key("KeyW"); f.control.step(.1, { enabled: true });
+  assert.equal(constraintCalls, 1, "real input still applies existing fallback limits");
+  assert.ok(f.control.getState().eye[0] <= 265 && f.control.getState().eye[2] <= 325 && f.control.getState().eye[1] <= 300);
+  f.release("KeyW"); f.control.dispose();
 });
 
 test("entering creative preserves full world camera pose and derives feet anchor", () => {

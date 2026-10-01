@@ -83,7 +83,7 @@ async function browserRace(expected) {
   try {
     check(state().ready && !state().xr && state().school.connection === "connected", "joined-real-school-before-XR-race");
     check(Boolean(window.__xrTestDevice && system), "real-IWER-device-available");
-    document.querySelector("#tab-settings").click();
+    document.querySelector("#tab-observe").click();
     const mode = document.querySelector("#control-mode");
     mode.value = "creative"; mode.dispatchEvent(new Event("change", { bubbles: true }));
     await until(() => state().creative.mode === "creative", "creative-mode");

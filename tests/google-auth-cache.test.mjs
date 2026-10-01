@@ -31,7 +31,7 @@ test("unknown kid cold/serial attempts fetch Google keys once, regardless of kid
   let calls = 0;
   const fetchImpl = async (url, options) => {
     calls++; assert.equal(url, "https://www.googleapis.com/oauth2/v3/certs");
-    assert.equal(options.redirect, "error"); assert.ok(options.signal instanceof AbortSignal);
+    assert.equal(options.redirect, "manual"); assert.ok(options.signal instanceof AbortSignal);
     return response();
   };
   for (let i = 0; i < 12; i++) await rejects(verify(await token(keys[0], `unknown-${i % 5}`), fetchImpl), "invalid_token");
@@ -94,6 +94,24 @@ test("network/status/JSON/key-shape failures reserve the cooldown and release in
     assert.equal(calls, 1);
     assert.equal((await verify(value, fetchImpl, now + 60)).sub, claims.sub);
     assert.equal(calls, 2);
+  }
+});
+
+test("Google-key redirects are rejected without following or importing their body", async () => {
+  const value = await token();
+  for (const status of [301, 302, 307, 308]) {
+    let calls = 0;
+    const fetchImpl = async (url, options) => {
+      calls++;
+      assert.equal(url, "https://www.googleapis.com/oauth2/v3/certs");
+      assert.equal(options.redirect, "manual");
+      return new Response(JSON.stringify({ keys: [keys[0].jwk] }), {
+        status, headers: { Location: "https://untrusted.invalid/keys" },
+      });
+    };
+    await rejects(verify(value, fetchImpl), "google_keys_unavailable");
+    await rejects(verify(value, fetchImpl, now + 59), "google_keys_unavailable");
+    assert.equal(calls, 1);
   }
 });
 
