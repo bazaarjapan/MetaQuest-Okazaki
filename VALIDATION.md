@@ -32,6 +32,8 @@ Cloudflare Worker：`okazaki-school-xr`
 
 最終修正の追試：独立レビューで、教室参加後に初めてdrone設定でVRへ入る場合の初期位置へのリセットを発見し修正。`resolveXREntryView`で教室の復元位置を優先し、ゲスト初回の従来動作は維持する。単体315/315、最新dist（JS `index-Bn2XycQc.js`、CSS `index-DJSf4vbE.css`）でChrome86/86を再実行して成功した。最新dist manifest SHA-256は `9360efad95b3deb462e183a4d8d5ece3da43edeeb5cdd968e2dfd0c996c1f63b`、Workerは上記 `2ab88...` と同一。さらに初回VRの実眼位置保持を含むsigned IWER16/16が成功し、実地形への配置・既存作品編集・2D復帰を再確認した。失敗したCookie形式の試験セットアップは合格に算入しない。最終差分の独立レビューとCIはPRへ記録する。
 
+追加の最終レビューで、VR許可待ち中に先生が復元した新視点を古い入場視点で上書きするP2を発見。待機中はpending XRと2Dの両方へ新しい視点を反映し、許可成功・拒否の双方で保持するように修正した。実main関数と実VR座標変換を使うVM regression5件を追加し、全320/320成功。これは実Googleや物理Questを置き換える証拠ではない。最終JSは `index-D2MpAQrq.js`。CIの最初の失敗は、アプリversion更新でsourcemap-codecのlockfile取得先まで誤更新されたためで、元の1.6.0に戻し専用の空npmキャッシュから全依存の取得を確認した。古いbb252dcのCI失敗・レビューは修正後HEADの成功に流用しない。
+
 未確認：本物のGoogle IDトークン交換、Cloudflareの本番bindingでの共同教室、Quest実機のGoogleログイン・左作品パネル・装着快適性・FPS・最大作品数時のCPU/GC、学校の30実端末と回線・Google管理者許可、実機スマートフォンの操作感。Googleアカウントのパスワード・OTPを試験fixtureやログへ保存しない。学校での利用は少人数の実機・本番確認後に拡大する。
 
 ## 2026-10-01：学校MVPのIssue化・STL編集1.6（公開前検証）

@@ -189,8 +189,8 @@ function adoptSchoolPose() {
     .setFromEuler(new THREE.Euler(0, member.yaw, 0, "YXZ")).toArray() };
   setFree(false); vrWorkshop.cancelPicking();
   updateLabels("school");
-  if (state.xr) pendingXRView = view;
-  else { restoreDesktopView(view); creative.syncFromCamera(); }
+  if (state.xr || xrEntering) pendingXRView = view;
+  if (!state.xr) { restoreDesktopView(view); creative.syncFromCamera(); }
   restoredWorld = schoolState.world.id;
 }
 schoolClient.subscribe((next, event) => {
