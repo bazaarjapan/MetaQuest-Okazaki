@@ -8,7 +8,7 @@
 
 Cloudflare Worker：`okazaki-school-xr`
 
-確認済みの公開バージョン：`d3c2b18b-b4e1-49cb-a101-4a28034ba9cb`（閲覧・端末内STL/操作版 1.6.0。学校共有MVPは未完成）
+この公開前記録を作成した時点の公開バージョン：`d3c2b18b-b4e1-49cb-a101-4a28034ba9cb`（閲覧・端末内STL/操作版 1.6.0）。共同教室1.7の最新の公開結果・merged main SHA・CI・Cloudflare版・公開ファイル確認は [PR #14の完了記録](https://github.com/bazaarjapan/MetaQuest-Okazaki/pull/14) を参照。この履歴だけで公開の成功を推測しない。
 
 直前公開バージョン：`7ee8f859-5565-4ff9-92c3-1297800966c3`（MVP 1.5.0）
 
@@ -34,7 +34,20 @@ Cloudflare Worker：`okazaki-school-xr`
 
 追加の最終レビューで、VR許可待ち中に先生が復元した新視点を古い入場視点で上書きするP2を発見。待機中はpending XRと2Dの両方へ新しい視点を反映し、許可成功・拒否の双方で保持するように修正した。実main関数と実VR座標変換を使うVM regression5件を追加し、全320/320成功。これは実Googleや物理Questを置き換える証拠ではない。最終JSは `index-D2MpAQrq.js`。CIの最初の失敗は、アプリversion更新でsourcemap-codecのlockfile取得先まで誤更新されたためで、元の1.6.0に戻し専用の空npmキャッシュから全依存の取得を確認した。古いbb252dcのCI失敗・レビューは修正後HEADの成功に流用しない。
 
-未確認：本物のGoogle IDトークン交換、Cloudflareの本番bindingでの共同教室、Quest実機のGoogleログイン・左作品パネル・装着快適性・FPS・最大作品数時のCPU/GC、学校の30実端末と回線・Google管理者許可、実機スマートフォンの操作感。Googleアカウントのパスワード・OTPを試験fixtureやログへ保存しない。学校での利用は少人数の実機・本番確認後に拡大する。
+### Codexレビュー3件と復元通信の競合修正
+
+GitHub Codexレビューは `eceb72d` を実際にレビューし、再接続で未保存の位置が失われるP1、起動時の設定通信の再試行不可P2、中断STL予約が永久に枠を占有するP2の3件を指摘した。依頼しただけでレビュー完了とはしていない。修正は次のとおり。
+
+- 1人1件の小さなDO recordで最後に受理した位置を保持。接続変更・再ログイン・DO evictionで同じGoogle識別子の現在位置を引き継ぐ。先生の一意restoreCommitを世代として古い位置を無効化し、snapshot後に参加した人の位置は同じ原子的world-stateへbounded fallbackとして保存する。移動のたびに全ワールドを保存しない。
+- 設定読込は成功時だけキャッシュし、失敗・未設定は明示操作で再試行可能。「共同教室に再接続・設定を再確認」を追加し、同時要求は共有する。Googleのログイン画面を自動で繰り返し開かず、古い通信の失敗で新しい本人情報を消さない。
+- 未完了アップロードに15分の予約期限。原子的なquota SQLはreadyと有効pendingだけを計上する。期限切れは所有者・教室・生成key限定で先に退役し、private R2削除後にD1予約を削除。失敗時は再試行ledgerを保持する。120秒の処理上限をR2のキャンセル成功とは扱わず、遅延PUTとready確定の応答消失でも保存済み原本を削除しない。新migrationは不要。
+- 別担当の独立レビューで、復元前に送った古い移動が遅れて到着して新世代を上書きする競合も再現。poseに明示のrestoreCommitを付け、サーバーで現在世代と一致するものだけ永続化する。HTTPの先行readでカメラを動かさずに世代だけ更新せず、full WS stateの視点採用と世代更新をそろえる。HTTPの作品revision11が先着してもWSの復元revision10の視点を取りこぼさず、新しい作品状態は保持する。
+
+この修正後のソースで全単体359/359、実Miniflare/workerd11/11（31 TCP、155 pose、4,805配信、単独差分最大187 bytes、古い移動世代の拒否→復元位置の保持→実再接続）に合格し、正常teardownを確認。Worker bundle SHA-256は `9e4ff49657dbf7ae56e0f1cbacc127a37ec113d3bbf94e0e1d2f1d5e211579d3`。元アセット検査と本番ビルド・エミュレーター除外に合格、JSは `index-DMlpauKI.js`（870.68kB、既存500kB超警告あり）。新故障注入はlive pose12・予約15・client retry/epoch9・UI retry3件を含む。これらを実Googleや物理Questの合格とは扱わない。
+
+実ブラウザーのXR許可待ちの復元18項目は、成功・拒否の両経路で物理viewer中心の位置を測って確認した（2026-10-01 01:33 UTC、修正前manifest `050ab721692447141ddc814a3e09b5cf432a0fc5404cca288cbf26066cac03e3`）。Three.jsステレオ統合カメラの投影オフセットとは区別した。後続の参考86 runnerはWindows CLI read timeoutにより66項目で失敗し、86成功へ算入しない（manifest `3c4ffcf1017414b50cf8c82100ce121411ca4c2c7d49320ea195dd679e7a31ad`、Worker `587e6...`）。最終freezeのChrome/XR再検査、最終SHAの独立レビュー・CIと公開結果はPR #14へ追記する。未公開旧版のserialized attachment互換fixtureは、本番の教室DB/DOが今回初回作成であるためrelease対象に含めない。
+
+この公開前記録時点で未確認：本物のGoogle IDトークン交換、Cloudflareの本番bindingでの共同教室、Quest実機のGoogleログイン・左作品パネル・装着快適性・FPS・最大作品数時のCPU/GC、学校の30実端末と回線・Google管理者許可、実機スマートフォンの操作感。Googleアカウントのパスワード・OTPを試験fixtureやログへ保存しない。学校での利用は少人数の実機・本番確認後に拡大する。
 
 ## 2026-10-01：学校MVPのIssue化・STL編集1.6（公開前検証）
 

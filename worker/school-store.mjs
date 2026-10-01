@@ -2,9 +2,15 @@ import { LIMITS, cleanName, fail, parseCookies, publicAvatar, randomToken, sha25
 
 export const SESSION_COOKIE = "__Host-school-session";
 export const PREAUTH_COOKIE = "__Host-school-preauth";
+export const assetReservationPolicy = Object.freeze({ leaseSeconds: 15 * 60,
+  uploadTimeoutMs: 120000, cleanupTimeoutMs: 5000, cleanupBatch: 10 });
 export const first = (db, sql, ...values) => db.prepare(sql).bind(...values).first();
 export const run = (db, sql, ...values) => db.prepare(sql).bind(...values).run();
 export async function all(db, sql, ...values) { return (await db.prepare(sql).bind(...values).all()).results; }
+function reservationClock(now) {
+  if (!Number.isSafeInteger(now) || now < 0) fail(500, "invalid_reservation_clock");
+  return now;
+}
 
 export async function newChallenge(db, now, rateBucket = "local") {
   await run(db, "DELETE FROM school_auth_limits WHERE expires_at<=?", now);
@@ -129,13 +135,53 @@ export async function updateAvatar(db, session, value) {
   return publicAvatar(updated);
 }
 export async function reserveAsset(db, session, worldId, asset, now) {
+  const cutoff = reservationClock(now) - assetReservationPolicy.leaseSeconds;
   const row = await first(db, `INSERT INTO school_assets(id,world_id,owner_id,object_key,name,up_axis,units,bytes,triangles,sha256,status,created_at)
     SELECT ?,?,?,?,?,?,?,?,?,?,'pending',? WHERE
-    (SELECT COUNT(*) FROM school_assets WHERE world_id=? AND owner_id=?)<? AND
-    COALESCE((SELECT SUM(bytes) FROM school_assets WHERE world_id=? AND owner_id=?),0)+?<=? RETURNING id`,
+    (SELECT COUNT(*) FROM school_assets WHERE world_id=? AND owner_id=? AND
+      (status='ready' OR (status='pending' AND created_at>=0 AND created_at>?)))<? AND
+    COALESCE((SELECT SUM(bytes) FROM school_assets WHERE world_id=? AND owner_id=? AND
+      (status='ready' OR (status='pending' AND created_at>=0 AND created_at>?))),0)+?<=? RETURNING id`,
   asset.id, worldId, session.id, asset.object_key, asset.name, asset.up_axis, asset.units, asset.bytes, asset.triangles, asset.sha256, now,
-  worldId, session.id, LIMITS.userAssets, worldId, session.id, asset.bytes, LIMITS.userAssetBytes);
+  worldId, session.id, cutoff, LIMITS.userAssets, worldId, session.id, cutoff, asset.bytes, LIMITS.userAssetBytes);
   if (!row) fail(409, "asset_quota_exceeded");
+}
+// Positive created_at is an active lease. A negative value is a private
+// retirement ledger: -(cleanupNotBeforeSeconds + 1). Ready timestamps never
+// change. Claim before touching R2 so a delayed finalize cannot become ready
+// after its immutable bytes were removed; no schema migration is required.
+export async function claimStaleAssetReservations(db, session, worldId, now) {
+  reservationClock(now);
+  return all(db, `UPDATE school_assets SET created_at=? WHERE status='pending'
+    AND world_id=? AND owner_id=? AND id IN
+    (SELECT id FROM school_assets WHERE world_id=? AND owner_id=? AND status='pending'
+      AND ((created_at>=0 AND created_at<=?) OR (created_at<0 AND -created_at-1<=?))
+      ORDER BY created_at,id LIMIT ?) RETURNING *`,
+  -(now + 1), worldId, session.id, worldId, session.id,
+  now - assetReservationPolicy.leaseSeconds, now, assetReservationPolicy.cleanupBatch);
+}
+export async function assetReservation(db, session, worldId, asset) {
+  return first(db, "SELECT * FROM school_assets WHERE id=? AND world_id=? AND owner_id=? AND object_key=?",
+    asset.id, worldId, session.id, asset.object_key);
+}
+export async function retireAssetReservation(db, session, worldId, asset, createdAt, cleanupNotBefore) {
+  reservationClock(cleanupNotBefore);
+  return first(db, `UPDATE school_assets SET created_at=? WHERE id=? AND world_id=? AND owner_id=?
+    AND object_key=? AND status='pending' AND (created_at=? OR created_at<0) RETURNING *`,
+  -(cleanupNotBefore + 1), asset.id, worldId, session.id, asset.object_key, createdAt);
+}
+export async function completeAssetReservation(db, session, worldId, asset, createdAt, now) {
+  reservationClock(now);
+  const row = await first(db, `UPDATE school_assets SET status='ready' WHERE id=? AND world_id=? AND owner_id=?
+    AND object_key=? AND status='pending' AND created_at=? AND created_at>=0 AND created_at>? RETURNING *`,
+  asset.id, worldId, session.id, asset.object_key, createdAt, now - assetReservationPolicy.leaseSeconds);
+  if (!row) fail(409, "asset_reservation_expired");
+  return row;
+}
+export async function removeRetiredAssetReservation(db, session, worldId, asset) {
+  return run(db, `DELETE FROM school_assets WHERE id=? AND world_id=? AND owner_id=? AND object_key=?
+    AND status='pending' AND created_at=? AND created_at<0`,
+  asset.id, worldId, session.id, asset.object_key, asset.created_at);
 }
 export async function getAsset(db, worldId, id) {
   if (!validId(id)) fail(404, "asset_not_found");

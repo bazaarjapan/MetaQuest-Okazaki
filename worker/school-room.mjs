@@ -5,6 +5,14 @@ import { readAssetModel } from "./school-assets.mjs";
 import { loadCorePlacement } from "./placement-source.mjs";
 
 const DEFAULT_POSE = Object.freeze({ position: [195, 74.4, 105], yaw: 0 });
+const livePoseKey = (userId) => `live-pose:${userId}`;
+function storedPose(value) {
+  try {
+    const source = typeof value === "string" ? JSON.parse(value) : value;
+    const pose = validatePose({ ...source, seq: 0 });
+    return { position: pose.position, yaw: pose.yaw };
+  } catch { return null; }
+}
 function vector(value, minimum, maximum, name) {
   if (!Array.isArray(value) || value.length !== 3 || !value.every((n) => Number.isFinite(n) && n >= minimum && n <= maximum)) fail(400, `invalid_${name}`);
   return [...value];
@@ -104,13 +112,17 @@ export class SchoolRoom {
     // Capacity counts identities, not tabs. Queue serialization makes simultaneous
     // reconnects/capacity checks race-safe, including the old close event.
     await this.pruneExpired();
-    for (const [socket, attachment] of this.sessions) if (attachment.userId === caller.session.id) this.remove(socket, 1000, "connected in another tab");
-    if (this.sessions.size >= LIMITS.participants) fail(409, "room_full");
+    const previous = [...this.sessions].filter(([, attachment]) => attachment.userId === caller.session.id);
+    if (this.sessions.size - previous.length >= LIMITS.participants) fail(409, "room_full");
+    const savedPose = await this.identityPose(caller.session.id, caller.membership.pose_json, previous[0]?.[1]);
+    // Preserve the old connection if durable pose storage is unavailable. Each
+    // member has one small record, never a history or an 8Hz world-state rewrite.
+    await this.persistLivePose(caller.session.id, savedPose);
+    for (const [socket] of previous) this.remove(socket, 1000, "connected in another tab");
     const pair = this.makePair(), [client, server] = Object.values(pair);
-    const savedPose = caller.membership.pose_json ? JSON.parse(caller.membership.pose_json) : DEFAULT_POSE;
     const attachment = { userId: caller.session.id, sessionHash: caller.context.sessionHash,
       expiresAt: caller.session.expires_at, avatar: publicAvatar(caller.session),
-      pose: { position: [...savedPose.position], yaw: savedPose.yaw }, lastSeq: -1,
+      pose: { position: [...savedPose.position], yaw: savedPose.yaw }, poseRestoreCommit: this.poseRestoreCommit(), lastSeq: -1,
       lastPoseAt: -1e15, lastEditAt: -1e15, lastPingAt: -1e15, lastSeenAt: this.now(), rateWindowAt: this.now(), rateCount: 0 };
     this.ctx.acceptWebSocket(server);
     server.serializeAttachment(attachment);
@@ -121,13 +133,35 @@ export class SchoolRoom {
     await this.scheduleAlarm();
     return this.upgradeResponse(client);
   }
+  poseRestoreCommit() { return this.state?.restoreCommit ?? null; }
+  async identityPose(userId, checkpoint = null, attachment = null) {
+    const commit = this.poseRestoreCommit(), live = await this.ctx.storage.get(livePoseKey(userId));
+    // The existing unique restore commit is also the live-pose epoch. A teacher
+    // restore invalidates every old record atomically at the world-state commit;
+    // recovery resolves that commit before connect/save can read the D1 mirror.
+    const durable = live?.restoreCommit === commit ? storedPose(live.pose) : null;
+    if (durable) return durable;
+    const attached = attachment && (attachment.poseRestoreCommit ?? null) === commit ? storedPose(attachment.pose) : null;
+    return attached ?? storedPose(this.state?.livePoseFallbacks?.[userId]) ?? storedPose(checkpoint) ??
+      { position: [...DEFAULT_POSE.position], yaw: DEFAULT_POSE.yaw };
+  }
+  persistLivePose(userId, pose) {
+    return this.ctx.storage.put(livePoseKey(userId), { restoreCommit: this.poseRestoreCommit(),
+      pose: { position: [...pose.position], yaw: pose.yaw } });
+  }
+  async memberPoses(members) {
+    if (members.length > LIMITS.participants) fail(503, "room_members_invalid");
+    const active = new Map([...this.sessions.values()].map((attachment) => [attachment.userId, attachment]));
+    return Object.fromEntries(await Promise.all(members.map(async (member) =>
+      [member.user_id, await this.identityPose(member.user_id, member.pose_json, active.get(member.user_id))])));
+  }
   participants() {
     return [...this.sessions.values()].map((attachment) => ({ ...attachment.avatar, position: [...attachment.pose.position], yaw: attachment.pose.yaw }));
   }
   async snapshot(world, session) {
     const assets = await all(this.env.DB, "SELECT * FROM school_assets WHERE world_id=? AND status='ready' ORDER BY created_at,id", world.id);
     const saved = await all(this.env.DB, "SELECT id,revision,created_at FROM school_snapshots WHERE world_id=? ORDER BY created_at DESC,id DESC LIMIT 20", world.id);
-    return { revision: this.state.revision, world: worldPublic(world, session.id === world.teacher_id && session.role === "teacher"),
+    return { revision: this.state.revision, restoreCommit: this.poseRestoreCommit(), world: worldPublic(world, session.id === world.teacher_id && session.role === "teacher"),
       participants: this.participants(), objects: this.state.objects, assets: assets.map(assetPublic),
       snapshots: session.id === world.teacher_id && session.role === "teacher" ? saved.map((row) => ({ id: row.id, revision: row.revision, createdAt: row.created_at })) : [] };
   }
@@ -203,10 +237,19 @@ export class SchoolRoom {
           return;
         }
         if (value.type === "pose") {
+          // A packet may have been queued before a teacher restore but arrive
+          // after its commit. Never promote that old position into the new live
+          // epoch. Even the initial null epoch must be explicit; only a full
+          // state snapshot authorizes the client to switch movement generations.
+          if (!Object.hasOwn(value, "restoreCommit") || value.restoreCommit !== this.poseRestoreCommit()) fail(409, "stale_pose_epoch");
           const pose = validatePose(value);
           if (pose.seq <= attachment.lastSeq) fail(409, "stale_pose");
           if (this.now() - attachment.lastPoseAt < 100) fail(429, "pose_rate_limit");
+          // A successful broadcast must survive socket loss / logout / DO
+          // eviction. Do not expose a pose whose durable write was rejected.
+          await this.persistLivePose(attachment.userId, pose);
           attachment.pose = { position: pose.position, yaw: pose.yaw };
+          attachment.poseRestoreCommit = this.poseRestoreCommit();
           attachment.lastSeq = pose.seq; attachment.lastPoseAt = this.now(); attachment.lastSeenAt = this.now();
           socket.serializeAttachment(attachment);
           this.broadcast({ type: "pose", participant: { ...attachment.avatar, ...attachment.pose }, revision: this.state.revision });
@@ -283,8 +326,9 @@ export class SchoolRoom {
     const now = Math.floor(this.now() / 1000), id = crypto.randomUUID();
     await this.pruneExpired();
     const members = await all(this.env.DB, "SELECT user_id,pose_json FROM school_members WHERE world_id=?", this.state.worldId);
-    const poses = Object.fromEntries(members.filter((member) => member.pose_json).map((member) => [member.user_id, JSON.parse(member.pose_json)]));
-    for (const attachment of this.sessions.values()) poses[attachment.userId] = attachment.pose;
+    // Offline members' accepted current positions belong in the checkpoint too,
+    // not only the last teacher checkpoint mirrored into D1 or open sockets.
+    const poses = await this.memberPoses(members);
     const saved = { schema: 1, worldId: this.state.worldId, revision: this.state.revision, objects: this.state.objects, poses };
     const statements = [this.env.DB.prepare("INSERT INTO school_snapshots(id,world_id,teacher_id,revision,state_json,created_at) VALUES(?,?,?,?,?,?)")
       .bind(id, this.state.worldId, caller.session.id, this.state.revision, JSON.stringify(saved), now)];
@@ -307,12 +351,25 @@ export class SchoolRoom {
       if (asset.owner_id !== object.ownerId) fail(503, "snapshot_asset_invalid");
     }
     const commitId = crypto.randomUUID();
-    const next = { ...this.state, revision: this.state.revision + 1, objects: saved.objects, recent: [], restoreCommit: commitId };
     const members = await all(this.env.DB, "SELECT user_id,pose_json FROM school_members WHERE world_id=?", this.state.worldId);
+    const restoredPoses = await this.memberPoses(members);
+    for (const member of members) {
+      if (Object.hasOwn(saved.poses, member.user_id)) {
+        const pose = storedPose(saved.poses[member.user_id]);
+        if (!pose) fail(503, "snapshot_invalid");
+        restoredPoses[member.user_id] = pose;
+      }
+    }
+    // Carry over current positions for members who joined after this snapshot.
+    // The bounded fallback is committed atomically with the new epoch, so neither
+    // an offline member nor a crash between commit/notification resurrects an old
+    // live record. There are no per-member storage writes during restoration.
+    const next = { ...this.state, revision: this.state.revision + 1, objects: saved.objects, recent: [],
+      restoreCommit: commitId, livePoseFallbacks: restoredPoses };
     const intent = { worldId: this.state.worldId, revision: next.revision, commitId,
       before: Object.fromEntries(members.map((member) => [member.user_id, member.pose_json])),
       after: Object.fromEntries(Object.entries(saved.poses).map(([userId, pose]) => [userId, JSON.stringify(pose)])),
-      poses: saved.poses };
+      poses: restoredPoses };
     // D1 and DO storage cannot share a transaction. Durable world-state is the
     // authoritative commit point; journal first, D1 mirror second, DO commit last.
     // A failed/interrupted attempt is rolled back or completed from the durable
@@ -343,7 +400,7 @@ export class SchoolRoom {
       if (this.state.restoreCommit !== commitId) throw error;
       return { revision: this.state.revision, snapshotId: row.id };
     }
-    await this.notifyRestoredState(saved.poses);
+    await this.notifyRestoredState(restoredPoses);
     try {
       await this.ctx.storage.put("restore-recovery", null);
       this.restoreRecovery = null;
@@ -389,7 +446,10 @@ export class SchoolRoom {
         const now = Math.floor(this.now() / 1000);
         if (attachment.expiresAt <= now || this.now() - attachment.lastSeenAt > 60000) fail(401, "room_login_required");
         const authorized = await authorizeRoomSession(this.env.DB, this.state.worldId, attachment.sessionHash, now);
-        if (poses[attachment.userId]) attachment.pose = poses[attachment.userId];
+        if (poses[attachment.userId]) {
+          attachment.pose = poses[attachment.userId];
+          attachment.poseRestoreCommit = this.poseRestoreCommit();
+        }
         socket.serializeAttachment(attachment);
         socket.send(JSON.stringify({ type: "state", ...await this.snapshot(authorized.world, authorized.session) }));
       } catch (error) {

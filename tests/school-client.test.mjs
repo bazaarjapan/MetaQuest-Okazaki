@@ -7,7 +7,7 @@ const OTHER = "22222222-2222-4222-8222-222222222222";
 const ASSET = "33333333-3333-4333-8333-333333333333";
 const USER = { id: "44444444-4444-4444-8444-444444444444", role: "teacher", name: "先生", color: "#4a90e2" };
 const world = (id = WORLD) => ({ id, name: "授業", joinCode: "ABCDEFGHIJKL" });
-const snapshot = (id = WORLD, revision = 0) => ({ world: world(id), revision, assets: [], objects: [], participants: [], snapshots: [] });
+const snapshot = (id = WORLD, revision = 0) => ({ world: world(id), revision, restoreCommit: null, assets: [], objects: [], participants: [], snapshots: [] });
 const deferred = () => { let resolve; const promise = new Promise((r) => { resolve = r; }); return { promise, resolve }; };
 const tick = async () => { await new Promise((resolve) => setImmediate(resolve)); };
 function harness() {
@@ -72,6 +72,81 @@ test("an unavailable or unconfigured service is a safe guest state, not a base-v
   const other = harness(); other.routes.set("GET /api/config", () => { throw new Error("network"); });
   assert.equal((await other.client.init()).connection, "guest"); other.client.destroy();
 });
+test("failed config retries only on a deliberate call and concurrent retries share one attempt", async () => {
+  const h = harness(); let attempts = 0;
+  h.routes.set("GET /api/config", () => {
+    if (++attempts === 1) throw new Error("temporary network failure");
+    return h.response({ configured: true, googleClientId: "retry.apps.googleusercontent.com" });
+  });
+  const failed = await h.client.init();
+  assert.equal(failed.connection, "guest"); assert.equal(failed.error, "school_unavailable");
+  await tick(); await tick(); assert.equal(attempts, 1);
+  const first = h.client.init(), shared = h.client.init({ recheck: true });
+  assert.equal(first, shared); await first;
+  assert.equal(attempts, 2); assert.equal(h.client.getState().error, null);
+  assert.equal((await h.client.prepareGoogleLogin()).clientId, "retry.apps.googleusercontent.com");
+  assert.equal(attempts, 2); h.client.destroy();
+});
+test("unconfigured responses and failed initial session reads can later recover without reloading", async () => {
+  const h = harness(); let configured = false;
+  h.routes.set("GET /api/config", () => h.response({ configured, googleClientId: configured ? "later.apps.googleusercontent.com" : null }));
+  assert.equal((await h.client.init()).error, "school_not_configured");
+  configured = true;
+  assert.equal((await h.client.prepareGoogleLogin()).nonce, "private-nonce");
+  assert.equal(h.client.getState().configured, true); h.client.destroy();
+  const other = harness(); let sessions = 0;
+  other.routes.set("GET /api/session", () => {
+    if (++sessions === 1) return other.response({ error: "temporary_session_failure" }, 503);
+    return other.response({ user: null, csrf: "private-retry-csrf", nonce: "private-retry-nonce" });
+  });
+  assert.equal((await other.client.init()).error, "temporary_session_failure");
+  const recovered = await other.client.init();
+  assert.equal(recovered.error, null); assert.equal(recovered.connection, "guest");
+  assert.equal((await other.client.prepareGoogleLogin()).nonce, "private-retry-nonce");
+  assert.equal(JSON.stringify(other.client.getState()).includes("private-retry"), false); other.client.destroy();
+});
+test("explicit recheck refetches successful config and does not create a background retry loop", async () => {
+  const h = harness(); await h.client.init();
+  h.routes.set("GET /api/config", () => h.response({ configured: false }));
+  assert.equal((await h.client.init({ recheck: true })).error, "school_not_configured");
+  const count = h.calls.length; await tick(); await tick(); assert.equal(h.calls.length, count);
+  h.routes.delete("GET /api/config"); assert.equal((await h.client.init()).configured, true);
+  assert.equal(h.client.getState().error, null); h.client.destroy();
+});
+test("a stale failed or unconfigured initialization cannot sign out or overwrite a newer login", async () => {
+  for (const response of [{ configured: false }, { error: "old_failure" }]) {
+    const h = harness(); await h.client.init(); const slow = deferred();
+    h.routes.set("GET /api/config", () => slow.promise);
+    const old = h.client.init({ recheck: true });
+    await h.client.login("newer-credential");
+    slow.resolve(h.response(response, response.error ? 503 : 200)); await old;
+    assert.equal(h.client.getState().user.id, USER.id);
+    assert.equal(h.client.getState().configured, true); assert.equal(h.client.getState().error, null);
+    h.routes.delete("GET /api/config"); await h.client.init();
+    assert.equal(h.client.getState().user.id, USER.id); h.client.destroy();
+  }
+});
+test("concurrent login preparations coalesce session challenges without exposing them in state", async () => {
+  const h = harness(); await h.client.init(); const slow = deferred(), before = h.calls.length;
+  h.routes.set("GET /api/session", () => slow.promise);
+  const first = h.client.prepareGoogleLogin(), second = h.client.prepareGoogleLogin(); await tick();
+  assert.equal(h.calls.length, before + 1);
+  slow.resolve(h.response({ user: null, csrf: "private-coalesced-csrf", nonce: "private-coalesced-nonce" }));
+  const values = await Promise.all([first, second]);
+  assert.equal(values[0].nonce, "private-coalesced-nonce"); assert.deepEqual(values[0], values[1]);
+  assert.equal(JSON.stringify(h.client.getState()).includes("coalesced"), false); h.client.destroy();
+});
+test("old session failure does not clear a newer auth epoch's in-flight refresh", async () => {
+  const h = harness(); await h.client.init(); const oldReply = deferred(), freshReply = deferred();
+  h.routes.set("GET /api/session", () => oldReply.promise);
+  const old = h.client.refreshSession(), rejected = assert.rejects(old, /old_session_failure/);
+  await h.client.login("newer-credential");
+  h.routes.set("GET /api/session", () => freshReply.promise);
+  const fresh = h.client.refreshSession(); oldReply.resolve(h.response({ error: "old_session_failure" }, 401)); await rejected;
+  assert.equal(h.client.refreshSession(), fresh);
+  freshReply.resolve(h.response({ user: USER, csrf: "private-new-csrf" })); await fresh;
+  assert.equal(h.client.getState().user.id, USER.id); assert.equal(h.client.getState().error, null); h.client.destroy();
+});
 test("login uses server challenge and opaque cookie; avatar/previous worlds remain same-user", async () => {
   const h = harness(); await h.authenticate();
   const login = h.calls.find((call) => call.path === "/api/auth/google");
@@ -106,6 +181,64 @@ test("pose sends are finite, bounded <=8Hz; heartbeat is exactly20s and clears o
   h.advance(125); assert.equal(h.client.sendPose({ position: [Infinity, 2, 3], yaw: 0 }), false);
   const packets = h.sockets[0].sent; assert.deepEqual(packets.map((value) => value.seq), [0, 1]);
   h.client.leaveWorld(); assert.equal(h.intervals.size, 0); assert.equal(h.client.sendPose({ position: [1, 2, 3], yaw: 0 }), false); h.client.destroy();
+});
+
+test("pose epoch follows only an adopted full WS state, not an earlier HTTP checkpoint", async () => {
+  const h = harness(); await h.join(); const ws = h.sockets[0];
+  assert.equal(h.client.sendPose({ position: [1, 2, 3], yaw: 0 }), true);
+  assert.equal(ws.sent.at(-1).restoreCommit, null);
+  const epoch = crypto.randomUUID(), restored = { ...snapshot(WORLD, 2), restoreCommit: epoch };
+  h.routes.set(`POST /api/worlds/${WORLD}/save`, h.response({ ok: true }));
+  h.routes.set(`GET /api/worlds/${WORLD}/state`, h.response(restored));
+  await h.client.saveWorld(); h.advance(125);
+  assert.equal(h.client.sendPose({ position: [4, 5, 6], yaw: 0 }), true);
+  assert.equal(ws.sent.at(-1).restoreCommit, null, "HTTP state cannot promote old camera movement");
+  const sequence = h.client.getState().snapshotSeq;
+  ws.message({ type: "state", ...restored }); h.advance(125);
+  assert.equal(h.client.getState().snapshotSeq, sequence + 1);
+  assert.equal(h.client.sendPose({ position: [10, 20, 30], yaw: .1 }), true);
+  assert.equal(ws.sent.at(-1).restoreCommit, epoch);
+  const stateBeforeError = h.client.getState();
+  ws.message({ type: "error", error: "stale_pose_epoch", revision: 2 });
+  assert.deepEqual(h.client.getState(), stateBeforeError, "safe rejection does not revoke login or edits");
+  ws.message({ type: "state", ...snapshot(WORLD, 1) }); h.advance(125);
+  h.client.sendPose({ position: [10, 20, 30], yaw: .1 });
+  assert.equal(ws.sent.at(-1).restoreCommit, epoch, "older WS state cannot roll epoch backwards");
+  h.client.leaveWorld(); assert.equal(h.client.getState().restoreCommit, null);
+  h.client.destroy();
+});
+
+test("missing or malformed live pose epoch closes the socket before accepting a full state", async () => {
+  for (const marker of [undefined, "not-a-restore-id", 7]) {
+    const h = harness(); await h.authenticate(); await h.client.openWorld(WORLD);
+    const ws = h.sockets[0]; ws.readyState = 1; ws.onopen?.();
+    ws.message({ type: "state", ...snapshot(), restoreCommit: marker });
+    assert.equal(ws.readyState, 3); assert.equal(h.client.getState().snapshotSeq, 0);
+    assert.equal(h.client.sendPose({ position: [1, 2, 3], yaw: 0 }), false);
+    assert.equal(h.client.getState().connection, "reconnecting");
+    h.client.destroy();
+  }
+});
+
+test("a newer HTTP object read cannot suppress the ordered WS restore camera and pose epoch", async () => {
+  const h = harness(); await h.join(); const ws = h.sockets[0], epoch = crypto.randomUUID();
+  const newerObject = { id: OTHER, assetId: ASSET, ownerId: USER.id };
+  const newer = { ...snapshot(WORLD, 11), restoreCommit: epoch, objects: [newerObject] };
+  h.routes.set(`POST /api/worlds/${WORLD}/save`, h.response({ ok: true }));
+  h.routes.set(`GET /api/worlds/${WORLD}/state`, h.response(newer));
+  await h.client.saveWorld();
+  assert.equal(h.client.getState().revision, 11);
+  const before = h.client.getState().snapshotSeq, cameraPose = { id: USER.id, position: [10, 40, 20], yaw: .4 };
+  ws.message({ type: "state", ...snapshot(WORLD, 10), restoreCommit: epoch, participants: [cameraPose] });
+  const adopted = h.client.getState();
+  assert.equal(adopted.snapshotSeq, before + 1, "restore is not lost behind HTTP revision");
+  assert.deepEqual(adopted.participants, [cameraPose]); assert.equal(adopted.restoreCommit, epoch);
+  assert.equal(adopted.revision, 11); assert.deepEqual(adopted.objects, [newerObject]);
+  h.client.sendPose({ position: cameraPose.position, yaw: cameraPose.yaw });
+  assert.equal(ws.sent.at(-1).restoreCommit, epoch);
+  ws.message({ type: "state", ...snapshot(WORLD, 9) });
+  assert.equal(h.client.getState().snapshotSeq, before + 1, "older full live snapshots remain ignored");
+  h.client.destroy();
 });
 test("server-revision-owned editing resolves ack, while caller cannot override authority fields", async () => {
   const h = harness(); await h.join(); const ws = h.sockets[0];

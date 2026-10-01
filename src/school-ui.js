@@ -107,7 +107,13 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {} }) {
     section.append(element("p", "Googleの確認画面では、既存プロジェクトの共通アプリ名「教職員異動検索」が表示される場合があります。このアプリでは基本的な本人確認だけを行います。", "school-note"));
     const googleButton = command("Googleログインを表示", showGoogleButton, "school-login", !state.configured);
     googleHost = element("div", undefined, "school-google"); googleHost.id = "school-google";
-    section.append(googleButton, googleHost);
+    const retryButton = command("共同教室に再接続・設定を再確認", () => perform(async () => {
+      const next = await client.init({ recheck: true });
+      if (!next.configured || next.error) throw new Error(next.error ?? "school_not_configured");
+    }, "共同教室の接続を確認しました。"), "school-retry");
+    // This remains reachable even when initial config/session failed. It only
+    // retries our own API; Google scripts stay lazy until the login button click.
+    section.append(googleButton, retryButton, googleHost);
     if (inviteCode) section.append(element("p", `招待コード ${inviteCode} を受け取りました。ログイン後、「この教室に参加」を押してください。`, "school-note"));
     content.append(section);
   }

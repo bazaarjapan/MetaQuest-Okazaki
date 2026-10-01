@@ -300,16 +300,16 @@ test("server sync validates actual core empty ground, ignores ownership lies, sa
 });
 test("pose finite/sequence/rate/size checks and session expiry remove ghosts", async () => {
   const s = await setup(), teacher = await s.user("teacher", "teacher"), world = await createWorld(s.db, teacher, {}, s.now()), a = await s.connect(world.id, teacher);
-  await a.room.webSocketMessage(a.socket, JSON.stringify({ type: "pose", position: [0,40,0], yaw: 0, seq: 1 }));
+  await a.room.webSocketMessage(a.socket, JSON.stringify({ type: "pose", position: [0,40,0], yaw: 0, seq: 1, restoreCommit: null }));
   assert.equal(a.socket.messages.at(-1).type, "pose"); assert.deepEqual(a.socket.messages.at(-1).participant.position, [0,40,0]);
   assert.equal("participants" in a.socket.messages.at(-1), false);
-  await a.room.webSocketMessage(a.socket, JSON.stringify({ type: "pose", position: [1,40,0], yaw: 0, seq: 2 }));
+  await a.room.webSocketMessage(a.socket, JSON.stringify({ type: "pose", position: [1,40,0], yaw: 0, seq: 2, restoreCommit: null }));
   assert.equal(a.socket.messages.at(-1).error, "pose_rate_limit");
-  s.advance(); await a.room.webSocketMessage(a.socket, JSON.stringify({ type: "pose", position: [null,40,0], yaw: 0, seq: 3 }));
+  s.advance(); await a.room.webSocketMessage(a.socket, JSON.stringify({ type: "pose", position: [null,40,0], yaw: 0, seq: 3, restoreCommit: null }));
   assert.equal(a.socket.messages.at(-1).error, "invalid_pose");
   await a.room.webSocketMessage(a.socket, "a".repeat(LIMITS.messageBytes + 1)); assert.equal(a.socket.messages.at(-1).error, "message_too_large");
   await run(s.db, "DELETE FROM school_sessions WHERE token_hash=?", teacher.token_hash);
-  await a.room.webSocketMessage(a.socket, JSON.stringify({ type: "pose", position: [1,40,0], yaw: 0, seq: 3 }));
+  await a.room.webSocketMessage(a.socket, JSON.stringify({ type: "pose", position: [1,40,0], yaw: 0, seq: 3, restoreCommit: null }));
   assert.equal(a.room.sessions.size, 0); assert.equal(a.socket.closeCode, 1008);
   s.sqlite.close();
 });
@@ -318,7 +318,7 @@ test("unedited room survives hibernation, heartbeat preserves liveness and alarm
   const ctx = s.rooms.get(world.id).ctx, room = new SchoolRoom(ctx, s.env, { now: () => s.now() * 1000 });
   await room.ready;
   assert.equal(room.state.worldId, world.id); assert.equal(room.state.revision, 0);
-  s.advance(1000); await room.webSocketMessage(a.socket, JSON.stringify({ type: "pose", position: [10,40,20], yaw: 0.4, seq: 1 }));
+  s.advance(1000); await room.webSocketMessage(a.socket, JSON.stringify({ type: "pose", position: [10,40,20], yaw: 0.4, seq: 1, restoreCommit: null }));
   assert.deepEqual(room.participants()[0].position, [10,40,20]);
   s.advance(20000); await room.webSocketMessage(a.socket, JSON.stringify({ type: "ping" }));
   assert.equal(a.socket.messages.at(-1).type, "pong");

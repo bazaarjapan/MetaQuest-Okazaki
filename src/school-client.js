@@ -40,12 +40,12 @@ export function createSchoolClient(options = {}) {
   const clearTimer = options.clearTimeoutImpl ?? globalThis.clearTimeout;
   const setEvery = options.setIntervalImpl ?? globalThis.setInterval;
   const clearEvery = options.clearIntervalImpl ?? globalThis.clearInterval;
-  const state = { configured: false, user: null, world: null, worlds: [], assets: [], objects: [], participants: [], snapshots: [], revision: 0, snapshotSeq: 0, connection: "guest", error: null };
+  const state = { configured: false, user: null, world: null, worlds: [], assets: [], objects: [], participants: [], snapshots: [], revision: 0, restoreCommit: null, snapshotSeq: 0, connection: "guest", error: null };
   const listeners = new Set(), pending = new Map();
   const readonlySnapshot = readonlySnapshotFactory();
   let csrf = null, nonce = null, clientId = null, authEpoch = 0, roomEpoch = 0;
   let socket = null, heartbeat = null, reconnectTimer = null, openingTimer = null, retry = 0;
-  let poseSeq = 0, lastPoseAt = -Infinity, lastEditAt = -Infinity, initialized = null;
+  let poseSeq = 0, lastPoseAt = -Infinity, lastEditAt = -Infinity, lastFullStateRevision = -1, initialized = null, sessionRefresh = null;
   let editTail = Promise.resolve();
   let metadataRefresh = null;
   const getState = () => clone(state);
@@ -65,10 +65,10 @@ export function createSchoolClient(options = {}) {
     const old = socket; socket = null;
     try { old?.close(1000, "room left"); } catch { /* Already closed. */ }
     for (const item of pending.values()) { clearTimer(item.timer); item.reject(new SchoolClientError(code)); }
-    pending.clear(); retry = 0; poseSeq = 0; lastPoseAt = lastEditAt = -Infinity; metadataRefresh = null;
+    pending.clear(); retry = 0; poseSeq = 0; lastPoseAt = lastEditAt = -Infinity; lastFullStateRevision = -1; metadataRefresh = null;
     editTail = Promise.resolve();
     if (!keepWorld) { state.world = null; state.assets = []; state.objects = []; state.snapshots = []; state.revision = 0; }
-    state.participants = []; state.connection = state.user ? "idle" : "guest";
+    state.restoreCommit = null; state.participants = []; state.connection = state.user ? "idle" : "guest";
   }
   function clearIdentity(code = "login_required") {
     authEpoch++; clearRoom(code ?? "signed_out"); csrf = nonce = null;
@@ -105,34 +105,57 @@ export function createSchoolClient(options = {}) {
     if (epoch !== authEpoch) return;
     state.worlds = Array.isArray(result.worlds) ? result.worlds : []; emit("worlds");
   }
-  async function refreshSession() {
-    const epoch = authEpoch, result = await request("/api/session");
-    if (epoch !== authEpoch) return getState();
-    if (!result.user && state.user) clearIdentity("session_expired");
-    else if (result.user && state.user && result.user.id !== state.user.id) {
-      // Another tab can replace the same-origin cookie. Its identity must never
-      // inherit this tab's previous user's active socket or pending commands.
-      authEpoch++; clearRoom("identity_changed"); state.worlds = [];
-    }
-    csrf = result.csrf ?? null; nonce = result.nonce ?? null; state.user = result.user ?? null;
-    if (!state.world) state.connection = state.user ? "idle" : "guest";
-    state.error = null; emit("auth");
-    if (state.user) await loadWorlds();
-    return getState();
+  function refreshSession() {
+    const epoch = authEpoch;
+    if (sessionRefresh?.epoch === epoch) return sessionRefresh.promise;
+    const refresh = { epoch, promise: null };
+    refresh.promise = (async () => {
+      const result = await request("/api/session");
+      if (epoch !== authEpoch) return getState();
+      if (!result.user && state.user) clearIdentity("session_expired");
+      else if (result.user && state.user && result.user.id !== state.user.id) {
+        // Another tab can replace the same-origin cookie. Its identity must never
+        // inherit this tab's previous user's active socket or pending commands.
+        authEpoch++; clearRoom("identity_changed"); state.worlds = [];
+      }
+      csrf = result.csrf ?? null; nonce = result.nonce ?? null; state.user = result.user ?? null;
+      if (!state.world) state.connection = state.user ? "idle" : "guest";
+      state.error = null; emit("auth");
+      if (state.user) await loadWorlds();
+      return getState();
+    })().finally(() => { if (sessionRefresh === refresh) sessionRefresh = null; });
+    sessionRefresh = refresh;
+    return refresh.promise;
   }
-  async function init() {
-    if (initialized) return initialized;
-    initialized = (async () => {
+  function init({ recheck = false } = {}) {
+    // Failures/unconfigured responses are retryable on a deliberate call. Keep
+    // only successful initialization cached; never start a background retry loop.
+    // A recheck shares an in-flight attempt instead of creating nonce/cookie races.
+    if (initialized && (initialized.pending || !recheck)) return initialized.promise;
+    const epoch = authEpoch, attempt = { pending: true, promise: null };
+    attempt.promise = (async () => {
+      let complete = false;
       try {
         const result = await request("/api/config");
+        if (epoch !== authEpoch) return getState();
         state.configured = result.configured === true;
         clientId = typeof result.googleClientId === "string" ? result.googleClientId : null;
-        if (state.configured && clientId) await refreshSession();
+        if (state.configured && clientId) {
+          await refreshSession();
+          complete = epoch === authEpoch && !state.error;
+        }
         else { state.error = "school_not_configured"; emit("auth"); }
-      } catch (error) { clearIdentity(error.code ?? "school_unavailable"); }
+      } catch (error) {
+        // A late failed recheck must not sign out a newer successful login.
+        if (epoch === authEpoch) clearIdentity(error.code ?? "school_unavailable");
+      } finally {
+        attempt.pending = false;
+        if (initialized === attempt && !complete) initialized = null;
+      }
       return getState();
     })();
-    return initialized;
+    initialized = attempt;
+    return attempt.promise;
   }
   async function prepareGoogleLogin() {
     await init();
@@ -210,8 +233,19 @@ export function createSchoolClient(options = {}) {
       let value; try { value = JSON.parse(data); } catch { return; }
       if (!value || typeof value !== "object") return;
       if (value.type === "state") {
-        if (value.world?.id !== worldId || !Number.isSafeInteger(value.revision) || value.revision < state.revision) return;
+        if (value.world?.id !== worldId || !Number.isSafeInteger(value.revision) || value.revision < 0 || value.revision < lastFullStateRevision) return;
+        if (value.restoreCommit !== null && !(typeof value.restoreCommit === "string" && idPattern.test(value.restoreCommit))) {
+          live.close(1011, "invalid pose epoch"); return;
+        }
         applySnapshot(value); state.connection = "connected"; state.error = null; retry = 0;
+        // HTTP metadata/object reads can overtake a restore broadcast. Preserve
+        // their newer object revision, but still adopt this ordered live camera
+        // snapshot. Compare full WS states with each other, not with HTTP reads.
+        lastFullStateRevision = value.revision;
+        if (Array.isArray(value.participants)) state.participants = clone(value.participants);
+        // Only a full live snapshot also adopts the camera (snapshotSeq). An
+        // earlier HTTP read must not label an old camera pose with a new epoch.
+        state.restoreCommit = value.restoreCommit;
         state.snapshotSeq++;
         if (openingTimer !== null) clearTimer(openingTimer); openingTimer = null;
         emit("room");
@@ -247,6 +281,10 @@ export function createSchoolClient(options = {}) {
         if (Number.isSafeInteger(value.revision)) state.revision = Math.max(state.revision, value.revision);
         item.resolve(clone(value));
       } else if (value.type === "error") {
+        // In-flight movement from before a teacher restore is expected to be
+        // rejected. Do not turn that safe rejection into an auth/edit failure;
+        // the authoritative full WS snapshot owns the next movement epoch.
+        if (value.error === "stale_pose_epoch") return;
         const error = new SchoolClientError(value.error ?? "room_error"); state.error = error.code;
         const item = pending.get(value.requestId);
         if (item) { pending.delete(value.requestId); clearTimer(item.timer); item.reject(error); }
@@ -354,7 +392,7 @@ export function createSchoolClient(options = {}) {
   function sendPose({ position, yaw }) {
     if (!state.user || !state.world || state.connection !== "connected" || !socket || socket.readyState !== 1 || now() - lastPoseAt < 125) return false;
     if (!Array.isArray(position) || position.length !== 3 || !position.every((n) => Number.isFinite(n) && Math.abs(n) <= 25000) || position[1] < -100 || position[1] > 1200 || !Number.isFinite(yaw) || Math.abs(yaw) > Math.PI * 100) return false;
-    try { socket.send(JSON.stringify({ type: "pose", position: [...position], yaw, seq: poseSeq++ })); lastPoseAt = now(); return true; }
+    try { socket.send(JSON.stringify({ type: "pose", position: [...position], yaw, seq: poseSeq++, restoreCommit: state.restoreCommit })); lastPoseAt = now(); return true; }
     catch { return false; }
   }
   function subscribe(listener) { listeners.add(listener); listener(readonlySnapshot({ ...state }), "state"); return () => listeners.delete(listener); }

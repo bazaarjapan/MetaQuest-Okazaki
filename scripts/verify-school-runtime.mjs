@@ -198,7 +198,7 @@ try {
   const teacher = await seedPerson(db, "teacher", 0), students = [];
   for (let i = 0; i < LIMITS.students; i++) students.push(await seedPerson(db, "student", i + 1));
   const extra = await seedPerson(db, "student", 31);
-  let world, classroom, owner, object, checkpoint;
+  let world, classroom, owner, object, checkpoint, poseRestoreCommit = null;
   const bytes = cubeStl(), empty = await actualEmptyGround(bytes);
 
   await check("real D1-backed sessions and API security boundary", async () => {
@@ -215,6 +215,7 @@ try {
     const joined = await Promise.all(students.map((person) => expectJson("/api/worlds/join", person, { code: world.joinCode })));
     assert.ok(joined.every((entry) => entry.world.id === world.id));
     classroom = await Promise.all([teacher, ...students].map((person) => connect(world.id, person)));
+    assert.ok(classroom.every(({ initial }) => Object.hasOwn(initial, "restoreCommit") && initial.restoreCommit === null));
     owner = classroom[1].probe;
     const state = await expectJson(`/api/worlds/${world.id}/state`, teacher, null);
     assert.equal(state.participants.length, 31); assert.equal(new Set(state.participants.map((person) => person.id)).size, 31);
@@ -236,7 +237,7 @@ try {
     let deliveries = 0, largestBytes = 0;
     for (let round = 1; round <= 5; round++) {
       const marks = classroom.map(({ probe }) => probe.messages.length);
-      classroom.forEach(({ probe }, index) => probe.send({ type: "pose", position: [index * 2 + round, 40, round * 2], yaw: round / 10, seq: round }));
+      classroom.forEach(({ probe }, index) => probe.send({ type: "pose", position: [index * 2 + round, 40, round * 2], yaw: round / 10, seq: round, restoreCommit: poseRestoreCommit }));
       await Promise.all(classroom.map(({ probe }, index) => probe.wait((packet) => packet.type === "pose" && packet.participant.id === students.at(-1).id && packet.participant.position[2] === round * 2, "pose fan-out", marks[index])));
       // Wait for every sender at every endpoint; arrival order is not assumed.
       await Promise.all(classroom.flatMap(({ probe }, index) => [teacher, ...students].map((person) => probe.wait((packet) => packet.type === "pose" && packet.participant.id === person.id && packet.participant.position[2] === round * 2, "each pose delivery", marks[index]))));
@@ -282,21 +283,51 @@ try {
     assert.deepEqual(JSON.parse(row.state_json).objects[0], object);
     await delay(260);
     assert.equal((await owner.command({ type: "object.delete", requestId: randomUUID(), revision: 1, id: object.id })).revision, 2);
+    const movedAfterCheckpoint = [800,50,300];
+    owner.send({ type: "pose", position: movedAfterCheckpoint, yaw: .8, seq: 6, restoreCommit: poseRestoreCommit });
+    await Promise.all(classroom.map(({ probe }) => probe.wait((packet) => packet.type === "pose" &&
+      packet.participant.id === students[0].id && packet.participant.position[0] === movedAfterCheckpoint[0], "unsaved movement after checkpoint")));
     const restored = await expectJson(`/api/worlds/${world.id}/restore`, teacher, { snapshotId: checkpoint.id, revision: 2 });
     assert.equal(restored.revision, 3);
-    await Promise.all(classroom.map(({ probe }) => probe.wait((packet) => packet.type === "state" && packet.revision === 3 && packet.objects[0]?.id === object.id, "restored shared state")));
+    const restoredPackets = await Promise.all(classroom.map(({ probe }) => probe.wait((packet) => packet.type === "state" && packet.revision === 3 && packet.objects[0]?.id === object.id, "restored shared state")));
+    poseRestoreCommit = restoredPackets[0].restoreCommit;
+    assert.equal(typeof poseRestoreCommit, "string");
+    assert.ok(restoredPackets.every((packet) => packet.restoreCommit === poseRestoreCommit));
+    const restoredState = await expectJson(`/api/worlds/${world.id}/state`, teacher, null);
+    assert.deepEqual(restoredState.participants.find((person) => person.id === students[0].id).position, [7,40,10]);
     assert.deepEqual((await expectJson(`/api/worlds/${world.id}/state`, teacher, null)).objects[0], object);
     const stale = await owner.command({ type: "object.delete", requestId: randomUUID(), revision: 1, id: object.id }, "error");
     assert.equal(stale.error, "stale_revision");
   });
-  await check("duplicate identity reconnect preserves avatar, owned object and saved pose", async () => {
+  await check("delayed pre-restore pose is rejected and reconnect keeps the restored generation", async () => {
+    const previous = classroom[1].probe, marks = classroom.map(({ probe }) => probe.messages.length);
+    // The packet was built before restore and is deliberately released afterward
+    // over a real TCP socket, never stamped with the newly observed generation.
+    previous.send({ type: "pose", position: [800,50,300], yaw: .8, seq: 7, restoreCommit: null });
+    await previous.wait((packet) => packet.type === "error" && packet.error === "stale_pose_epoch", "old in-flight generation rejected", marks[1]);
+    const state = await expectJson(`/api/worlds/${world.id}/state`, teacher, null);
+    assert.equal(state.restoreCommit, poseRestoreCommit);
+    assert.deepEqual(state.participants.find((person) => person.id === students[0].id).position, [7,40,10]);
+    assert.ok(classroom.every(({ probe }, index) => !probe.messages.slice(marks[index]).some((packet) => packet.type === "pose")));
+    const replacement = await connect(world.id, students[0]); await waitClosed(previous, 1000);
+    assert.equal(replacement.initial.restoreCommit, poseRestoreCommit);
+    assert.deepEqual(replacement.initial.participants.find((person) => person.id === students[0].id).position, [7,40,10]);
+    classroom[1] = replacement; owner = replacement.probe;
+    return { delayedOldEpochRejected: true, restoredPoseRetainedOnReconnect: true };
+  });
+  await check("duplicate identity reconnect preserves avatar, owned object and latest unsaved live pose", async () => {
     const previous = classroom[1].probe;
+    await delay(120);
+    const latestLive = [8,41,11];
+    previous.send({ type: "pose", position: latestLive, yaw: .65, seq: 7, restoreCommit: poseRestoreCommit });
+    await Promise.all(classroom.map(({ probe }) => probe.wait((packet) => packet.type === "pose" &&
+      packet.participant.id === students[0].id && packet.participant.position[0] === latestLive[0], "current pose before reconnect")));
     const replacement = await connect(world.id, students[0]);
     await waitClosed(previous, 1000);
     assert.deepEqual(replacement.initial.objects[0], object);
     const avatar = replacement.initial.participants.find((person) => person.id === students[0].id);
     assert.equal(avatar.name, students[0].avatar.name); assert.equal(avatar.color, students[0].avatar.color);
-    assert.deepEqual(avatar.position, [7,40,10]);
+    assert.deepEqual(avatar.position, latestLive); assert.equal(avatar.yaw, .65);
     classroom[1] = replacement; owner = replacement.probe;
     const state = await expectJson(`/api/worlds/${world.id}/state`, teacher, null);
     assert.equal(state.participants.length, 31); assert.equal(state.participants.filter((person) => person.id === students[0].id).length, 1);
@@ -307,7 +338,7 @@ try {
     assert.equal(state.revision, 3); assert.deepEqual(state.objects[0], object);
     assert.equal(state.participants.length, 31);
     const marks = classroom.map(({ probe }) => probe.messages.length);
-    owner.send({ type: "pose", position: [9,42,12], yaw: 0.6, seq: 6 });
+    owner.send({ type: "pose", position: [9,42,12], yaw: 0.6, seq: 6, restoreCommit: poseRestoreCommit });
     await Promise.all(classroom.map(({ probe }, index) => probe.wait((packet) => packet.type === "pose" && packet.participant.id === students[0].id && packet.participant.position[1] === 42, "post-hibernation delivery", marks[index])));
     assert.ok(classroom.every(({ probe }) => !probe.closed && !probe.error));
     return { liveSocketRecipientsAfterActualEviction: 31 };
@@ -323,7 +354,7 @@ try {
   await check("expired real D1 session closes live socket and rejects private API", async () => {
     const victim = students.at(-1), probe = classroom.at(-1).probe;
     await db.prepare("UPDATE school_sessions SET expires_at=? WHERE token_hash=?").bind(Math.floor(Date.now() / 1000) - 1, victim.tokenHash).run();
-    probe.send({ type: "pose", position: [0,40,0], yaw: 0, seq: 6 });
+    probe.send({ type: "pose", position: [0,40,0], yaw: 0, seq: 6, restoreCommit: poseRestoreCommit });
     await waitClosed(probe, 1008);
     await expectError(`/api/worlds/${world.id}/state`, victim, null, 401, "login_required");
     assert.equal((await expectJson(`/api/worlds/${world.id}/state`, teacher, null)).participants.length, 30);

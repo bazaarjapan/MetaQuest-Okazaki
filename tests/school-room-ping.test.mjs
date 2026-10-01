@@ -45,7 +45,7 @@ async function fixture(t) {
   let room = new SchoolRoom(ctx, env, dependencies); await room.ready;
   return { socket, nowMs: () => clock, advance: (ms) => { clock += ms; },
     ping: () => room.webSocketMessage(socket, JSON.stringify({ type: "ping" })),
-    pose: (seq = 0) => room.webSocketMessage(socket, JSON.stringify({ type: "pose", position: [seq,40,0], yaw: 0, seq })),
+    pose: (seq = 0) => room.webSocketMessage(socket, JSON.stringify({ type: "pose", position: [seq,40,0], yaw: 0, seq, restoreCommit: null })),
     attachment: () => room.sessions.get(socket),
     async reload() { room = new SchoolRoom(ctx, env, dependencies); await room.ready; return room; },
   };
