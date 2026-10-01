@@ -1,0 +1,30 @@
+.school-dialog { box-sizing: border-box; width: min(610px, calc(100vw - 24px)); max-height: min(85dvh, 760px); padding: 20px; border: 1px solid #486274; border-radius: 14px; background: #102330; color: #f2f6fa; overflow-y: auto; box-shadow: 0 12px 50px #0008; }
+.school-dialog::backdrop { background: #04101bcc; }
+.school-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.school-heading h2 { font-size: 1.2rem; margin: 0; }
+.school-dialog h3 { font-size: 1rem; margin: 0 0 10px; }
+.school-dialog button, .school-dialog input, .school-dialog select { font: inherit; box-sizing: border-box; }
+.school-dialog button { min-height: 40px; padding: 8px 12px; border: 1px solid #647e92; border-radius: 7px; color: #f6fbff; background: #264557; cursor: pointer; }
+.school-dialog button:disabled { opacity: .45; cursor: not-allowed; }
+.school-dialog button:not(:disabled):hover,
+.school-dialog button:not(:disabled):focus-visible { background: #375b70; color: #f6fbff; border-color: #9cc9e0; }
+.school-dialog button:focus-visible, .school-dialog input:focus-visible, .school-dialog select:focus-visible, .school-dialog a:focus-visible { outline: 3px solid #7dd3fc; outline-offset: 2px; }
+.school-dialog input, .school-dialog select { width: 100%; min-height: 40px; border: 1px solid #738999; border-radius: 6px; background: #071823; color: #f2f6fa; padding: 8px; }
+.school-dialog input[type=color] { width: 72px; padding: 4px; }
+.school-dialog a { color: #9bdbff; }
+.school-note { font-size: .83rem; line-height: 1.6; color: #c5d4df; margin: 8px 0 12px; }
+.school-status { background: #1d394a; border-radius: 7px; padding: 10px; font-size: .85rem; line-height: 1.5; }
+.school-status.is-error { background: #5b2a28; color: #ffe5e1; }
+.school-content { display: grid; gap: 14px; margin: 14px 0; }
+.school-section { display: grid; gap: 10px; border: 1px solid #385567; border-radius: 9px; padding: 13px; }
+.school-section .school-note { margin: 0; }
+.school-section > button { justify-self: start; }
+.school-field { display: grid; gap: 5px; font-size: .83rem; min-width: 0; }
+.school-row { display: grid; grid-template-columns: 1fr 72px; gap: 12px; }
+.school-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.school-google { min-width: 0; min-height: 0; overflow-x: auto; }
+.school-invite-code { padding: 10px; border-radius: 6px; background: #071823; font-size: 1.3rem; letter-spacing: .1em; overflow-wrap: anywhere; }
+.school-restore-confirm { padding: 10px; border: 1px solid #e2aa68; border-radius: 7px; background: #3c2d22; }
+.school-restore-confirm[hidden] { display: none; }
+.school-restore-confirm button { margin-right: 6px; margin-top: 8px; }
+@media(max-width: 480px) { .school-dialog { padding: 14px; max-height: 90dvh; }.school-section { padding: 10px; }.school-actions { flex-direction: column; }.school-section > button { justify-self: stretch; }.school-heading { gap: 8px; }.school-heading h2 { font-size: 1.1rem; } }

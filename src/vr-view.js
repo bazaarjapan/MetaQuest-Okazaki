@@ -1,5 +1,18 @@
 import * as THREE from "three";
 
+// The first XR entry in a joined school world is also a resume. Using only a
+// prior XR session flag would reset drone/mobile users to the station default.
+export function resolveXREntryView(mode, hasVRResume, restoredWorld, captureCreative, captureDesktop) {
+  if (mode === "creative") return captureCreative();
+  return hasVRResume || restoredWorld ? captureDesktop() : null;
+}
+
+// A newly restored/queued view must survive exit before the next XR frame.
+// Otherwise a stale last frame would overwrite the teacher's checkpoint pose.
+export function resolveXRExitView(pendingView, lastView, captureFallback) {
+  return pendingView ?? lastView ?? captureFallback();
+}
+
 export function captureView(camera) {
   camera.updateWorldMatrix(true, false);
   return {

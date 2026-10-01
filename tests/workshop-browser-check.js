@@ -22,25 +22,16 @@
   await until(() => state().workshop.count === 2 && !state().workshop.busy);
   check(state().workshop.triangles === 24, "multiple-STL-import");
   check(state().workshop.objects.every((o) => o.upAxis === "z" && Math.abs(o.scale[0] - 10) < 1e-6), "CAD-Z-up-and-fit10-explicit");
-  const { createSurfaceIndex, validatePlacement } = await import("/src/placement.js");
-  const { parseSTL, normalizeSTLPositions } = await import("/src/stl-model.js");
-  const manifest = await (await fetch("/city/manifest.json")).json();
-  let terrain; const obstacles = [];
-  for (const part of manifest.parts) {
-    const data = await (await fetch(`/city/${part.file}`)).arrayBuffer();
-    const surface = createSurfaceIndex(new Float32Array(data, 0, part.vertices * 3),
-      new Uint32Array(data, part.vertices * 32, part.indices));
-    if (part.texture === "Texture-001.png") terrain = surface; else obstacles.push(surface);
-  }
-  const positions = normalizeSTLPositions(parseSTL(new TextEncoder().encode(stl)).positions, "z").positions;
+  // Search through the actual form and the app's real placement validation.
+  // No Vite-only /src imports: the same gate runs on the deployed bundle.
+  const set = (id, value) => { const field = document.querySelector(`#object-${id}`); field.value = value; field.dispatchEvent(new Event("change", {bubbles:true})); };
   let empty = null;
   for (let x = -250; x < 300 && !empty; x += 15) for (let z = -300; z < 320 && !empty; z += 15) {
-    const result = validatePlacement({ positions, position:[x,0,z], rotation:[0,0,0], scale:[10,10,10] },
-      {terrain,obstacles,bounds:[-320,-381,315,372]});
-    if (result.valid) empty = result.position;
+    set("x", x); set("z", z);
+    const result = state().workshop.objects.find((o) => o.id === state().workshop.selected);
+    if (result.valid) empty = [...result.position];
   }
   check(empty, "real-terrain-empty-space-found");
-  const set = (id, value) => { const field = document.querySelector(`#object-${id}`); field.value = value; field.dispatchEvent(new Event("change", {bubbles:true})); };
   set("x", empty[0]); set("z", empty[2]);
   check(state().workshop.objects.find((o) => o.id === state().workshop.selected).valid, "valid-space-enables-commit");
   check(!document.querySelector("#object-apply").disabled, "commit-enabled-only-for-valid-placement");

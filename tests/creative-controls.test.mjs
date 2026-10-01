@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as THREE from "three";
-import { createCreativeControls, creativeConfig, constrainCreativeFeet } from "../src/creative-controls.js";
+import { createCreativeControls, creativeConfig, constrainCreativeFeet, readControlMode, controlPreferenceKey } from "../src/creative-controls.js";
 import { createBlockAvatar } from "../src/block-avatar.js";
 import { clampPosition } from "../src/motion.js";
 import { clampToRegion } from "../src/region-plan.js";
@@ -40,6 +40,48 @@ function fixture(options = {}) {
 function close(actual, expected, tolerance = 1e-8) {
   assert.ok(Math.abs(actual - expected) < tolerance, `${actual} != ${expected}`);
 }
+
+test("PC preference defaults creative, remembers deliberate choices and never inherits old drone default", () => {
+  assert.equal(readControlMode(), "creative");
+  assert.equal(readControlMode({ getItem: () => { throw new Error("denied"); } }), "creative");
+  for (const value of ["", "invalid", null]) assert.equal(readControlMode({ getItem: () => value }), "creative");
+  for (const value of ["creative", "drone"]) assert.equal(readControlMode({ getItem: (key) => {
+    assert.equal(key, controlPreferenceKey); return value;
+  } }), value);
+  assert.equal(readControlMode({ getItem: (key) => key === "okazaki-control-mode-v1" ? "drone" : null }), "creative");
+});
+
+test("double tap each WASD within 350ms sprints while second press held and release stops", () => {
+  for (const code of ["KeyW", "KeyA", "KeyS", "KeyD"]) {
+    const f = fixture(); f.enable();
+    const initial = f.control.getState().anchor;
+    f.key(code); f.release(code); f.advance(350); f.key(code);
+    assert.equal(f.control.getState().sprinting, true, code);
+    f.control.step(0.1, { enabled: true });
+    close(new THREE.Vector3().fromArray(initial).distanceTo(new THREE.Vector3().fromArray(f.control.getState().anchor)), 1.8);
+    f.release(code); assert.equal(f.control.getState().sprinting, false);
+    const stopped = f.control.getState().anchor;
+    f.control.step(0.1, { enabled: true }); assert.deepEqual(f.control.getState().anchor, stopped);
+    f.control.dispose();
+  }
+});
+
+test("different key, slow taps, repeats and input loss cannot accidentally activate double tap sprint", () => {
+  for (const cause of ["different", "slow", "repeat", "blur", "modal", "XR", "mode", "visibility"]) {
+    const f = fixture(); f.enable(); f.key("KeyW");
+    if (cause === "repeat") { f.advance(100); f.key("KeyW", { repeat: true }); }
+    else {
+      f.release("KeyW"); f.advance(cause === "slow" ? 351 : 100);
+      if (cause === "blur") f.win.emit("blur");
+      if (cause === "visibility") { f.doc.hidden = true; f.doc.emit("visibilitychange"); f.doc.hidden = false; }
+      if (cause === "modal") { f.setDialog(true); f.control.step(0, { enabled: true }); f.setDialog(false); f.control.step(0, { enabled: true }); }
+      if (cause === "XR") { f.control.captureForXR(); f.control.restoreAfterXR(); f.control.step(0, { enabled: true }); }
+      if (cause === "mode") { f.control.setMode("drone"); f.enable(); }
+      f.key(cause === "different" ? "KeyA" : "KeyW");
+    }
+    assert.equal(f.control.getState().sprinting, false, cause); f.control.dispose();
+  }
+});
 
 test("main's creative boundary allows low DEM walking/jump while preserving core and region limits", () => {
   for (const constrainEye of [clampPosition, (eye) => clampToRegion(eye, [-500, -600, 500, 600], 1200)]) {

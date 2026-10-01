@@ -56,7 +56,10 @@ export function createBlockAvatar(THREE, { color = 0x367fab } = {}) {
     for (const entry of materials.values()) entry.dispose();
     group.visible = false;
   }
-  return { group, update, dispose,
+  function setColor(value) {
+    if (!disposed && (typeof value === "number" || /^#[0-9a-f]{6}$/i.test(value))) torso.material.color.set(value);
+  }
+  return { group, update, setColor, dispose,
     getState: () => ({ position: group.position.toArray(), yaw: group.rotation.y,
       pitch: head.rotation.x, visible: group.visible, disposed,
       meshCount: 9, geometryCount: 1, materialCount: materials.size }) };

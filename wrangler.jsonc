@@ -4,6 +4,12 @@
   "account_id": "91bd93d7263b9929ef1c4db622a75979",
   "compatibility_date": "2026-09-29",
   "workers_dev": true,
-  "assets": { "directory": "./dist", "not_found_handling": "404-page" },
+  "main": "worker/index.mjs",
+  "assets": { "directory": "./dist", "binding": "ASSETS", "run_worker_first": ["/api/*"], "not_found_handling": "404-page" },
   "routes": [{ "pattern": "metaquest001.gigach.net", "custom_domain": true }],
+  "vars": { "APP_ORIGIN": "https://metaquest001.gigach.net", "GOOGLE_CLIENT_ID": "995759572361-9ogma8658lvf8usle2o3ut47d8a1agjf.apps.googleusercontent.com" },
+  "d1_databases": [{ "binding": "DB", "database_name": "okazaki-school-worlds", "database_id": "a6dae057-d386-42a8-b37e-1298ee4656e5", "migrations_dir": "migrations" }],
+  "r2_buckets": [{ "binding": "STL_BUCKET", "bucket_name": "okazaki-school-assets" }],
+  "durable_objects": { "bindings": [{ "name": "SCHOOL_ROOMS", "class_name": "SchoolRoom" }] },
+  "exports": { "SchoolRoom": { "type": "durable-object", "storage": "sqlite" } }
 }

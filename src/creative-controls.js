@@ -1,7 +1,12 @@
 export const creativeConfig = Object.freeze({ eyeHeight: 1.65, walkSpeed: 4.3,
   flySpeed: 12, sprintMultiplier: 1.5, mouseSensitivity: 0.002,
-  doubleSpaceMs: 350, thirdPersonDistance: 5, gravity: 20, jumpSpeed: 6 });
+  doubleSpaceMs: 350, doubleMoveMs: 350, thirdPersonDistance: 5, gravity: 20, jumpSpeed: 6 });
 export const creativeViews = Object.freeze(["first", "back", "front"]);
+export const controlPreferenceKey = "okazaki-control-mode-v2";
+export function readControlMode(storage) {
+  try { const value = storage?.getItem(controlPreferenceKey); if (["creative", "drone"].includes(value)) return value; } catch { /* Optional preference. */ }
+  return "creative";
+}
 
 // Reuse the city's XZ/ceiling limits without its drone-only minimum eye
 // altitude. Walking feet must reach actual DEM, including ground below 20m.
@@ -37,6 +42,7 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
   const orientation = new THREE.Quaternion();
   const forward = new THREE.Vector3(), side = new THREE.Vector3(), displacement = new THREE.Vector3();
   const keys = new Set();
+  const lastMovementTap = new Map(), fastMovementKeys = new Set();
   let mode = "drone", viewMode = "first", yaw = 0, pitch = 0, roll = 0;
   let enabled = false, blocked = false, xr = false, suspendedXR = false;
   let flying = true, verticalVelocity = 0, jumpQueued = false;
@@ -59,6 +65,7 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
   }
   function clearInput({ release = false } = {}) {
     keys.clear(); lastSpace = -Infinity; jumpQueued = false;
+    lastMovementTap.clear(); fastMovementKeys.clear();
     verticalVelocity = 0; moving = false;
     if (release) releasePointer();
   }
@@ -159,6 +166,11 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
     event.preventDefault?.();
     if (event.repeat || keys.has(event.code)) return;
     keys.add(event.code);
+    if (["KeyW", "KeyA", "KeyS", "KeyD"].includes(event.code)) {
+      const time = now(), previous = lastMovementTap.get(event.code) ?? -Infinity;
+      if (Number.isFinite(time) && time >= previous && time - previous <= creativeConfig.doubleMoveMs) fastMovementKeys.add(event.code);
+      lastMovementTap.set(event.code, Number.isFinite(time) ? time : -Infinity);
+    }
     if (event.code === "Space") {
       const time = now();
       if (Number.isFinite(time) && time >= lastSpace && time - lastSpace <= creativeConfig.doubleSpaceMs) {
@@ -170,7 +182,7 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
       }
     }
   }
-  function handleKeyUp(event) { keys.delete(event.code); }
+  function handleKeyUp(event) { keys.delete(event.code); fastMovementKeys.delete(event.code); }
   function handleMouseMove(event) {
     if (!active() || !locked() || inputBlocked(event)) return;
     const x = Number(event.movementX), y = Number(event.movementY);
@@ -207,7 +219,7 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
     let z = Number(keys.has("KeyW")) - Number(keys.has("KeyS"));
     const magnitude = Math.hypot(x, z);
     if (magnitude > 1) { x /= magnitude; z /= magnitude; }
-    const sprint = keys.has("ControlLeft") || keys.has("ControlRight");
+    const sprint = keys.has("ControlLeft") || keys.has("ControlRight") || fastMovementKeys.size > 0;
     const shift = keys.has("ShiftLeft") || keys.has("ShiftRight");
     const speed = (flying ? creativeConfig.flySpeed : creativeConfig.walkSpeed) *
       (sprint ? creativeConfig.sprintMultiplier : 1) * (!flying && shift ? 0.3 : 1);
@@ -260,7 +272,8 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
   function getState() {
     return { mode, viewMode, anchor: anchor.toArray(), eye: eyePosition().toArray(),
       yaw, pitch, flying, enabled, blocked, xr, suspendedXR, moving,
-      pointerLocked: locked(), pointerError, groundAvailable, pressedKeys: [...keys], disposed };
+      pointerLocked: locked(), pointerError, groundAvailable, pressedKeys: [...keys],
+      sprinting: keys.has("ControlLeft") || keys.has("ControlRight") || fastMovementKeys.size > 0, disposed };
   }
   function dispose() {
     if (disposed) return;

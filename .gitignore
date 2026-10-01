@@ -3,6 +3,7 @@ dist/
 .wrangler/
 .cache/
 .env*
+.dev.vars*
 !*.example
 test-results/
 *.log

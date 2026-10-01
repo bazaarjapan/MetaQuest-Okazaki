@@ -1,6 +1,6 @@
 # 授業用WebXR MVP — 検証結果
 
-検証日：2026-09-29（初期版）、2026-09-30（モード2更新・表示と画質更新・広域更新・コンパクトUI）
+検証日：2026-09-29（初期版）、2026-09-30（モード2更新・表示と画質更新・広域更新・コンパクトUI）、2026-10-01（1.6公開・1.7共同教室の公開前検証）
 
 公開URL： https://metaquest001.gigach.net/
 
@@ -8,11 +8,62 @@
 
 Cloudflare Worker：`okazaki-school-xr`
 
-確認済みの公開バージョン：`7ee8f859-5565-4ff9-92c3-1297800966c3`（MVP 1.5.0）
+この公開前記録を作成した時点の公開バージョン：`d3c2b18b-b4e1-49cb-a101-4a28034ba9cb`（閲覧・端末内STL/操作版 1.6.0）。共同教室1.7の最新の公開結果・merged main SHA・CI・Cloudflare版・公開ファイル確認は [PR #14の完了記録](https://github.com/bazaarjapan/MetaQuest-Okazaki/pull/14) を参照。この履歴だけで公開の成功を推測しない。
 
-直前公開バージョン：`3cc67e41-0644-4bb0-a5d0-32ad79f9803d`（MVP 1.4.0）
+直前公開バージョン：`7ee8f859-5565-4ff9-92c3-1297800966c3`（MVP 1.5.0）
+
+## 2026-10-01：共同教室1.7 — 公開前のローカル検証
+
+この節の追加時点では、上記の確認済み本番公開は1.6で、1.7の実装・検証を本番公開の成功とは扱わない。GoogleログインのWebクライアントは利用者が指定した既存GCPプロジェクトで作成済みだが、以下のブラウザー試験は本物のGoogleログインの代わりではない。最終PR・commit・独立レビュー・CI・merged main・Cloudflare公開IDと公開ファイル検査は公開後に別途記録する。以降の1.6・1.5以前の節は、その時点の履歴として残す。
+
+実装範囲：ゲストの街・VR閲覧を維持し、Googleログイン＋先生の教室への参加後にだけ、所有者限定のSTL配置と共有アバター活動を許可する。先生の12文字コード／`#join=コード`付きURL、明示参加と次回の「続きを開く」、複数STLのprivate R2保存、実PLATEAU地形のサーバー配置判定、D1復元ポイントとDO同期、VR左側作品パネル、PC初期クリエイティブ風とW/A/S/D二度押し高速を追加した。元の都市・写真・Unityのバイトは変更しない。パスキー、音声チャット、完全削除・参加者管理画面、参加コード再発行、全広域の配置は未実装。
+
+確認済み：
+
+- 単体テスト314件成功。認証・nonce・CSRF・先生／所有者権限、clientのidentity／room競合、メタデータ取得、GSI読み込みの失敗・再試行、snapshot復元の故障注入、クリエイティブ・VR作品UIなどを含む。ローカル試験であり、実際のGoogleアカウント交換の成功証拠ではない。
+- 実ローカルMiniflare/workerdの10統合項目成功。SQLite D1、private R2、SQLite Durable Objects、実TCP WebSocket31接続、32人目拒否、ポーズの単独差分、実DOのeviction後の復帰、実モデルのハッシュと地面検証、所有者・先生制限、保存／復元、期限切れを確認した。一時D1へ試験セッションを作る方式で、本番の偽ログイン環境スイッチは存在しない。
+- 本番Workerコードとdistを一時D1/R2/DOに接続したChrome実ブラウザーの86項目成功（runner exit 0、`test-results/school-browser.json` の `passed:true`）。ゲスト閲覧とAPI401、PCコンパクト10・クリエイティブ25・モバイル20、先生の教室作成、招待コードの非自動参加、生徒join、別端末のアバター、複数STLの実R2アップロード、XYZ回転・縮尺・実地形でのACK、peerのprivate STL描画、他人編集不可、D1保存、同じ識別子とアバターのreload、手動再参加、owner編集、二段階復元確認とstudentへの復元配信、logout時の共有活動停止、ブラウザー例外なしを確認した。
+- この86項目で使用したWorker bundle SHA-256は `2ab88d8582456f455f5608db4f06256475ae4f8e2fdb934efcffc9f8d17ed07f`、dist manifest SHA-256は `9b233f3b35c862ec9c32c5daa220370cac3c2131f95ed80e59a5b7d1ee5fb0ac`。後続のボタンhover/focusコントラスト修正前のdistを特定する値であり、最終本番distのハッシュとは区別する。guest・teacher・studentのスクリーンショットを目視確認した。
+- root担当から、ゲストIWER Quest 3のVR/2D復帰37項目成功の報告がある。加えて、ログイン済みIWERの実コントローラー入力15項目が成功（`test-results/school-xr.json` の `passed:true`）。private R2の実作品、XYZ各15度回転・縮尺1.1、実PLATEAU地形への光線と配置中の移動停止、サーバーACKによる確定、R2作品の再利用、下書き取消、既存の自分の作品への光線選択と編集・確定まで非共有・同じ作品ID保持、X長押しによる2D復帰後の教室保持と移動停止を確認した。一時認証を使う実Worker/R2/DO試験であり、本物のGoogle交換や物理Questの性能・装着快適性の証拠ではない。
+
+検証途中の問題も合格とは分けた。WindowsのCLI起動を同期pipeから非同期execFileへ変更し、ブラウザーテストが返すJSON文字列の追加デコードを修正した。既存PC試験の100ms／50ms固定待ちがソフトウェア描画の次フレームより早い場合があったため、実状態を最長10秒待つ条件判定へ変更した。実移動・高速入力・カメラと足元の分離の期待値は緩めず、キーの解放をfinallyで保証した。F5の足元不変は、二度押し移動試験の前ではなく直前の足元を基準に検査する。途中の失敗runnerの結果は86項目の成功へ算入しない。
+
+ブラウザー目視で、Google/教室ダイアログのhover/focusボタンがglobal CSSの薄い背景・白文字になる問題を確認し、専用の高コントラスト指定を追加した。root担当は再ビルドしたdist（`index-BukCpbh5.js`／`index-DJSf4vbE.css`）でcomputed styleの背景 `rgb(55, 91, 112)`（`#375b70`）・文字 `rgb(246, 251, 255)`とスクリーンショットを確認し、単体314件も再確認した。これは上記86項目とログイン済みIWER15項目の合格後に行ったCSSのみの追試で、86項目のdistハッシュを最新distの証拠として再利用しない。CSS追試時に見えた固定manifest-harnessの不一致メッセージは再ビルド後の旧manifestとの比較によるもので、旧runnerを最新distで再合格した扱いにはしない。これらのローカル試験だけで最終公開を完了扱いしない。
+
+最終修正の追試：独立レビューで、教室参加後に初めてdrone設定でVRへ入る場合の初期位置へのリセットを発見し修正。`resolveXREntryView`で教室の復元位置を優先し、ゲスト初回の従来動作は維持する。単体315/315、最新dist（JS `index-Bn2XycQc.js`、CSS `index-DJSf4vbE.css`）でChrome86/86を再実行して成功した。最新dist manifest SHA-256は `9360efad95b3deb462e183a4d8d5ece3da43edeeb5cdd968e2dfd0c996c1f63b`、Workerは上記 `2ab88...` と同一。さらに初回VRの実眼位置保持を含むsigned IWER16/16が成功し、実地形への配置・既存作品編集・2D復帰を再確認した。失敗したCookie形式の試験セットアップは合格に算入しない。最終差分の独立レビューとCIはPRへ記録する。
+
+追加の最終レビューで、VR許可待ち中に先生が復元した新視点を古い入場視点で上書きするP2を発見。待機中はpending XRと2Dの両方へ新しい視点を反映し、許可成功・拒否の双方で保持するように修正した。実main関数と実VR座標変換を使うVM regression5件を追加し、全320/320成功。これは実Googleや物理Questを置き換える証拠ではない。最終JSは `index-D2MpAQrq.js`。CIの最初の失敗は、アプリversion更新でsourcemap-codecのlockfile取得先まで誤更新されたためで、元の1.6.0に戻し専用の空npmキャッシュから全依存の取得を確認した。古いbb252dcのCI失敗・レビューは修正後HEADの成功に流用しない。
+
+### Codexレビュー3件と復元通信の競合修正
+
+GitHub Codexレビューは `eceb72d` を実際にレビューし、再接続で未保存の位置が失われるP1、起動時の設定通信の再試行不可P2、中断STL予約が永久に枠を占有するP2の3件を指摘した。依頼しただけでレビュー完了とはしていない。修正は次のとおり。
+
+- 1人1件の小さなDO recordで最後に受理した位置を保持。接続変更・再ログイン・DO evictionで同じGoogle識別子の現在位置を引き継ぐ。先生の一意restoreCommitを世代として古い位置を無効化し、snapshot後に参加した人の位置は同じ原子的world-stateへbounded fallbackとして保存する。移動のたびに全ワールドを保存しない。
+- 設定読込は成功時だけキャッシュし、失敗・未設定は明示操作で再試行可能。「共同教室に再接続・設定を再確認」を追加し、同時要求は共有する。Googleのログイン画面を自動で繰り返し開かず、古い通信の失敗で新しい本人情報を消さない。
+- 未完了アップロードに15分の予約期限。原子的なquota SQLはreadyと有効pendingだけを計上する。期限切れは所有者・教室・生成key限定で先に退役し、private R2削除後にD1予約を削除。失敗時は再試行ledgerを保持する。120秒の処理上限をR2のキャンセル成功とは扱わず、遅延PUTとready確定の応答消失でも保存済み原本を削除しない。新migrationは不要。
+- 別担当の独立レビューで、復元前に送った古い移動が遅れて到着して新世代を上書きする競合も再現。poseに明示のrestoreCommitを付け、サーバーで現在世代と一致するものだけ永続化する。HTTPの先行readでカメラを動かさずに世代だけ更新せず、full WS stateの視点採用と世代更新をそろえる。HTTPの作品revision11が先着してもWSの復元revision10の視点を取りこぼさず、新しい作品状態は保持する。
+
+この修正後のソースで全単体359/359、実Miniflare/workerd11/11（31 TCP、155 pose、4,805配信、単独差分最大187 bytes、古い移動世代の拒否→復元位置の保持→実再接続）に合格し、正常teardownを確認。Worker bundle SHA-256は `9e4ff49657dbf7ae56e0f1cbacc127a37ec113d3bbf94e0e1d2f1d5e211579d3`。元アセット検査と本番ビルド・エミュレーター除外に合格、JSは `index-DMlpauKI.js`（870.68kB、既存500kB超警告あり）。新故障注入はlive pose12・予約15・client retry/epoch9・UI retry3件を含む。これらを実Googleや物理Questの合格とは扱わない。
+
+実ブラウザーのXR許可待ちの復元18項目は、成功・拒否の両経路で物理viewer中心の位置を測って確認した（2026-10-01 01:33 UTC、修正前manifest `050ab721692447141ddc814a3e09b5cf432a0fc5404cca288cbf26066cac03e3`）。Three.jsステレオ統合カメラの投影オフセットとは区別した。後続の参考86 runnerはWindows CLI read timeoutにより66項目で失敗し、86成功へ算入しない（manifest `3c4ffcf1017414b50cf8c82100ce121411ca4c2c7d49320ea195dd679e7a31ad`、Worker `587e6...`）。最終freezeのChrome/XR再検査、最終SHAの独立レビュー・CIと公開結果はPR #14へ追記する。未公開旧版のserialized attachment互換fixtureは、本番の教室DB/DOが今回初回作成であるためrelease対象に含めない。
+
+最終ブラウザー再検査のWindows CLI待機では、アプリが単独でready:true、error:null、正常な3D描画を示す一方、長時間の`wait --fn`がIPC read timeoutとなる現象を確認した。未成功の試験は残し、同じpredicateを短いread-only evalで100ms間隔・45秒の期限付きで確認するテストharnessだけの修正を加えた。アプリのカメラ、入力処理、認証、期待値は置換・緩和しない。アプリ実装の359単体とruntime11、Worker/distハッシュはこのharness修正では変わらない。最終63444e7のCI [36804083519](https://github.com/bazaarjapan/MetaQuest-Okazaki/actions/runs/36804083519) はSUCCESSだったが、harnessコミット後の最終CIは別途確認する。GitHub Codexの再レビューは明示の利用上限応答だったため、実装者の担当を除外した独立ローカルレビューでfinal SHAと指摘0をPRへ記録する。利用上限をレビューの合格とは扱わない。
+
+短い待機へ修正した次の試験は、二度押しDの期待値で失敗（report false、14項目）した。以前のテストは80msのタイマー待ちを挟んでいたが、実gesture間隔を記録していなかったため、350ms以内の有効入力だったと断定しない。最後のテスト修復ではW/A/S/DとSpaceの実KeyboardEventを同一taskの短いgestureとして送り、実測elapsed <=350msと既存の高速／歩行切替を同時に判定し、finallyでキーを解放する。実移動距離とrAFの期待値、25項目の成功条件、アプリの350ms境界は維持し、間隔・repeat・解放のunit境界試験と区別する。非機微timing metadataをreportへ保存し、失敗を隠す無制限の再実行は行わない。
+
+この公開前記録時点で未確認：本物のGoogle IDトークン交換、Cloudflareの本番bindingでの共同教室、Quest実機のGoogleログイン・左作品パネル・装着快適性・FPS・最大作品数時のCPU/GC、学校の30実端末と回線・Google管理者許可、実機スマートフォンの操作感。Googleアカウントのパスワード・OTPを試験fixtureやログへ保存しない。学校での利用は少人数の実機・本番確認後に拡大する。
 
 ## 2026-10-01：学校MVPのIssue化・STL編集1.6（公開前検証）
+
+### 1.6の公開結果（学校共有APIとは別）
+
+PR #12/#13を独立レビュー、最終CI、squash merge後、Codexから公開した。公開sourceは `a05d99b3c07f9247d5a30dedaaa6e13dc2a513c7`、最終main CIは [36760731927](https://github.com/bazaarjapan/MetaQuest-Okazaki/actions/runs/36760731927) SUCCESS。main/origin parity 0/0、clean treeでnpm ciと210単体・元アセット・本番ビルド・エミュレーター除外を再確認。公開版IDは上記。全1,097ファイル139,661,301bytesが最終distとSHA256一致、HTTP200/CSP/WebXR Permissions-Policy/404成功。容量は全配布物で、初回ロード量ではない。
+
+公開URLでPCコンパクト10・クリエイティブ17・実フォームによるSTL19・スマホ390×844の20項目が成功（計66項目）、ブラウザー実行エラーなし。STL試験は開発サーバー専用の`/src` importを除き、公開アプリの実フォームと配置判定へ入力する方法で再実行。失敗した途中のrunner設定は合格に数えない。`test-results/creative-production-*.json`、`workshop-production.json/png`、`deployment.json`。端末内STLは再読込で消える。共有編集/本番認証は公開していない。
+
+バックエンド #6/#7 の別開発ブランチでは、Google署名/nonce/CSRF/セッション/先生権限、専用D1保存、private R2のSTL、所有者制限、31人DOの同期を実装。Nodeの17件と設定3件、実ローカルworkerdの10統合項目が合格した。実TCP WebSocket31接続・32人目拒否・155 poseの4,805配信・実DO eviction後の復帰・実PLATEAU原本SHA検証/配置・先生保存復元・他人編集拒否・再接続・期限切れを確認した。依存を直接固定し、CIへローカルruntimeと公開しないWorker dry-runを追加。このAPIは本番未公開で、Googleの実アカウント交換、フロント接続、パスキー、Cloudflare本番、学校30実機の統合受入は未完了。試験は一時D1のランダムなfixtureセッションのみで、productionに認証bypassを追加していない。詳細は `docs/school-backend-setup.md`。
+
+Draft PR #14の独立レビューで見つかったP2を修正：未知kidによるJWKS取得を60秒cooldown/同時取得共有とD1のpreauthごと毎分8試行で制限。復元はDOを正本とし、D1 pose mirrorとの間の永続recovery journal/一意commit markerで失敗・再起動時に補償/前進回復。未回復は503で明示し次操作を停止、alarm/次アクセスで再試行する。1接続のsend/attachment失敗は除去して他接続へ継続。新規認証15/復元10の故障注入を含む255単体と実workerd10項目を再確認（exit0、正常teardown）。本番Google/Cloudflare/実機の未確認は残る。最終コミットの独立再レビューとCIはPRコメントで別記する。
 
 - 続くIssue #5ではPCクリエイティブ風の設定、WASD/Space/Shift/Ctrl/Space二度押し、F5の一人称/アバター後方/前方、pointer lock/解除を追加。Questは従来Mode2、スマホは従来ドローンへ安全に戻す。入力欄/ダイアログ/blurで停止し、プレイヤー足元と後方カメラを分離。
 - Issue #5の専用単体19件、実PCブラウザー操作17項目、後方視点→IWER VR→安全な一人称復帰/作品保持10項目、スマホ表示/入力20項目が合格。アバターの後方表示を実ブラウザーのスクリーンショットで目視確認した。実機Quest受入ではない。
@@ -25,7 +76,7 @@ Cloudflare Worker：`okazaki-school-xr`
 - 作品を配置した同じページでIWER Quest 3エミュレーターへ入り、従来のVR/2D復帰37項目が合格。エミュレーターと実機は区別する。
 - 独立レビューで指摘された過大変換をGPUへ渡す問題と、ASCII改行による大量配列生成を修正。Windows CRLFで従来CI構成テストが失敗する問題を #11で追跡・改行正規化で修正。
 - 初回Cloudflare OAuthはD1権限不足（read-only listで10000エラー）だったが、ユーザー本人の追加認可後にD1 list成功を確認。専用D1 `okazaki-school-worlds` と専用非公開R2 `okazaki-school-assets` を作成した。他アプリのDB/バケットは変更していない。Google client ID/先生allowlistは未設定。実Google認証・クラウド保存・31接続の実環境試験は未達成。秘密/生徒データを偽ログインで代用しない。
-- この段階のPR/最終CI/本番公開は未完了。実機Questの作品表示・性能、学校30台の操作も未確認。
+- 端末内STL/PC操作のPR #12/#13と本番公開は上記のとおり完了。学校共有APIはDraft PR #14で別管理し未公開。実機Questの作品表示・性能、学校30台の操作も未確認。
 
 ## VRから2Dへ戻る MVP 1.5.0 — 公開・エミュレーター検証済み、実機確認待ち
 
