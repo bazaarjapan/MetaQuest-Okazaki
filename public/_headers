@@ -1,8 +1,9 @@
 /*
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
+  Cross-Origin-Opener-Policy: same-origin-allow-popups
   Permissions-Policy: xr-spatial-tracking=(self), camera=(), microphone=(), geolocation=()
-  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://cyberjapandata.gsi.go.jp; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; img-src 'self' data: blob:; connect-src 'self' wss://metaquest001.gigach.net https://accounts.google.com/gsi/ https://cyberjapandata.gsi.go.jp; frame-src https://accounts.google.com/gsi/; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'
 /city/*
   Cache-Control: public, max-age=3600
 /region/*

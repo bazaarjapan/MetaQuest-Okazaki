@@ -1,7 +1,29 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as THREE from "three";
-import { captureView, captureXRView, alignRigToView } from "../src/vr-view.js";
+import { captureView, captureXRView, alignRigToView, resolveXRExitView, resolveXREntryView } from "../src/vr-view.js";
+
+test("first drone XR entry resumes the joined school view; unrelated guest entry remains default", () => {
+  const creative = {position:[1,2,3]}, desktop = {position:[10,20,30]};
+  let creativeCalls = 0, desktopCalls = 0;
+  const captureCreative = () => { creativeCalls++; return creative; }, captureDesktop = () => { desktopCalls++; return desktop; };
+  assert.equal(resolveXREntryView("drone", false, null, captureCreative, captureDesktop), null);
+  assert.equal(creativeCalls + desktopCalls, 0);
+  assert.equal(resolveXREntryView("drone", false, "joined-world", captureCreative, captureDesktop), desktop);
+  assert.equal(resolveXREntryView("drone", true, null, captureCreative, captureDesktop), desktop);
+  assert.equal(resolveXREntryView("creative", false, "joined-world", captureCreative, captureDesktop), creative);
+  assert.equal(creativeCalls, 1); assert.equal(desktopCalls, 2);
+});
+
+test("teacher-restored pending view wins over old XR frame on immediate exit; fallback is lazy", () => {
+  const pending = { position: [10,20,30], quaternion: [0,0,0,1] },
+    old = { position: [100,200,300], quaternion: [0,0,0,1] };
+  let captures = 0; const fallback = () => { captures++; return old; };
+  assert.equal(resolveXRExitView(pending, old, fallback), pending);
+  assert.equal(resolveXRExitView(null, old, fallback), old);
+  assert.equal(captures, 0);
+  assert.equal(resolveXRExitView(null, null, fallback), old); assert.equal(captures, 1);
+});
 
 function close(actual, expected, tolerance = 1e-9) {
   assert.ok(Math.abs(actual - expected) <= tolerance, `${actual} != ${expected}`);

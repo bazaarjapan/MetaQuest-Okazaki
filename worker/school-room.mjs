@@ -111,7 +111,7 @@ export class SchoolRoom {
     const attachment = { userId: caller.session.id, sessionHash: caller.context.sessionHash,
       expiresAt: caller.session.expires_at, avatar: publicAvatar(caller.session),
       pose: { position: [...savedPose.position], yaw: savedPose.yaw }, lastSeq: -1,
-      lastPoseAt: -1e15, lastEditAt: -1e15, lastSeenAt: this.now(), rateWindowAt: this.now(), rateCount: 0 };
+      lastPoseAt: -1e15, lastEditAt: -1e15, lastPingAt: -1e15, lastSeenAt: this.now(), rateWindowAt: this.now(), rateCount: 0 };
     this.ctx.acceptWebSocket(server);
     server.serializeAttachment(attachment);
     this.sessions.set(server, attachment);
@@ -185,8 +185,20 @@ export class SchoolRoom {
         const { session, world } = authorization;
         attachment.avatar = publicAvatar(session);
         if (value.type === "ping") {
-          if (this.now() - attachment.lastSeenAt < 100) fail(429, "ping_rate_limit");
-          attachment.lastSeenAt = this.now(); socket.serializeAttachment(attachment);
+          const pingAt = this.now();
+          if (!Number.isFinite(pingAt)) fail(429, "ping_rate_limit");
+          // Heartbeats are independent of the 8Hz pose stream. lastSeenAt is
+          // shared liveness, not the ping budget: a pose a few milliseconds ago
+          // must not make the normal 20-second heartbeat fail. Older attached
+          // sockets have no lastPingAt; malformed/future values fail closed for
+          // one interval, then recover from a finite clamped timestamp.
+          const previousPing = attachment.lastPingAt === undefined ? -1e15 :
+            Number.isFinite(attachment.lastPingAt) ? Math.max(-1e15, Math.min(pingAt, attachment.lastPingAt)) : pingAt;
+          attachment.lastPingAt = previousPing;
+          if (pingAt - previousPing < 100) {
+            socket.serializeAttachment(attachment); fail(429, "ping_rate_limit");
+          }
+          attachment.lastPingAt = pingAt; attachment.lastSeenAt = pingAt; socket.serializeAttachment(attachment);
           socket.send(JSON.stringify({ type: "pong" }));
           return;
         }

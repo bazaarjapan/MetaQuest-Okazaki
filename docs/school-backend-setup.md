@@ -1,6 +1,6 @@
 # 学校向け共有ワールド：バックエンド構築手順（開発中）
 
-2026-10-01 時点の作業用資料です。サーバーコードとローカル検証は用意していますが、Google ログイン用の公開 Web クライアント ID と先生の許可情報は未提供です。**本番公開済み、30人共同作業 MVP 完成という意味ではありません。** Google ログイン・共有 STL・複数アバターの画面接続は次の実装です。パスキーは [Issue #8](https://github.com/bazaarjapan/MetaQuest-Okazaki/issues/8) の別機能で、まだ実装していません。
+2026-10-01 時点の構築資料です。1.7ではGoogleログイン・教室参加・共有STL・複数アバター・先生の保存復元を画面へ接続しています。指定プロジェクトの公開WebクライアントIDを設定し、先生の許可情報はCloudflare secretのみへ登録します。**構築・ローカル検証と、本番Google認証・30台実機の授業受入は別です。** 公開結果は [VALIDATION.md](../VALIDATION.md)、参加手順は [SCHOOL_GUIDE.md](SCHOOL_GUIDE.md) を確認してください。パスキーは [Issue #8](https://github.com/bazaarjapan/MetaQuest-Okazaki/issues/8) の別機能で、まだ実装していません。
 
 ## 1. データの保存先と権限
 
@@ -24,17 +24,17 @@ D1 と R2 の専用リソースは作成済みです。Worker への本番接続
 3. アプリ名、サポート先、プライバシーポリシー等の同意画面を設定します。学校アカウントと個人 Gmail の両方を想定した利用範囲にし、学校側のログイン制限も確認します。
 4. 発行された `...apps.googleusercontent.com` を `GOOGLE_CLIENT_ID` に設定します。
 
-クライアント ID は公開識別子で、ブラウザから取得できる設計です。この実装は Google Identity Services の ID トークンをサーバーで検証する方式で、**OAuth クライアントシークレットは不要**です。Google Drive や Gmail のデータ取得権限は要求しません。GIS 読込み、CSP、ポップアップ／FedCM の確認は、ログイン UI 接続時に行います。詳細は [Google 公式セットアップ](https://developers.google.com/identity/gsi/web/guides/get-google-api-clientid) を参照してください。
+クライアント ID は公開識別子で、ブラウザから取得できる設計です。この実装は Google Identity Services の ID トークンをサーバーで検証する方式で、**OAuth クライアントシークレットは不要**です。Google Drive や Gmail のデータ取得権限は要求しません。GISはログインボタン操作時にだけ読み込み、CSPで公式GSIのscript/frame/style/connectを許可し、COOPはsame-origin-allow-popupsです。詳細は [Google 公式セットアップ](https://developers.google.com/identity/gsi/web/guides/get-google-api-clientid) を参照してください。共有GCPプロジェクトの共通ブランド・Audienceを本アプリのために無断変更しません。現在の共通同意名「教職員異動検索」は画面で説明しています。
 
 先生は、サーバー側の `TEACHER_GOOGLE_SUBS` または `TEACHER_GOOGLE_EMAILS` の許可リストで指定します。変更されにくい Google `sub` による指定を推奨します。メール指定は署名検証後の Gmail／Google Workspace の権威あるメールに限り使用されます。生徒のブラウザから送られた `role` や `ownerId` で先生にはなれません。
 
-先生の個人情報はコード、PR、公開資料に書かず、ローカル管理する Cloudflare の secret へ登録します。例として `npx wrangler secret put TEACHER_GOOGLE_SUBS` を使用し、値は対話入力します。認証用の値を GitHub Secrets やログへコピーしません。
+先生の個人情報はコード、PR、公開資料に書かず、Cloudflare secretへ登録します。`wrangler secret put`は即座に新バージョンを公開するため、レビュー前のコードから不用意に実行しません。本番公開では、gitignore対象のローカル秘密ファイルを用意し、レビュー・CI・merge後の正確なmainから `npm run deploy -- --secrets-file .cache/school-secrets.json` でコードと同時に登録できます。認証用の値をGitHub Secretsやログへコピーしません。[Cloudflare公式のsecret管理](https://developers.cloudflare.com/workers/configuration/secrets/)を参照してください。
 
 ## 3. Worker 接続と SQL の適用
 
 本番接続時の Wrangler 設定で、`main` を `worker/index.mjs`、`APP_ORIGIN` を `https://metaquest001.gigach.net` とし、上表の `DB`／`STL_BUCKET`／`SCHOOL_ROOMS`／`ASSETS` を設定します。`SchoolRoom` は SQLite-backed Durable Object として作成します。設定ファイルを編集しただけで接続や公開が完了したとは扱いません。
 
-開発ブランチの `wrangler.jsonc` には、専用リソースの接続、`/api/*` の Worker 優先処理、SQLite `SchoolRoom` の `exports` 宣言を用意しています。Google ID と先生許可情報は空のままで、未設定時の学校 API は `school_not_configured` として拒否します。架空の本番ログインを入れません。`npm run check:worker` は `--dry-run` のバンドル確認だけで、公開・DO作成・本番D1変更をしません。DOの初回本番作成は将来のレビュー済み公開で行う変更であり、過去の静的版へ単純に戻せるとは限りません。
+`wrangler.jsonc`には専用リソース、`/api/*`のWorker優先処理、SQLite `SchoolRoom`の`exports`宣言と実際の公開Google IDを設定しています。先生許可情報はソースへ含めません。必要な設定が欠ける場合、学校APIは`school_not_configured`として拒否し、匿名の街・VR閲覧は継続します。架空の本番ログインを入れません。`npm run check:worker`は`--dry-run`のバンドル確認だけで、公開・DO作成・本番D1変更をしません。DOの初回本番作成はレビュー済み公開で行い、作成後に過去の静的版へ単純に戻せるとは限らないので、同じクラス・bindingを保持した修正で回復する方針です。
 
 SQLite テーブルを適用する前に、対象 D1 の名前・ID と未適用 migration を確認します。設定が揃った後の確認・適用コマンドは次のとおりです。
 

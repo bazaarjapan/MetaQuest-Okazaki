@@ -22,6 +22,7 @@
       >
       <div class="edition">JR岡崎駅から広域へ <span>PLATEAU / 2020</span></div>
       <button id="help" class="quiet">使い方</button>
+      <button id="school-button" class="quiet">ログイン・教室</button>
     </header>
     <main>
       <section id="viewport" aria-label="JR岡崎駅周辺の3Dモデル">
@@ -43,7 +44,7 @@
         <div class="map-bottom">
           <span id="status" role="status">準備中</span
           ><button id="home" aria-label="開始地点に戻る" disabled>開始地点に戻る</button
-          ><button id="open-workshop" disabled>STL作品</button
+          ><button id="open-workshop" disabled>STL作品（ログイン）</button
           ><button id="fullscreen" aria-label="3D画面を全画面表示">
             全画面
           </button>
@@ -64,6 +65,7 @@
         <div class="panel-body">
         <section id="panel-observe" role="tabpanel" aria-labelledby="tab-observe">
         <p class="panel-caption">JR岡崎駅から、街のつながりを観察。</p>
+        <p id="school-summary" class="panel-caption" role="status">見学モード：ログインなしで街とVRを見られます。作品配置・共同参加は「ログイン・教室」から。</p>
         <nav aria-label="見学地点" id="viewpoints">
           <button data-view="overview" class="view active" disabled>
             <span class="view-number">01</span
@@ -105,7 +107,7 @@
         <div class="quality-setting">
           <label for="control-mode">PCの操作モード（Questは常にモード2）</label>
           <select id="control-mode" disabled><option value="drone">ドローン・見学（従来の操作）</option><option value="creative">クリエイティブ風・アバター視点</option></select>
-          <p id="creative-help" hidden>自由移動をONにして3D画面をクリック。WASD：移動、Space：上昇、Shift：下降、Ctrl：高速、Space二度押し：飛行/歩行。F5：一人称→後方→前方、Esc：マウス解除。歩行の壁衝突は未実装。スマホはドローン操作をおすすめします。</p>
+          <p id="creative-help" hidden>PCはクリエイティブ風が初期設定です。自由移動をONにして3D画面をクリック。WASD：移動、同じW/A/S/Dを素早く二度押しして保持：高速、Space：上昇、Shift：下降、Ctrl：高速、Space二度押し：飛行/歩行。F5：一人称→後方→前方、Esc：マウス解除。歩行の壁衝突は未実装。スマホ・Questはドローン操作です。</p>
         </div>
         <div id="quality-setting" class="quality-setting">
           <label for="quality-select">画質（VRに入る前に選択）</label>
@@ -123,11 +125,12 @@
             岡崎市2020年度の公式3D都市モデルを軽量化した教材です。約25km×19kmはモデルの収録範囲で、行政区域全体を保証するものではありません。現在の街や駅内部の完全な再現ではありません。駅周辺以外は写真のない軽量LOD1建物です。
           </p>
           <p>
-            ログイン・名前の入力は不要。学習記録の収集や広告はありません。ホスティング事業者・標高タイル配信元への通信ログは発生します。
+            街の見学・VR表示はログイン不要です。共同教室での活動とSTL配置はGoogleログインが必要です。参加するとアバター・作品・教室内の位置などを保存します。ホスティング事業者・Google認証・標高配信元との通信も発生します。
           </p>
           <a href="/teacher.html" target="_blank" rel="noopener"
             >先生向け・授業前の確認事項</a
           >
+          <a href="/privacy.html" target="_blank" rel="noopener">共同教室のデータ取扱い</a>
         </details>
         </section>
         </div>
@@ -162,12 +165,12 @@
           rel="noopener"
           >国土地理院</a
         >　写真加工・広域標高はライブ取得</span
-      ><span>MVP 1.6 · STL作品の端末内編集 · 共同参加・クラウド保存は準備中</span>
+      ><span>MVP 1.7 · 見学はログイン不要 · Googleログインで共同教室・STL作品</span>
     </footer>
     <dialog id="workshop-dialog" aria-labelledby="workshop-title">
       <button id="workshop-close" class="dialog-close">閉じる ×</button>
       <h2 id="workshop-title">自分のSTL作品を街に置く</h2>
-      <p class="workshop-note">現在はこの端末で試す作品編集です。ページを閉じると作品は消えます。クラウド保存・共同参加は準備中。配置は地形と元建物を確認できる駅周辺だけです。赤い下書きは配置できません。</p>
+      <p class="workshop-note">Googleログインして教室に参加すると、自分のSTL作品を配置できます。確定した作品はクラウドに保存され、同じ教室の参加者に見えます。未確定の下書きは共有されません。配置は実地形と元建物を確認できる駅周辺だけです。赤い下書きは配置できません。</p>
       <div class="workshop-files">
         <label for="stl-files">STLを追加（複数選択可・1作品2万三角形まで）<input id="stl-files" type="file" accept=".stl" multiple></label>
         <div class="workshop-options">
@@ -200,6 +203,7 @@
       <h3>スマホ</h3>
       <p>スマホは画面下の「見学」「広域」「設定」でパネルを開閉。1本指で回転、2本指で拡大。「移動」をオンにすると左の仮想スティックで上下・旋回、右で前後・左右へ移動できます。少し倒すとゆっくり、大きく倒すと速く移動し、指を離すと停止します。</p>
       <h3>Meta Quest</h3>
+      <p>街の見学・VR表示にはログイン不要です。共同作業は最初に2D画面の「ログイン・教室」からGoogleでログインし、先生の招待URLまたは教室コードで参加してください。STLは2D画面で読み込み、VR内の左側の作品パネルで選択・XYZ回転・拡大縮小・地面への配置を行えます。ログインやファイル選択はVRから2D画面に戻って行います。他の人の作品は編集できません。</p>
       <p>広域マップをクリックして、岡崎市の別の場所へ上空移動できます。VR中は右上ガイドの「広域マップ」を光線とトリガーで選び、地図内の移動先を選択します。Yボタンでいつでも駅へ戻れます。遠くの建物は軽量LOD1で、現在地付近だけを読み込みます。</p>
       <p>
         ガイドは視界の右上、コントローラーの状態は左右下に表示します。円の中の点がスティックの倒し量・方向、色付きのボタンが押下／タッチ、バーがトリガーとグリップの押し込み量です。Xでガイドだけを隠しても操作表示は残ります。

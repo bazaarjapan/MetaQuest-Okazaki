@@ -21,7 +21,7 @@
   assert(r.ready && r.availableBuildings === 770 && r.availableTerrain === 154 &&
     r.bounds[2] - r.bounds[0] > 25000 && r.bounds[3] - r.bounds[1] > 19000,
   'official-wide-coverage-manifests-loaded', { buildings: r.availableBuildings, terrain: r.availableTerrain, bounds: r.bounds });
-  assert(state().version === '1.6.0' && state().parts === 5 && state().triangles === 58845,
+  assert(state().version === '1.7.0' && state().parts === 5 && state().triangles === 58845,
     'original-station-core-preserved');
   await until(() => state().region.buildings > 0 && state().region.terrain > 0 && !state().region.loading);
   assert(state().region.buildings > 0 && state().region.terrain > 0 && budget(),

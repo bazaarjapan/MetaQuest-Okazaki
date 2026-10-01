@@ -14,11 +14,15 @@ import { createAdaptiveUi } from "./ui-layout.js";
 import { createTouchControls } from "./touch-controls.js";
 import { createVRReturnButton } from "./vr-return-button.js";
 import { createExitHold, updateExitHold, cancelExitHold } from "./xr-exit-hold.js";
-import { captureView, captureXRView, alignRigToView } from "./vr-view.js";
+import { captureView, captureXRView, alignRigToView, resolveXRExitView, resolveXREntryView } from "./vr-view.js";
 import { createSurfaceIndex } from "./placement.js";
 import { createWorkshop } from "./workshop.js";
-import { createCreativeControls, constrainCreativeFeet } from "./creative-controls.js";
+import { createCreativeControls, constrainCreativeFeet, readControlMode, controlPreferenceKey } from "./creative-controls.js";
 import { createBlockAvatar } from "./block-avatar.js";
+import { createSchoolClient } from "./school-client.js";
+import { createSchoolUI } from "./school-ui.js";
+import { createSchoolPresence } from "./school-presence.js";
+import { createVRWorkshop } from "./vr-workshop.js";
 import "./style.css";
 import "./layout.css";
 
@@ -126,9 +130,13 @@ let frameTime = 0,
 const controllers = [],
   previousButtons = new Map();
 const flight = createFlightState();
+const schoolClient = createSchoolClient();
+let schoolUI;
 let placementEnvironment = { terrain: null, obstacles: [], bounds: [-320, -381, 315, 372], terrainMeshes: [] };
 const workshop = createWorkshop(THREE, { scene, domElement: renderer.domElement, camera,
   getEnvironment: () => placementEnvironment, getViewPosition: userPosition,
+  schoolClient, isXR: () => state.xr,
+  onRequireLogin: () => schoolUI?.open(),
   onChange: () => { renderer.shadowMap.needsUpdate = true; } });
 const ownAvatar = createBlockAvatar(THREE);
 scene.add(ownAvatar.group);
@@ -151,7 +159,7 @@ $("#control-mode").onchange = (event) => {
   const forcedMobile = adaptiveUi.getState().mobile && event.target.value === "creative";
   if (forcedMobile) event.target.value = "drone";
   setFree(false); creative.setMode(event.target.value);
-  try { if (!forcedMobile) preferenceStorage?.setItem("okazaki-control-mode-v1", event.target.value); } catch { /* Optional preference. */ }
+  try { if (!forcedMobile) preferenceStorage?.setItem(controlPreferenceKey, event.target.value); } catch { /* Optional preference. */ }
   $("#creative-help").hidden = event.target.value !== "creative";
   $("#canvas-hint").textContent = event.target.value === "creative"
     ? "自由移動をON → 3D画面をクリック · Escでマウス解除 · F5で視点切替" : "ドラッグで回転 · ホイールで拡大";
@@ -162,6 +170,38 @@ let xrExitPending = false, xrEntering = false, hasVRResume = false;
 let lastXRView = null, pendingXRView = null;
 let panel, panelSpeedKey = "", panelUpdateTime = 0;
 let simulationSeconds = 0;
+schoolUI = createSchoolUI({ client: schoolClient, button: $("#school-button"),
+  onBeforeOpen: () => {
+    if (state.xr || xrEntering) return false;
+    setFree(false); creative.clearInput({ release: true }); return true;
+  } });
+const presence = createSchoolPresence(THREE, { scene, client: schoolClient });
+const vrWorkshop = createVRWorkshop(THREE, { camera, workshop, client: schoolClient,
+  onShadowChange: () => { renderer.shadowMap.needsUpdate = true; } });
+let schoolState = schoolClient.getState(), lastSchoolSnapshot = 0, restoredWorld = null;
+function adoptSchoolPose() {
+  if (!state.ready || !schoolState.world || schoolState.connection !== "connected" ||
+      schoolState.snapshotSeq === lastSchoolSnapshot) return;
+  lastSchoolSnapshot = schoolState.snapshotSeq;
+  const member = schoolState.participants.find((p) => p.id === schoolState.user?.id);
+  if (!Array.isArray(member?.position) || !member.position.every(Number.isFinite) || !Number.isFinite(member.yaw)) return;
+  const view = { position: [...member.position], quaternion: new THREE.Quaternion()
+    .setFromEuler(new THREE.Euler(0, member.yaw, 0, "YXZ")).toArray() };
+  setFree(false); vrWorkshop.cancelPicking();
+  updateLabels("school");
+  if (state.xr) pendingXRView = view;
+  else { restoreDesktopView(view); creative.syncFromCamera(); }
+  restoredWorld = schoolState.world.id;
+}
+schoolClient.subscribe((next, event) => {
+  schoolState = next;
+  if (event === "pose") return;
+  $("#open-workshop").textContent = next.user && next.world ? "自分のSTL作品" : "STL作品（ログイン）";
+  if (next.user?.color) ownAvatar.setColor(next.user.color);
+  if (!next.world || next.connection !== "connected") { vrWorkshop.cancelPicking(); restoredWorld = null; }
+  adoptSchoolPose();
+});
+schoolClient.init().catch(() => { /* School failure never blocks anonymous city/VR viewing. */ });
 function resize() {
   const w = viewport.clientWidth,
     h = viewport.clientHeight;
@@ -277,12 +317,11 @@ async function loadCity() {
     .forEach((b) => (b.disabled = false));
   goTo("overview");
   $("#control-mode").disabled = false;
-  try {
-    if (preferenceStorage?.getItem("okazaki-control-mode-v1") === "creative") {
-      $("#control-mode").value = "creative";
-      $("#control-mode").dispatchEvent(new Event("change"));
-    }
-  } catch { /* Start with original drone mode when preference is unavailable. */ }
+  // Let the change handler apply a mobile fallback without persisting it over
+  // the user's PC choice. A narrow window must not change desktop preference.
+  $("#control-mode").value = readControlMode(preferenceStorage);
+  $("#control-mode").dispatchEvent(new Event("change"));
+  adoptSchoolPose();
   addStationLabel(manifest.station);
   await checkVR();
   loadRegion().catch((error) => {
@@ -498,6 +537,10 @@ function updateLabels(id) {
     title: "岡崎市の広域を探索", description: "現在地の周辺だけを読み込んで観察",
     question: "市街地と周辺で、建物の集まり方はどう違う？",
     detail: "広域マップで移動して比較しよう。収録範囲は行政界ではなく、2020年度モデルの範囲です。",
+  } : id === "school" ? {
+    title: "共同教室でまちづくり", description: "保存された位置から再開 · 移動はOFF",
+    question: "この街にどんな作品を加えたい？",
+    detail: "自分のSTLを空いている実地面へ配置しよう。元の街と他の人の作品は変更できません。",
   } : null);
   if (!v) return;
   state.current = id;
@@ -557,7 +600,7 @@ function restoreDesktopView(view) {
 async function returnTo2D() {
   const session = renderer.xr.getSession();
   if (!state.xr || !session || xrExitPending) return;
-  lastXRView ??= captureView(camera);
+  lastXRView = resolveXRExitView(pendingXRView, lastXRView, () => captureView(camera));
   xrExitPending = true;
   setFree(false);
   keys.clear(); touchControls.releaseAll();
@@ -588,8 +631,9 @@ function teleport(position, target) {
   rig.updateMatrixWorld(true);
 }
 function setFree(value) {
+  if (state.xr && vrWorkshop?.getState().picking) value = false;
   if (xrEntering && !state.xr) value = false;
-  if (value && !state.xr && creative?.getState().mode !== "creative" && state.current !== "region" && !hasVRResume) goTo("east");
+  if (value && !state.xr && creative?.getState().mode !== "creative" && state.current !== "region" && !hasVRResume && !restoredWorld) goTo("east");
   creative?.clearInput({ release: !value });
   resetFlight(flight);
   touchControls.releaseAll();
@@ -697,7 +741,8 @@ $("#enter-vr").onclick = async () => {
     xrEntering = true;
     $("#control-mode").disabled = true;
     setFree(false);
-    pendingXRView = creative.getState().mode === "creative" ? creative.captureForXR() : hasVRResume ? captureView(camera) : null;
+    pendingXRView = resolveXREntryView(creative.getState().mode, hasVRResume, restoredWorld,
+      () => creative.captureForXR(), () => captureView(camera));
     $("#enter-vr").disabled = true;
     const session = await navigator.xr.requestSession("immersive-vr", {
       optionalFeatures: ["local-floor"],
@@ -752,13 +797,15 @@ renderer.xr.addEventListener("sessionstart", () => {
   updateLabels(pendingXRView ? state.current : "east");
 });
 renderer.xr.addEventListener("sessionend", () => {
-  const view = lastXRView ?? pendingXRView ?? captureView(camera);
+  const view = resolveXRExitView(pendingXRView, lastXRView, () => captureView(camera));
   state.xr = false;
   hasVRResume = true; xrExitPending = false; pendingXRView = null;
   cancelExitHold(exitHold);
   vrReturnButton.setVisible(false);
   vrReturnButton.update({ progress: 0, exiting: false, hovered: false });
   controllerHud.setXR(false);
+  vrWorkshop.cancelPicking();
+  vrWorkshop.update({ xr: false });
   $("#quality-select").disabled = false;
   $("#quality-note").textContent = quality.hint;
   controls.enabled = true;
@@ -915,6 +962,8 @@ for (let i = 0; i < 2; i++) {
     new THREE.LineBasicMaterial({ color: 0x52f5c5 }),
   );
   controller.add(line);
+  controller.addEventListener("connected", (event) => { controller.userData.handedness = event.data.handedness; });
+  controller.addEventListener("disconnected", () => { controller.userData.handedness = null; vrWorkshop.cancelPicking(); });
   controller.addEventListener("selectstart", () => {
     if (!state.xr || xrExitPending || renderer.xr.getSession()?.visibilityState !== "visible") return;
     controller.updateWorldMatrix(true, false);
@@ -927,12 +976,30 @@ for (let i = 0; i < 2; i++) {
     if (vrReturnButton.mesh.visible && raycaster.intersectObject(vrReturnButton.mesh)[0]) {
       returnTo2D(); return;
     }
-    if (!panel.visible) return;
-    const hit = raycaster.intersectObject(panel)[0];
+    if (controller.userData.handedness === "right") {
+      const action = vrWorkshop.hit(raycaster);
+      if (action) {
+        setFree(false); Promise.resolve(vrWorkshop.activate(action.action)).catch(() => {}); return;
+      }
+    }
+    const hit = panel.visible ? raycaster.intersectObject(panel)[0] : null;
     if (hit?.uv) {
       const x = hit.uv.x * 1024,
         y = (1 - hit.uv.y) * 512;
       handlePanelClick(x, y);
+      return;
+    }
+    if (controller.userData.handedness === "right" && workshop.getState().canEdit) {
+      if (vrWorkshop.getState().picking) {
+        // Placement uses only verified station-core DEM, never roofs or a fake plane.
+        const terrainHit = raycaster.intersectObjects(placementEnvironment.terrainMeshes, false)[0];
+        if (terrainHit) { workshop.moveSelected(terrainHit.point.toArray()); vrWorkshop.activate("picked"); }
+        return;
+      }
+      const objectHit = raycaster.intersectObjects(workshop.group.children, false)[0];
+      if (objectHit?.object.userData.creationId) {
+        setFree(false); workshop.selectObject(objectHit.object.userData.creationId);
+      }
     }
   });
   rig.add(controller);
@@ -1095,6 +1162,16 @@ renderer.setAnimationLoop((time, frame) => {
         `rotate(${Math.atan2(dir.x, -dir.z)}rad)`;
     }
     regionStreamer.update(userPosition(), quality.id, time);
+    adoptSchoolPose();
+    if (schoolState.user && schoolState.world && schoolState.connection === "connected" &&
+        restoredWorld === schoolState.world.id && !pendingXRView && !document.hidden &&
+        (!state.xr || renderer.xr.getSession()?.visibilityState === "visible")) {
+      const yaw = !state.xr && creative.getState().mode === "creative" ? creative.getState().yaw :
+        new THREE.Euler().setFromQuaternion(camera.getWorldQuaternion(new THREE.Quaternion()), "YXZ").y;
+      schoolClient.sendPose({ position: userPosition().toArray(), yaw });
+    }
+    presence.update(dt);
+    if (!schoolState.user || !schoolState.world || schoolState.connection !== "connected") ownAvatar.group.visible = false;
     if ((state.free || state.current === "region") && time > nextGroundCheck) {
       nextGroundCheck = time + 150;
       const p = camera.getWorldPosition(new THREE.Vector3());
@@ -1125,6 +1202,18 @@ renderer.setAnimationLoop((time, frame) => {
   }
   controllerHud.update(renderer.xr.getSession()?.inputSources,
     { free: state.free, flight }, time);
+  let workshopHover = null;
+  if (state.xr && !xrExitPending && !pendingXRView) {
+    const rightController = controllers.find((controller) => controller.visible && controller.userData.handedness === "right");
+    if (rightController) {
+      rightController.updateWorldMatrix(true, false);
+      raycaster.ray.origin.setFromMatrixPosition(rightController.matrixWorld);
+      raycaster.ray.direction.set(0, 0, -1).applyMatrix4(new THREE.Matrix4().extractRotation(rightController.matrixWorld));
+      workshopHover = vrWorkshop.hit(raycaster)?.action ?? null;
+    }
+  }
+  vrWorkshop.update({ xr: state.xr, visible: !xrExitPending && !pendingXRView &&
+    renderer.xr.getSession()?.visibilityState === "visible", hover: workshopHover, time: time / 1000 });
   renderer.render(scene, camera);
   if (state.xr && !xrExitPending && !pendingXRView && frame &&
       renderer.xr.getSession()?.visibilityState === "visible") {
@@ -1155,6 +1244,9 @@ renderer.domElement.addEventListener("webglcontextlost", (e) => {
 window.__okazaki = {
   getState: () => ({
     ...state,
+    school: schoolClient.getState(),
+    presence: presence.getState(),
+    vrWorkshop: vrWorkshop.getState(),
     workshop: workshop.getState(),
     creative: creative.getState(),
     avatar: ownAvatar.getState(),
@@ -1166,7 +1258,7 @@ window.__okazaki = {
       ? camera.getWorldPosition(new THREE.Vector3()).toArray()
       : null,
     panelVisible: panel.visible,
-    version: "1.6.0",
+    version: "1.7.0",
     vrReturn: { buttonVisible: vrReturnButton.mesh.visible,
       holdProgress: vrReturnButton.getState().progress, exiting: xrExitPending,
       hasResume: hasVRResume, view: lastXRView ? {
