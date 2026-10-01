@@ -1,5 +1,5 @@
 (async () => {
-  const results = [], wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  const results = [], gestureTimings = [], wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   const state = () => window.__okazaki.getState();
   const check = (ok, name) => { results.push({ok:Boolean(ok),name}); if (!ok) throw new Error(name); };
   const distance = (a, b) => Math.hypot(...a.map((v, i) => v - b[i]));
@@ -31,9 +31,16 @@
   await wait(100); const still = [...state().creative.anchor]; await wait(150);
   check(distance(state().creative.anchor, still) < 1e-6, "key-release-stops");
   for (const code of ["KeyW","KeyA","KeyS","KeyD"]) {
-    await wait(400); key(code); key(code,"keyup"); await wait(80); key(code); await wait(80);
-    check(state().creative.sprinting, "double-tap-sprints-"+code);
-    key(code,"keyup"); await wait(50);
+    await wait(400);
+    const start = performance.now();
+    try {
+      // Input a valid short gesture within one task. Renderer-delayed timers
+      // must not turn an intended80ms gap into an actual >350ms non-gesture.
+      key(code); key(code,"keyup"); key(code);
+      const elapsedMs = performance.now() - start;
+      gestureTimings.push({code, elapsedMs});
+      check(elapsedMs <= 350 && state().creative.sprinting, "double-tap-sprints-"+code);
+    } finally { key(code,"keyup"); }
     check(!state().creative.sprinting, "release-stops-sprint-"+code);
   }
   const beforeView = [...state().creative.anchor];
@@ -56,8 +63,13 @@
   try { await until(() => state().creative.eye[1] < beforeDrop - .1, "Shift-descends-rAF"); }
   finally { key("ShiftLeft", "keyup"); }
   check(state().creative.eye[1] < beforeDrop - .1, "Shift-descends");
-  await wait(400); key("Space"); key("Space", "keyup"); await wait(80); key("Space"); key("Space", "keyup");
-  await wait(50); check(!state().creative.flying, "double-Space-switches-walking");
+  await wait(400); const spaceStart = performance.now(); let spaceElapsedMs;
+  try {
+    key("Space"); key("Space", "keyup"); key("Space");
+    spaceElapsedMs = performance.now() - spaceStart;
+    gestureTimings.push({code:"Space", elapsedMs:spaceElapsedMs});
+  } finally { key("Space", "keyup"); }
+  await wait(50); check(spaceElapsedMs <= 350 && !state().creative.flying, "double-Space-switches-walking");
   document.querySelector("#open-workshop").click(); await wait(100);
   const blocked = [...state().creative.anchor]; key("KeyW"); await wait(200); key("KeyW", "keyup");
   check(distance(state().creative.anchor, blocked) < 1e-6, "modal-stops-player-input");
@@ -69,5 +81,5 @@
   mode.value = "drone"; mode.dispatchEvent(new Event("change", {bubbles:true})); await wait(100);
   check(state().creative.mode === "drone" && !state().avatar.visible && !state().free, "original-controls-restored-with-motion-off");
   document.querySelector("#tab-observe").click();
-  return JSON.stringify({passed:true,environment:"PC browser, not physical Quest",results});
+  return JSON.stringify({passed:true,environment:"PC browser, not physical Quest",results,gestureTimings});
 })();

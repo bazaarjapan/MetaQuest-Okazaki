@@ -15,7 +15,7 @@ const cli = resolve("node_modules/agent-browser/bin/agent-browser.js");
 const cliExecutable = process.platform === "win32" ? resolve(`node_modules/agent-browser/bin/agent-browser-win32-${process.arch}.exe`) : process.execPath;
 const cliPrefix = process.platform === "win32" ? [] : [cli];
 const sessions = ["school17-guest", "school17-teacher", "school17-student"];
-const [guest, teacher, student] = sessions, checks = [];
+const [guest, teacher, student] = sessions, checks = [], timingMetadata = [];
 async function browser(session, ...args) {
   try {
     const { stdout } = await execFileAsync(cliExecutable, [...cliPrefix, "--session", session, ...args], {
@@ -68,6 +68,7 @@ async function browserScript(session, path) {
   }
   const result = typeof rawResult === "string" ? JSON.parse(rawResult) : rawResult;
   assert.equal(result.passed, true, path);
+  if (Array.isArray(result.gestureTimings)) timingMetadata.push({test:path,gestures:result.gestureTimings});
   for (const item of result.results) check(`${path}: ${item.name}`, item.ok);
 }
 async function transform(session, location, rotation = [0.3,0.5,0.2], scale = 0.5) {
@@ -157,7 +158,7 @@ try {
   passed = true;
 } finally {
   await mkdir("test-results", {recursive:true});
-  await writeFile("test-results/school-browser.json", JSON.stringify({ passed, checkedAt:new Date().toISOString(), checks,
+  await writeFile("test-results/school-browser.json", JSON.stringify({ passed, checkedAt:new Date().toISOString(), checks,timingMetadata,
     workerBundleSha256:fixtures.workerBundleSha256, distManifestSha256:fixtures.distManifestSha256,
     scope:"actual Chrome UI -> production Worker -> ephemeral D1/R2/SQLite Durable Objects",
     ephemeralAuthenticationFixtures:true, notVerified:["real Google exchange","production bindings","physical Quest","30 physical devices/classroom network"] },null,2));
