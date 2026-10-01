@@ -22,7 +22,10 @@ async function googleKeys(fetchImpl, now, force = false) {
   cache.lastAttemptAt = now;
   const pending = (async () => {
     try {
-      const response = await fetchImpl(JWKS_URL, { redirect: "error", signal: AbortSignal.timeout(10000) });
+      // workerd rejects redirect:"error" before making a request. "manual" is
+      // supported, and the non-2xx guard below still rejects every redirect.
+      // Never follow a redirect away from the fixed Google public-key URL.
+      const response = await fetchImpl(JWKS_URL, { redirect: "manual", signal: AbortSignal.timeout(10000) });
       if (!response.ok) fail(503, "google_keys_unavailable");
       const result = await response.json();
       if (!Array.isArray(result.keys) || result.keys.length > 20 || result.keys.some((key) => !key || typeof key !== "object")) fail(503, "google_keys_unavailable");

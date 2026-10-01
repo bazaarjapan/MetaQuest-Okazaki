@@ -8,6 +8,15 @@ export function readControlMode(storage) {
   return "creative";
 }
 
+// Enable a fresh desktop visit only after the model is ready. An interrupted
+// load must not undo a user/visibility/modal safety stop, or resume shared/XR activity.
+export function initialPCMovement({ ready = false, mobile = false, hidden = false,
+  interrupted = false, dialogOpen = false, xr = false, xrEntering = false,
+  restoredWorld = false } = {}) {
+  return Boolean(ready && !mobile && !hidden && !interrupted && !dialogOpen &&
+    !xr && !xrEntering && !restoredWorld);
+}
+
 // Reuse the city's XZ/ceiling limits without its drone-only minimum eye
 // altitude. Walking feet must reach actual DEM, including ground below 20m.
 export function constrainCreativeFeet(feet, constrainEye) {
@@ -245,7 +254,10 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
     }
     anchor.add(displacement);
     if (!flying && groundAvailable && anchor.y < height) { anchor.y = height; verticalVelocity = 0; }
-    if (constrainPosition) {
+    // A stationary flying view may be outside currently loaded region bounds
+    // (the initial aerial overview is). Do not teleport it merely by enabling
+    // input. Real movement and walking gravity still apply the same limits.
+    if (constrainPosition && displacement.lengthSq() > 0) {
       const previous = anchor.clone();
       try {
         const bounded = constrainPosition(anchor);

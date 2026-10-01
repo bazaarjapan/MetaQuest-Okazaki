@@ -45,8 +45,8 @@
   document.querySelector('#panel-close').click();await wait(200);
   assert(s().touch.enabled&&s().touch.axes.right.every(x=>x===0),'closing-panel-does-not-revive-old-touch');
   pointer('right','pointerdown',74,0,-1);await wait(100);window.dispatchEvent(new Event('blur'));await wait(150);
-  assert(s().touch.activePointers===0&&s().flight.horizontalSpeed===0,'browser-blur-clears-mobile-motion');
-  document.querySelector('#mobile-flight').click();await wait(100);
+  assert(!s().free&&s().touch.activePointers===0&&s().flight.horizontalSpeed===0,'browser-blur-clears-mobile-motion');
+  if(s().free) document.querySelector('#mobile-flight').click();await wait(100);
   assert(!s().free&&!s().touch.enabled,'flight-off-hides-pads');
   document.querySelector('#home').click();
   return JSON.stringify({passed:true,environment:'Browser viewport and PointerEvent tests, NOT physical smartphone touch/FPS',results});

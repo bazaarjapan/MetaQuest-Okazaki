@@ -64,6 +64,16 @@
         </nav>
         <div class="panel-body">
         <section id="panel-observe" role="tabpanel" aria-labelledby="tab-observe">
+        <div id="movement-controls" class="movement-controls" data-free="false">
+          <label for="control-mode">移動・視点の操作</label>
+          <select id="control-mode" disabled><option value="creative" selected>クリエイティブ風（PC・初期設定）</option><option value="drone">ドローン・見学（従来の操作）</option></select>
+          <div class="move-setting">
+            <label><input id="free-move" type="checkbox" disabled aria-describedby="creative-help move-help" /><span>自由移動 <strong id="free-move-state" class="movement-state">OFF</strong><small><span class="desktop-copy">PCは初期ON・キーを離すと停止</span><span class="mobile-copy">指を離すと停止・Questはモード2</span></small></span></label>
+            <p id="move-help" hidden><span class="desktop-copy">WASD：前後左右 / R・F：上下 / Q・E：旋回。</span><span class="mobile-copy">左：上下・旋回 / 右：前後・左右。指を離すと停止。</span></p>
+          </div>
+          <p id="creative-help" hidden>WASD：移動 / Space：上昇 / Shift：下降 / F5：視点切替。3D画面をクリックして見回す・Escでマウス解除。高速移動などは「使い方」へ。</p>
+          <p class="movement-note">Quest・スマホはドローン操作。VR入退場・地点切替・ダイアログ操作では移動OFF。</p>
+        </div>
         <p class="panel-caption">JR岡崎駅から、街のつながりを観察。</p>
         <p id="school-summary" class="panel-caption" role="status">見学モード：ログインなしで街とVRを見られます。作品配置・共同参加は「ログイン・教室」から。</p>
         <nav aria-label="見学地点" id="viewpoints">
@@ -90,7 +100,7 @@
           <h2 id="question">線路は街をどのように分けている？</h2>
           <p id="question-detail">線路を越えて東西を行き来できる場所を探してみよう。</p>
         </section>
-        <p class="panel-caption desktop-copy">ドラッグで回転・ホイールで拡大。自由移動をオンにするとWASDで移動できます。</p>
+        <p class="panel-caption desktop-copy">操作モードと自由移動は、この「見学」タブで切り替えます。初期はクリエイティブ風・移動ONです。</p>
         <p class="panel-caption mobile-copy">1本指で回転・2本指で拡大。「移動」をオンにすると左右の仮想スティックで飛べます。</p>
         </section>
         <section id="panel-region" role="tabpanel" class="region-setting" aria-labelledby="tab-region" hidden>
@@ -104,11 +114,6 @@
           <p class="map-legend">灰：建物区画 / 緑：駅 / 橙：現在地。地図をタップ・クリックして移動。</p>
         </section>
         <section id="panel-settings" role="tabpanel" aria-labelledby="tab-settings" hidden>
-        <div class="quality-setting">
-          <label for="control-mode">PCの操作モード（Questは常にモード2）</label>
-          <select id="control-mode" disabled><option value="drone">ドローン・見学（従来の操作）</option><option value="creative">クリエイティブ風・アバター視点</option></select>
-          <p id="creative-help" hidden>PCはクリエイティブ風が初期設定です。自由移動をONにして3D画面をクリック。WASD：移動、同じW/A/S/Dを素早く二度押しして保持：高速、Space：上昇、Shift：下降、Ctrl：高速、Space二度押し：飛行/歩行。F5：一人称→後方→前方、Esc：マウス解除。歩行の壁衝突は未実装。スマホ・Questはドローン操作です。</p>
-        </div>
         <div id="quality-setting" class="quality-setting">
           <label for="quality-select">画質（VRに入る前に選択）</label>
           <select id="quality-select" disabled>
@@ -135,10 +140,6 @@
         </section>
         </div>
         <div class="panel-footer">
-          <div class="move-setting">
-            <label><input id="free-move" type="checkbox" disabled /><span>自由移動<small>オンで操作・離すと停止</small></span></label>
-            <p id="move-help" hidden><span class="desktop-copy">WASD：前後左右 / R・F：上下 / Q・E：旋回。</span><span class="mobile-copy">左：上下・旋回 / 右：前後・左右。指を離すと停止。</span></p>
-          </div>
           <button id="enter-vr" class="primary" disabled>VR対応を確認中…</button>
           <p id="vr-note" class="vr-note">PCではそのまま3Dを観察できます。</p>
         </div>
@@ -198,7 +199,7 @@
       <h2>好きな場所から、街を見よう。</h2>
       <h3>PC・タブレット</h3>
       <p>
-        地点ボタンを押すと見学場所が切り替わります。ドラッグで回転、ホイールやピンチで拡大。自由移動をオンにすると、WASDで前後左右、R・Fで上下、Q・Eで旋回できます。
+        PCはクリエイティブ風・自由移動ONで始まります。「見学」タブで操作モードと自由移動を切り替えます。WASDで前後左右、Spaceで上昇、Shiftで下降。3D画面をクリックするとマウスで見回せ、Escで解除します。同じW/A/S/Dを350ms以内に二度押しして保持、またはCtrlで1.5倍速。Space二度押しで飛行/歩行、F5で一人称→後方→前方です。マウスは自動で固定しません。保存済みのモード選択は次回も使います。従来のドローンを選ぶと、ドラッグで回転・ホイールで拡大、WASD・R/F上下・Q/E旋回を使えます。モード・地点の切替、ダイアログ、画面から離れたとき、VR入退場では移動OFFになります。壁衝突は未実装です。
       </p>
       <h3>スマホ</h3>
       <p>スマホは画面下の「見学」「広域」「設定」でパネルを開閉。1本指で回転、2本指で拡大。「移動」をオンにすると左の仮想スティックで上下・旋回、右で前後・左右へ移動できます。少し倒すとゆっくり、大きく倒すと速く移動し、指を離すと停止します。</p>
