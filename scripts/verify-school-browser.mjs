@@ -33,7 +33,18 @@ async function evaluate(session, expression) {
 }
 const state = async (session) => await evaluate(session, "window.__okazaki.getState()");
 function check(name, condition) { assert.ok(condition, name); checks.push({ name, passed: true }); console.log(`[school-browser] PASS ${name}`); }
-const wait = async (session, predicate) => await browser(session, "wait", "--fn", predicate);
+async function wait(session, predicate) {
+  // Long CLI wait responses can exceed the native Windows daemon socket's
+  // read deadline. Keep the same app predicate, but poll short readonly evals.
+  const deadline = Date.now() + 45000;
+  while (!await evaluate(session, `Boolean(${predicate})`)) {
+    if (Date.now() > deadline) {
+      const diagnosis = await evaluate(session, "(()=>{const s=window.__okazaki?.getState();return {ready:s?.ready,error:s?.error,xr:s?.xr,schoolUser:Boolean(s?.school.user),schoolWorld:Boolean(s?.school.world),connection:s?.school.connection,schoolError:s?.school.error,hidden:document.hidden}})()").catch(() => null);
+      throw Error(`Actual browser predicate timed out (${session}); public-state: ${JSON.stringify(diagnosis)}`);
+    }
+    await delay(100);
+  }
+}
 async function click(session, selector) { await browser(session, "scrollintoview", selector); await browser(session, "click", selector); }
 async function open(session, url = fixtures.origin) {
   await browser(session, "--executable-path", "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",

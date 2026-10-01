@@ -47,6 +47,8 @@ GitHub Codexレビューは `eceb72d` を実際にレビューし、再接続で
 
 実ブラウザーのXR許可待ちの復元18項目は、成功・拒否の両経路で物理viewer中心の位置を測って確認した（2026-10-01 01:33 UTC、修正前manifest `050ab721692447141ddc814a3e09b5cf432a0fc5404cca288cbf26066cac03e3`）。Three.jsステレオ統合カメラの投影オフセットとは区別した。後続の参考86 runnerはWindows CLI read timeoutにより66項目で失敗し、86成功へ算入しない（manifest `3c4ffcf1017414b50cf8c82100ce121411ca4c2c7d49320ea195dd679e7a31ad`、Worker `587e6...`）。最終freezeのChrome/XR再検査、最終SHAの独立レビュー・CIと公開結果はPR #14へ追記する。未公開旧版のserialized attachment互換fixtureは、本番の教室DB/DOが今回初回作成であるためrelease対象に含めない。
 
+最終ブラウザー再検査のWindows CLI待機では、アプリが単独でready:true、error:null、正常な3D描画を示す一方、長時間の`wait --fn`がIPC read timeoutとなる現象を確認した。未成功の試験は残し、同じpredicateを短いread-only evalで100ms間隔・45秒の期限付きで確認するテストharnessだけの修正を加えた。アプリのカメラ、入力処理、認証、期待値は置換・緩和しない。アプリ実装の359単体とruntime11、Worker/distハッシュはこのharness修正では変わらない。最終63444e7のCI [36804083519](https://github.com/bazaarjapan/MetaQuest-Okazaki/actions/runs/36804083519) はSUCCESSだったが、harnessコミット後の最終CIは別途確認する。GitHub Codexの再レビューは明示の利用上限応答だったため、実装者の担当を除外した独立ローカルレビューでfinal SHAと指摘0をPRへ記録する。利用上限をレビューの合格とは扱わない。
+
 この公開前記録時点で未確認：本物のGoogle IDトークン交換、Cloudflareの本番bindingでの共同教室、Quest実機のGoogleログイン・左作品パネル・装着快適性・FPS・最大作品数時のCPU/GC、学校の30実端末と回線・Google管理者許可、実機スマートフォンの操作感。Googleアカウントのパスワード・OTPを試験fixtureやログへ保存しない。学校での利用は少人数の実機・本番確認後に拡大する。
 
 ## 2026-10-01：学校MVPのIssue化・STL編集1.6（公開前検証）
