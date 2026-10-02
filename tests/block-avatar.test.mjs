@@ -7,14 +7,14 @@ test("original block avatar is a small asset-free group anchored at its feet", (
   const avatar = createBlockAvatar(THREE);
   const meshes = [];
   avatar.group.traverse((object) => { if (object.isMesh) meshes.push(object); });
-  assert.equal(meshes.length, 9);
+  assert.equal(meshes.length, 12);
   assert.equal(new Set(meshes.map((mesh) => mesh.geometry)).size, 1);
   assert.ok(meshes.every((mesh) => !mesh.material.map));
   assert.equal(avatar.getState().visible, false);
   const bounds = new THREE.Box3().setFromObject(avatar.group);
   assert.ok(Math.abs(bounds.min.y) < 1e-9);
-  assert.ok(bounds.max.y > 1.8 && bounds.max.y < 1.9);
-  assert.equal(avatar.getState().materialCount, 5);
+  assert.ok(bounds.max.y > 1.8 && bounds.max.y < 2);
+  assert.equal(avatar.getState().materialCount, 6);
 });
 
 test("avatar pose handles independent head pitch and block-limb movement", () => {
@@ -55,7 +55,7 @@ test("avatar disposes shared resources exactly once and removes its own group", 
   for (const material of materials) material.addEventListener("dispose", () => materialDisposals++);
   avatar.dispose(); avatar.dispose(); avatar.update({ visible: true });
   assert.equal(geometryDisposals, 1);
-  assert.equal(materialDisposals, 5);
+  assert.equal(materialDisposals, 6);
   assert.equal(avatar.group.parent, null);
   assert.equal(avatar.getState().disposed, true);
   assert.equal(avatar.getState().visible, false);
@@ -69,7 +69,7 @@ test("opaque identity generates stable original appearance, without changing the
   assert.notDeepEqual(first.getState().appearance, other.getState().appearance);
   first.setIdentity("user-two"); assert.deepEqual(first.getState().appearance, other.getState().appearance);
   first.setColor("#112233"); assert.equal(first.group.getObjectByName("torso").material.color.getHexString(), "112233");
-  assert.equal(first.getState().materialCount, 5); first.dispose(); again.dispose(); other.dispose();
+  assert.equal(first.getState().materialCount, 6); first.dispose(); again.dispose(); other.dispose();
 });
 
 test("a shirt matching the old skin color never recolors face or arms", () => {

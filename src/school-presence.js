@@ -1,3 +1,4 @@
+import { avatarNickname, createAvatarLabel } from "./avatar-label.js";
 import { createBlockAvatar } from "./block-avatar.js";
 import { creativeConfig } from "./creative-controls.js";
 
@@ -6,11 +7,7 @@ export const presenceLimits = Object.freeze({ remoteParticipants: 30, labelWidth
 
 // Labels use the explicitly selected avatar nickname, never Google profile
 // names, pictures or email addresses. Canvas text cannot become HTML markup.
-export function presenceLabel(value) {
-  if (typeof value !== "string" || value.includes("@")) return "参加者";
-  const text = value.replace(/[\u0000-\u001f\u007f<>]/gu, "").trim();
-  return [...text].slice(0, presenceLimits.labelCharacters).join("") || "参加者";
-}
+export const presenceLabel = avatarNickname;
 
 export function presenceColor(value) {
   return typeof value === "string" && /^#[0-9a-f]{6}$/iu.test(value) ? value : "#4a90e2";
@@ -45,7 +42,7 @@ export function remoteParticipants(state) {
   return result;
 }
 
-// Thirty original nine-cube avatars; no imported character or texture assets.
+// Thirty original twelve-cube avatars; no imported character or texture assets.
 // Identity changes clear the old room before any new room can be rendered.
 export function createSchoolPresence(THREE, { scene, client,
   documentTarget = globalThis.document } = {}) {
@@ -54,34 +51,10 @@ export function createSchoolPresence(THREE, { scene, client,
   const actors = new Map();
   let context = null, disposed = false, time = 0;
 
-  function labelFor(actor, name) {
-    if (!documentTarget?.createElement) return;
-    if (!actor.label) {
-      const canvas = documentTarget.createElement("canvas");
-      canvas.width = presenceLimits.labelWidth; canvas.height = presenceLimits.labelHeight;
-      const texture = new THREE.CanvasTexture(canvas);
-      texture.colorSpace = THREE.SRGBColorSpace;
-      texture.generateMipmaps = false; texture.minFilter = THREE.LinearFilter;
-      const material = new THREE.SpriteMaterial({ map: texture, transparent: true,
-        depthWrite: false, toneMapped: false });
-      const sprite = new THREE.Sprite(material);
-      sprite.name = "school-avatar-nickname";
-      sprite.position.set(0, 2.1, 0); sprite.scale.set(1.2, 0.3, 1);
-      actor.avatar.group.add(sprite);
-      actor.label = { canvas, texture, material, sprite };
-    }
-    const c = actor.label.canvas.getContext("2d");
-    if (!c) return;
-    c.clearRect(0, 0, presenceLimits.labelWidth, presenceLimits.labelHeight);
-    c.fillStyle = "rgba(8,20,35,.85)"; c.fillRect(0, 0, 256, 64);
-    c.font = "bold 28px sans-serif"; c.fillStyle = "white";
-    c.textAlign = "center"; c.textBaseline = "middle";
-    c.fillText(name, 128, 32, 240); actor.label.texture.needsUpdate = true;
-  }
 
   function remove(id) {
     const actor = actors.get(id); if (!actor) return;
-    actor.label?.texture.dispose(); actor.label?.material.dispose();
+    actor.label?.dispose();
     actor.avatar.dispose(); actors.delete(id);
   }
 
@@ -104,6 +77,7 @@ export function createSchoolPresence(THREE, { scene, client,
         actor = { id: participant.id, avatar, color: participant.color, name: null,
           position: new THREE.Vector3(...participant.feet), target: new THREE.Vector3(...participant.feet),
           yaw: participant.yaw, targetYaw: participant.yaw, motionTime: -Infinity };
+        actor.label = createAvatarLabel(THREE, { parent: avatar.group, documentTarget });
         actors.set(participant.id, actor);
       }
       const position = new THREE.Vector3(...participant.feet);
@@ -112,7 +86,7 @@ export function createSchoolPresence(THREE, { scene, client,
         actor.position.copy(position); actor.yaw = participant.yaw;
       }
       actor.target.copy(position); actor.targetYaw = participant.yaw;
-      if (actor.name !== participant.name) { actor.name = participant.name; labelFor(actor, participant.name); }
+      if (actor.name !== participant.name) { actor.name = participant.name; actor.label.setName(participant.name); }
       actor.avatar.update({ position: actor.position, yaw: actor.yaw, time, visible: true });
     }
     group.visible = Boolean(context);
@@ -136,7 +110,7 @@ export function createSchoolPresence(THREE, { scene, client,
     getState: () => ({ visible: group.visible, count: actors.size, disposed,
       actors: [...actors.values()].map((actor) => ({ id: actor.id, name: actor.name,
         color: actor.color, position: actor.position.toArray(), target: actor.target.toArray(),
-        yaw: actor.yaw, meshes: 9, appearance: actor.avatar.getState().appearance })) }),
+        yaw: actor.yaw, meshes: actor.avatar.getState().meshCount, label: actor.label.getState(), appearance: actor.avatar.getState().appearance })) }),
     dispose() {
       if (disposed) return;
       disposed = true; unsubscribe?.(); clear(); group.removeFromParent(); group.visible = false;
