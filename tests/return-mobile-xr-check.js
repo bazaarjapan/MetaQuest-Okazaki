@@ -6,14 +6,18 @@
     const end = performance.now() + 8000;
     while (!predicate() && performance.now() < end) await wait(100);
   };
-  assert(state().xr && state().ui.mobile && state().vrReturn.buttonVisible, "mobile-VR-has-independent-return-button");
+  assert(state().xr && state().ui.mobile && state().vrPanel.visible && state().vrPanel.panelCount === 1 &&
+    state().vrReturn.buttonVisible && state().vrPanel.actionRects.return?.enabled,
+    "mobile-VR-has-return-in-one-central-panel");
   const left = window.__xrTestDevice.controllers.left;
   left.updateButtonValue("x-button", 0); await wait(200);
   if (state().panelVisible) {
     left.updateButtonValue("x-button", 1); await wait(250);
     left.updateButtonValue("x-button", 0); await wait(250);
   }
-  assert(!state().panelVisible && state().vrReturn.buttonVisible, "mobile-guide-hidden-return-button-remains");
+  assert(!state().panelVisible && !state().vrPanel.expanded && state().vrPanel.visible &&
+    state().vrReturn.buttonVisible && state().vrPanel.actionRects.return?.enabled,
+    "mobile-folded-content-keeps-central-return-action");
   const origin = performance.timeOrigin;
   left.updateButtonValue("x-button", 1); await until(() => !state().xr);
   left.setButtonValueImmediate("x-button", 0);

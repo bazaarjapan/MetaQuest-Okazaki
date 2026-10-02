@@ -184,12 +184,13 @@ function finiteSpeed(value) {
   return Number.isFinite(value) ? Math.max(0, value) : 0;
 }
 
-/** Two live, camera-anchored HUD planes plus passive desktop preview canvases. */
-export function createControllerHud(THREE, camera, viewport) {
+/** Shared controller canvases, with optional spatial planes and passive PC previews. */
+export function createControllerHud(THREE, camera, viewport, { spatial = true } = {}) {
   let xr = false;
   let lastDrawTime = -Infinity;
   let renderCount = 0;
   let free = false;
+  let embeddedVisible = false;
   let flight = { horizontalSpeed: 0, verticalSpeed: 0 };
   let hands = { left: normalizeControllerInput(null), right: normalizeControllerInput(null) };
   const panels = {};
@@ -198,25 +199,24 @@ export function createControllerHud(THREE, camera, viewport) {
     [canvas.width, canvas.height] = hudLayout.canvasSize;
     canvas.style.cssText = "position:relative;inset:auto;width:100%;height:auto;display:block;";
     canvas.setAttribute("aria-hidden", "true");
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.minFilter = THREE.LinearFilter;
-    texture.magFilter = THREE.LinearFilter;
-    texture.generateMipmaps = false;
-    const material = new THREE.MeshBasicMaterial({
-      map: texture,
-      transparent: true,
-      toneMapped: false,
-      depthTest: false,
-      depthWrite: false,
-    });
-    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(...hudLayout[hand].size), material);
-    mesh.name = `controller-hud-${hand}`;
-    mesh.position.fromArray(hudLayout[hand].position);
-    mesh.renderOrder = 1001;
-    mesh.frustumCulled = false;
-    mesh.visible = false;
-    camera.add(mesh);
+    let texture = null, mesh = null;
+    if (spatial) {
+      texture = new THREE.CanvasTexture(canvas);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.minFilter = THREE.LinearFilter;
+      texture.magFilter = THREE.LinearFilter;
+      texture.generateMipmaps = false;
+      const material = new THREE.MeshBasicMaterial({
+        map: texture, transparent: true, toneMapped: false, depthTest: false, depthWrite: false,
+      });
+      mesh = new THREE.Mesh(new THREE.PlaneGeometry(...hudLayout[hand].size), material);
+      mesh.name = `controller-hud-${hand}`;
+      mesh.position.fromArray(hudLayout[hand].position);
+      mesh.renderOrder = 1001;
+      mesh.frustumCulled = false;
+      mesh.visible = false;
+      camera.add(mesh);
+    }
     const overlay = document.createElement("figure");
     overlay.className = `controller-hud-preview controller-hud-${hand}`;
     overlay.style.cssText = `position:absolute;${hand === "left" ? "left" : "right"}:14px;bottom:clamp(100px,8vw,112px);width:clamp(112px,12vw,160px);margin:0;pointer-events:none;z-index:3;`;
@@ -246,7 +246,7 @@ export function createControllerHud(THREE, camera, viewport) {
       const panel = panels[hand];
       if (panel.drawKey === drawKey) continue;
       drawController(panel.canvas, hand, input, free, flight, xr);
-      panel.texture.needsUpdate = true;
+      if (panel.texture) panel.texture.needsUpdate = true;
       panel.drawKey = drawKey;
       drawn = true;
     }
@@ -277,7 +277,7 @@ export function createControllerHud(THREE, camera, viewport) {
     free = false;
     flight = { horizontalSpeed: 0, verticalSpeed: 0 };
     for (const panel of Object.values(panels)) {
-      panel.mesh.visible = xr;
+      if (panel.mesh) panel.mesh.visible = xr;
       panel.overlay.hidden = xr;
     }
     render(performance.now(), true);
@@ -295,12 +295,16 @@ export function createControllerHud(THREE, camera, viewport) {
         ...input,
         active: Boolean(xr && free && input.connected),
         visible: true,
-        spatialVisible: panels[hand].mesh.visible,
+        spatialVisible: Boolean(panels[hand].mesh?.visible),
+        embeddedVisible: Boolean(xr && embeddedVisible),
         previewVisible: !panels[hand].overlay.hidden,
       }])),
     }));
   }
 
   setXR(false);
-  return { update, setXR, getState };
+  return { update, setXR, getState,
+    getCanvases: () => ({ left: panels.left.canvas, right: panels.right.canvas }),
+    setEmbeddedVisible: (value) => { embeddedVisible = Boolean(value); },
+  };
 }

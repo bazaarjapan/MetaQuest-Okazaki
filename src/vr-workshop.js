@@ -85,23 +85,26 @@ export function createVRWorkshopControl({ workshop, client, onShadowChange = () 
   };
 }
 
-// One CanvasTexture + one plane, not thirteen per-button draw calls. The panel
-// sits left of the view between the city and the lower stick HUD; it never owns
-// the upper-right escape button. The caller uses rising trigger edges, not holds.
+// Embedded mode shares the field-note canvas and creates no spatial plane.
+// Every action still passes through the same signed-room/owner permission gate.
 export function createVRWorkshop(THREE, { camera, workshop, client, onShadowChange = () => {},
-  documentTarget = globalThis.document } = {}) {
+  documentTarget = globalThis.document, embedded = false } = {}) {
   const canvas = documentTarget.createElement("canvas");
   [canvas.width, canvas.height] = vrWorkshopLayout.canvas;
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace; texture.generateMipmaps = false;
-  texture.minFilter = THREE.LinearFilter;
-  const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true,
-    depthTest: false, depthWrite: false, toneMapped: false });
-  const geometry = new THREE.PlaneGeometry(...vrWorkshopLayout.size);
-  const panel = new THREE.Mesh(geometry, material); panel.name = "vr-school-workshop";
-  panel.position.set(...vrWorkshopLayout.position); panel.renderOrder = 1000;
+  const texture = embedded ? null : new THREE.CanvasTexture(canvas);
+  let material = null, geometry = null, panel = null;
   const group = new THREE.Group(); group.name = "vr-school-workshop-hud";
-  group.add(panel); camera.add(group); group.visible = false;
+  if (!embedded) {
+    texture.colorSpace = THREE.SRGBColorSpace; texture.generateMipmaps = false;
+    texture.minFilter = THREE.LinearFilter;
+    material = new THREE.MeshBasicMaterial({ map: texture, transparent: true,
+      depthTest: false, depthWrite: false, toneMapped: false });
+    geometry = new THREE.PlaneGeometry(...vrWorkshopLayout.size);
+    panel = new THREE.Mesh(geometry, material); panel.name = "vr-school-workshop";
+    panel.position.set(...vrWorkshopLayout.position); panel.renderOrder = 1000;
+    group.add(panel); camera.add(group);
+  }
+  group.visible = false;
   const control = createVRWorkshopControl({ workshop, client, onShadowChange });
   let hover = null, lastKey = null, lastDraw = -Infinity, redraws = 0, disposed = false;
 
@@ -154,7 +157,7 @@ export function createVRWorkshop(THREE, { camera, workshop, client, onShadowChan
       c.textAlign = "left"; c.fillStyle = "#c5dce5"; c.font = "26px sans-serif";
       c.fillText("街の見学はログインなしでできます。", 32, 154, 956);
       c.fillText("作品の配置・共同作業は教室参加後です。", 32, 202, 956);
-      c.fillText("右上の「2D画面に戻る」から参加できます。", 32, 280, 956);
+      c.fillText("下の「2Dに戻る」から参加できます。", 32, 280, 956);
       c.fillText("Xボタン1.5秒長押しでも2Dに戻れます。", 32, 328, 956);
     }
     c.textAlign = "left"; c.font = "22px sans-serif";
@@ -163,11 +166,19 @@ export function createVRWorkshop(THREE, { camera, workshop, client, onShadowChan
       "元の建物は編集されません。空き地の実地形に配置します。"), 24, 494, 970);
     c.font = "19px sans-serif"; c.fillStyle = "#92afbd";
     c.fillText("自分のSTLだけ編集可 · 確定はサーバー確認後に共有", 24, 526, 970);
-    texture.needsUpdate = true;
+    if (texture) texture.needsUpdate = true;
   }
   draw(control.snapshot(), 0, true);
 
-  return { group, meshes: [panel],
+  function actionAt(x, y) {
+    if (disposed || !group.visible) return null;
+    const state = control.snapshot();
+    return buttonDefinitions.find((entry) => x >= entry.x && x <= entry.x + entry.w &&
+      y >= entry.y && y <= entry.y + entry.h && control.enabled(entry.action, state))?.action ?? null;
+  }
+  return { group, meshes: panel ? [panel] : [],
+    getCanvas: () => canvas,
+    actionAt,
     update({ xr = false, visible = true, hover: nextHover = null,
       time = performance.now() / 1000 } = {}) {
       if (disposed) return;
@@ -177,29 +188,30 @@ export function createVRWorkshop(THREE, { camera, workshop, client, onShadowChan
       draw(control.snapshot(), Number.isFinite(time) ? time : performance.now() / 1000);
     },
     hit(raycaster) {
-      if (disposed || !group.visible) return null;
+      if (disposed || !group.visible || !panel) return null;
       const state = control.snapshot();
       if (!state.ready) return null;
       group.updateWorldMatrix(true, true);
       const intersection = raycaster.intersectObject(panel, false)[0];
       if (!intersection?.uv) return null;
       const x = intersection.uv.x * canvas.width, y = (1 - intersection.uv.y) * canvas.height;
-      const button = buttonDefinitions.find((entry) => x >= entry.x && x <= entry.x + entry.w &&
-        y >= entry.y && y <= entry.y + entry.h && control.enabled(entry.action, state));
-      return button ? { action: button.action, distance: intersection.distance, point: intersection.point } : null;
+      const action = actionAt(x, y);
+      return action ? { action, distance: intersection.distance, point: intersection.point } : null;
     },
     activate: (action) => disposed || !group.visible ? Promise.resolve(false) : control.activate(action?.action ?? action),
     cancelPicking: control.cancelPicking,
     getState() {
       const state = control.snapshot();
-      return { visible: group.visible, canEdit: state.allowed, picking: state.picking,
+      return { visible: group.visible, embedded, spatialVisible: Boolean(panel && group.visible), canEdit: state.allowed, picking: state.picking,
         pending: state.pending, selected: state.current?.id ?? null, hovered: hover, disposed,
         redraws, position: [...vrWorkshopLayout.position], size: [...vrWorkshopLayout.size],
-        actions: buttonDefinitions.map((button) => ({ action: button.action, enabled: control.enabled(button.action, state) })) };
+        canvas: [canvas.width, canvas.height],
+        actions: buttonDefinitions.map((button) => ({ action: button.action, x: button.x, y: button.y,
+          w: button.w, h: button.h, enabled: control.enabled(button.action, state) })) };
     },
     dispose() {
       if (disposed) return;
       disposed = true; control.dispose(); group.removeFromParent(); group.visible = false;
-      texture.dispose(); material.dispose(); geometry.dispose();
+      texture?.dispose(); material?.dispose(); geometry?.dispose();
     } };
 }

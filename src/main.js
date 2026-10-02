@@ -12,7 +12,7 @@ import { clampToRegion, regionProfiles } from "./region-plan.js";
 import { drawRegionMap, mapToWorld } from "./region-map.js";
 import { createAdaptiveUi } from "./ui-layout.js";
 import { createTouchControls } from "./touch-controls.js";
-import { createVRReturnButton } from "./vr-return-button.js";
+import { createVRFieldPanel, fieldRegionMapRect } from "./vr-field-panel.js";
 import { createExitHold, updateExitHold, cancelExitHold } from "./xr-exit-hold.js";
 import { captureView, captureXRView, alignRigToView, resolveXRExitView, resolveXREntryView } from "./vr-view.js";
 import { createSurfaceIndex } from "./placement.js";
@@ -118,7 +118,7 @@ const regionGroup = new THREE.Group();
 regionGroup.name = "streamed-okazaki-region";
 scene.add(regionGroup);
 const regionStreamer = createRegionStreamer(THREE, regionGroup);
-let regionManifest = null, panelMap = false, regionUiTime = 0;
+let regionManifest = null, regionUiTime = 0;
 const textures = new Map();
 let detail = null, terrainMesh = null, terrainFile = "Texture-001.png";
 const raycaster = new THREE.Raycaster(),
@@ -166,10 +166,16 @@ $("#control-mode").onchange = (event) => {
     ? "自由移動ONでWASD · 3D画面をクリックして見回す · Escでマウス解除 · F5で視点切替" : "ドラッグで回転 · ホイールで拡大";
 };
 const exitHold = createExitHold();
-const vrReturnButton = createVRReturnButton(THREE, camera);
+let vrFieldPanel = null;
+const vrReturnButton = {
+  update: (next = {}) => vrFieldPanel?.update({ ...next,
+    ...(Object.hasOwn(next, "hovered") ? { hovered: next.hovered ? "return" : null } : {}) }),
+  setVisible: (value) => vrFieldPanel?.update({ xr: value, interactive: false }),
+  getState: () => vrFieldPanel.getReturnState(),
+};
 let xrExitPending = false, xrEntering = false, hasVRResume = false;
 let lastXRView = null, pendingXRView = null;
-let panel, panelSpeedKey = "", panelUpdateTime = 0;
+let panel;
 let simulationSeconds = 0;
 schoolUI = createSchoolUI({ client: schoolClient, button: $("#school-button"),
   onBeforeOpen: () => {
@@ -178,6 +184,7 @@ schoolUI = createSchoolUI({ client: schoolClient, button: $("#school-button"),
   } });
 const presence = createSchoolPresence(THREE, { scene, client: schoolClient });
 const vrWorkshop = createVRWorkshop(THREE, { camera, workshop, client: schoolClient,
+  embedded: true,
   onShadowChange: () => { renderer.shadowMap.needsUpdate = true; } });
 let schoolState = schoolClient.getState(), lastSchoolSnapshot = 0, restoredWorld = null;
 function adoptSchoolPose() {
@@ -564,7 +571,7 @@ function updateLabels(id) {
 }
 function goTo(id) {
   if (!viewpoints[id]) return;
-  panelMap = false;
+  vrFieldPanel?.selectTab("observe");
   resetFlight(flight);
   touchControls.releaseAll();
   adaptiveUi.close();
@@ -816,7 +823,7 @@ renderer.xr.addEventListener("sessionstart", () => {
   camera.rotation.set(0, 0, 0);
   rig.position.set(195, 74.4, 105);
   rig.rotation.set(0, 0.95, 0);
-  panel.visible = true;
+  vrFieldPanel.setExpanded(true);
   drawPanel();
   updateLabels(pendingXRView ? state.current : "east");
 });
@@ -833,7 +840,6 @@ renderer.xr.addEventListener("sessionend", () => {
   $("#quality-select").disabled = false;
   $("#quality-note").textContent = quality.hint;
   controls.enabled = true;
-  panel.visible = false;
   keys.clear();
   previousButtons.clear();
   resetFlight(flight);
@@ -851,131 +857,31 @@ renderer.xr.addEventListener("sessionend", () => {
   checkVR();
 });
 
-// In-headset panel: labels are textures, no third-party controller model requests.
-const panelCanvas = document.createElement("canvas");
-panelCanvas.width = 1024;
-panelCanvas.height = 512;
-const panelTexture = new THREE.CanvasTexture(panelCanvas);
-panelTexture.colorSpace = THREE.SRGBColorSpace;
-panelTexture.generateMipmaps = false;
-panelTexture.minFilter = THREE.LinearFilter;
-panel = new THREE.Mesh(
-  new THREE.PlaneGeometry(0.82, 0.41),
-  new THREE.MeshBasicMaterial({
-    map: panelTexture,
-    transparent: true,
-    depthTest: false,
-    depthWrite: false,
-    toneMapped: false,
-  }),
-);
-panel.position.set(0.66, 0.48, -1.8);
-panel.renderOrder = 1000;
-panel.visible = false;
-camera.add(panel);
-const controllerHud = createControllerHud(THREE, camera, viewport);
-const panelActions = [
-  { x: 32, y: 150, w: 300, h: 84, fn: () => goTo("overview"), text: "上空" },
-  { x: 362, y: 150, w: 300, h: 84, fn: () => goTo("east"), text: "東側" },
-  { x: 692, y: 150, w: 300, h: 84, fn: () => goTo("west"), text: "西側" },
-  {
-    x: 32,
-    y: 264,
-    w: 470,
-    h: 78,
-    fn: () => setFree(!state.free),
-    text: "自由移動",
+// Controller inputs remain shared with the desktop preview, while VR draws them
+// inside the single central field-note texture.
+const controllerHud = createControllerHud(THREE, camera, viewport, { spatial: false });
+const regionMapRect = fieldRegionMapRect;
+vrFieldPanel = createVRFieldPanel(THREE, { camera, controllerHud, vrWorkshop,
+  getViewState: () => ({ free: state.free, regionReady: Boolean(regionManifest),
+    horizontalSpeed: flight.horizontalSpeed, verticalSpeed: flight.verticalSpeed }),
+  drawMap: (context, rect) => {
+    if (regionManifest) drawRegionMap(context, rect, regionManifest, userPosition(), coreBounds());
   },
-  {
-    x: 532,
-    y: 264,
-    w: 460,
-    h: 78,
-    fn: returnTo2D,
-    text: "2D画面に戻る",
-  },
-];
-const regionMapRect = { x: 32, y: 123, w: 728, h: 305 };
-function handlePanelClick(x, y) {
-  if (panelMap && regionManifest) {
-    const r = regionMapRect;
-    if (x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) {
-      const p = mapToWorld((x - r.x) / r.w, (y - r.y) / r.h, regionManifest.bounds);
-      visitRegionPoint(p.x, p.z);
-    } else if (x >= 788 && x <= 992) {
-      if (y >= 135 && y <= 205) goTo("east");
-      else if (y >= 242 && y <= 312) { panelMap = false; drawPanel(); }
-      else if (y >= 349 && y <= 419) returnTo2D();
+  onAction: (action, { x, y, rect }) => {
+    if (action === "return") return returnTo2D();
+    if (action === "free") { setFree(!state.free); return; }
+    if (action === "map" && regionManifest) {
+      const point = mapToWorld((x - rect.x) / rect.w, (y - rect.y) / rect.h, regionManifest.bounds);
+      visitRegionPoint(point.x, point.z); return;
     }
-    return;
-  }
-  if (regionManifest && x >= 810 && x <= 992 && y >= 78 && y <= 128) {
-    panelMap = true; drawPanel(); return;
-  }
-  panelActions.find((a) => x >= a.x && x <= a.x + a.w && y >= a.y && y <= a.y + a.h)?.fn();
-}
+    goTo(action === "region-east" ? "east" : action);
+  },
+});
+panel = vrFieldPanel.mesh;
 function drawPanel() {
-  const c = panelCanvas.getContext("2d");
-  c.clearRect(0, 0, 1024, 512);
-  c.fillStyle = "#112b3df2";
-  c.fillRect(0, 0, 1024, 512);
-  c.textAlign = "left";
-  c.fillStyle = "white";
-  c.font = "bold 39px sans-serif";
-  c.fillText(panelMap ? "岡崎市 広域マップ" : "岡崎駅 フィールドノート", 32, 60);
-  if (panelMap && regionManifest) {
-    c.font = "24px sans-serif"; c.fillStyle = "#b7d1dd";
-    c.fillText("地図の移動先へ光線を合わせ、トリガーで上空へ", 32, 104);
-    drawRegionMap(c, regionMapRect, regionManifest, userPosition(), coreBounds());
-    for (const [y, text] of [[135, "駅へ戻る"], [242, "ガイド"], [349, "2Dに戻る"]]) {
-      c.fillStyle = "#d4eee5"; c.fillRect(788, y, 204, 70);
-      c.fillStyle = "#173447"; c.font = "bold 28px sans-serif"; c.textAlign = "center";
-      c.fillText(text, 890, y + 46);
-    }
-    c.textAlign = "left"; c.fillStyle = "#d0e1e9"; c.font = "22px sans-serif";
-    c.fillText("灰色：建物区画 / 緑：駅 / 橙：現在地 · Yで駅へ戻る", 32, 466);
-    c.font = "19px sans-serif"; c.fillText("PLATEAU 岡崎市 2020 / 地理院タイル（加工・ライブ標高）", 32, 499);
-    panelTexture.needsUpdate = true;
-    return;
-  }
-  c.font = "25px sans-serif";
-  c.fillStyle = "#b7d1dd";
-  c.fillText("光線をボタンに合わせ、トリガーで選ぶ", 32, 110);
-  if (regionManifest) {
-    c.fillStyle = "#b4e9db"; c.fillRect(810, 78, 182, 50);
-    c.fillStyle = "#173447"; c.font = "bold 24px sans-serif"; c.textAlign = "center";
-    c.fillText("広域マップ", 901, 112);
-  }
-  for (const a of panelActions) {
-    c.fillStyle = "#d4eee5";
-    c.fillRect(a.x, a.y, a.w, a.h);
-    c.fillStyle = "#173447";
-    c.font = "bold 31px sans-serif";
-    c.textAlign = "center";
-    c.fillText(
-      a.text === "自由移動" ? `自由移動：${state.free ? "ON" : "OFF"}` : a.text,
-      a.x + a.w / 2,
-      a.y + 50,
-    );
-  }
-  c.textAlign = "left";
-  c.fillStyle = "#d0e1e9";
-  c.font = "23px sans-serif";
-  c.fillText("B：移動ON/OFF　A：次の地点　Y：駅へ　X短押し：ガイド", 32, 377);
-  c.font = "22px sans-serif";
-  c.fillText("モード2：左 上下・旋回 / 右 前後・左右（倒し量で速度）", 32, 412);
-  c.fillText(
-    state.free
-      ? `水平 ${flight.horizontalSpeed.toFixed(1)} / 上下 ${flight.verticalSpeed.toFixed(1)} m/s · 離すと停止`
-      : "自由移動はOFF。BボタンでON。酔いを感じたらBで停止。",
-    32, 447,
-  );
-  c.font = "20px sans-serif";
-  c.fillText("PLATEAU 岡崎市 2020 / 国土地理院（加工）", 32, 483);
-  panelSpeedKey = `${state.free}:${flight.horizontalSpeed.toFixed(1)}:${flight.verticalSpeed.toFixed(1)}`;
-  panelTexture.needsUpdate = true;
+  vrFieldPanel?.update({ xr: state.xr, interactive: !xrExitPending && !pendingXRView &&
+    renderer.xr.getSession()?.visibilityState === "visible" });
 }
-drawPanel();
 for (let i = 0; i < 2; i++) {
   const controller = renderer.xr.getController(i);
   const line = new THREE.Line(
@@ -996,21 +902,15 @@ for (let i = 0; i < 2; i++) {
     );
     raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
     raycaster.ray.direction.set(0, 0, -1).applyMatrix4(rotation);
-    vrReturnButton.mesh.updateWorldMatrix(true, false);
-    if (vrReturnButton.mesh.visible && raycaster.intersectObject(vrReturnButton.mesh)[0]) {
-      returnTo2D(); return;
-    }
-    if (controller.userData.handedness === "right") {
-      const action = vrWorkshop.hit(raycaster);
-      if (action) {
-        setFree(false); Promise.resolve(vrWorkshop.activate(action.action)).catch(() => {}); return;
+    const hit = vrFieldPanel.hit(raycaster, { handedness: controller.userData.handedness });
+    if (hit) {
+      if (hit.action) {
+        if (vrFieldPanel.getState().tab === "workshop" && !hit.action.startsWith("tab-") && hit.action !== "return") setFree(false);
+        Promise.resolve(vrFieldPanel.activate(hit.action, { x: hit.x, y: hit.y,
+          handedness: controller.userData.handedness })).catch(() => {});
       }
-    }
-    const hit = panel.visible ? raycaster.intersectObject(panel)[0] : null;
-    if (hit?.uv) {
-      const x = hit.uv.x * 1024,
-        y = (1 - hit.uv.y) * 512;
-      handlePanelClick(x, y);
+      // The visible surface consumes blank/disabled hits as well, preventing
+      // a panel click from selecting or placing an object behind the canvas.
       return;
     }
     if (controller.userData.handedness === "right" && workshop.getState().canEdit) {
@@ -1059,7 +959,7 @@ function xrMove(dt, now) {
   const action = updateExitHold(exitHold, { pressed: Boolean(leftSource?.gamepad.buttons[4]?.pressed),
     available: Boolean(leftSource), now });
   vrReturnButton.update({ progress: action.progress });
-  if (action.toggleGuide) panel.visible = !panel.visible;
+  if (action.toggleGuide) vrFieldPanel.toggleExpanded();
   if (action.exit) { returnTo2D(); return; }
   let left = [0, 0],
     right = [0, 0];
@@ -1218,43 +1118,29 @@ renderer.setAnimationLoop((time, frame) => {
     drawDesktopRegionMap();
     const status = regionStreamer.getState();
     $("#region-stream-status").textContent = `${status.resident}区画表示 · ${status.loading}読込中${status.errors ? " · 一部取得待ち" : ""} · 広域は軽量LOD1`;
-    if (state.xr && panel.visible && panelMap) drawPanel();
-  }
-  if (state.xr && panel.visible && time - panelUpdateTime > 200) {
-    panelUpdateTime = time;
-    const key = `${state.free}:${flight.horizontalSpeed.toFixed(1)}:${flight.verticalSpeed.toFixed(1)}`;
-    if (key !== panelSpeedKey) drawPanel();
   }
   controllerHud.update(renderer.xr.getSession()?.inputSources,
     { free: state.free, flight }, time);
-  let workshopHover = null;
-  if (state.xr && !xrExitPending && !pendingXRView) {
-    const rightController = controllers.find((controller) => controller.visible && controller.userData.handedness === "right");
-    if (rightController) {
-      rightController.updateWorldMatrix(true, false);
-      raycaster.ray.origin.setFromMatrixPosition(rightController.matrixWorld);
-      raycaster.ray.direction.set(0, 0, -1).applyMatrix4(new THREE.Matrix4().extractRotation(rightController.matrixWorld));
-      workshopHover = vrWorkshop.hit(raycaster)?.action ?? null;
-    }
-  }
-  vrWorkshop.update({ xr: state.xr, visible: !xrExitPending && !pendingXRView &&
-    renderer.xr.getSession()?.visibilityState === "visible", hover: workshopHover, time: time / 1000 });
-  renderer.render(scene, camera);
-  if (state.xr && !xrExitPending && !pendingXRView && frame &&
-      renderer.xr.getSession()?.visibilityState === "visible") {
-    const viewerPose = frame.getViewerPose(renderer.xr.getReferenceSpace());
-    if (viewerPose) lastXRView = captureXRView(rig, viewerPose.transform);
-    let hovered = false;
-    vrReturnButton.mesh.updateWorldMatrix(true, false);
+  const panelInteractive = state.xr && !xrExitPending && !pendingXRView &&
+    renderer.xr.getSession()?.visibilityState === "visible";
+  vrFieldPanel.update({ xr: state.xr, interactive: panelInteractive, time });
+  let panelHover = null;
+  if (panelInteractive) {
     for (const controller of controllers) {
       if (!controller.visible) continue;
       controller.updateWorldMatrix(true, false);
-      const rotation = new THREE.Matrix4().extractRotation(controller.matrixWorld);
       raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
-      raycaster.ray.direction.set(0, 0, -1).applyMatrix4(rotation);
-      if (raycaster.intersectObject(vrReturnButton.mesh)[0]) { hovered = true; break; }
+      raycaster.ray.direction.set(0, 0, -1).applyMatrix4(new THREE.Matrix4().extractRotation(controller.matrixWorld));
+      const action = vrFieldPanel.hit(raycaster, { handedness: controller.userData.handedness })?.action;
+      if (action) panelHover = action;
+      if (action === "return") break;
     }
-    vrReturnButton.update({ hovered });
+  }
+  vrFieldPanel.update({ xr: state.xr, interactive: panelInteractive, hovered: panelHover, time });
+  renderer.render(scene, camera);
+  if (panelInteractive && frame) {
+    const viewerPose = frame.getViewerPose(renderer.xr.getReferenceSpace());
+    if (viewerPose) lastXRView = captureXRView(rig, viewerPose.transform);
   }
 });
 renderer.domElement.addEventListener("webglcontextlost", (e) => {
@@ -1282,9 +1168,10 @@ window.__okazaki = {
     head: state.xr
       ? camera.getWorldPosition(new THREE.Vector3()).toArray()
       : null,
-    panelVisible: panel.visible,
+    panelVisible: panel.visible && vrFieldPanel.getState().expanded,
+    vrPanel: vrFieldPanel.getState(),
     version: "1.7.0",
-    vrReturn: { buttonVisible: vrReturnButton.mesh.visible,
+    vrReturn: { buttonVisible: vrReturnButton.getState().visible,
       holdProgress: vrReturnButton.getState().progress, exiting: xrExitPending,
       hasResume: hasVRResume, view: lastXRView ? {
         position: [...lastXRView.position], quaternion: [...lastXRView.quaternion],
@@ -1292,7 +1179,7 @@ window.__okazaki = {
       button: vrReturnButton.getState(), pendingResume: Boolean(pendingXRView), entering: xrEntering },
     ui: adaptiveUi.getState(),
     touch: touchControls.getState(),
-    guide: { position: panel.position.toArray(), size: [0.82, 0.41] },
+    guide: { position: panel.position.toArray(), size: vrFieldPanel.getState().size },
     hud: controllerHud.getState(),
     quality: { ...quality, terrainFile, shadows: renderer.shadowMap.enabled,
       terrainSize: terrainMesh?.material.map?.image
@@ -1304,7 +1191,7 @@ window.__okazaki = {
       availableBuildings: regionManifest?.buildings.length ?? 0,
       availableTerrain: regionManifest?.terrain.length ?? 0,
       sourceTriangles: regionManifest?.totalTriangles ?? 0,
-      panelMap, mapRect: { ...regionMapRect },
+      panelMap: vrFieldPanel.getState().tab === "region", mapRect: { ...regionMapRect },
       terrainHeights: regionStreamer.getGroundMeshes().map((mesh) => ({
         id: mesh.userData.regionTileId, ...mesh.userData.heightStats,
       })),

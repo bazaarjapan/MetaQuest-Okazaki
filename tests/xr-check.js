@@ -28,18 +28,28 @@
     d.controllers[hand].updateButtonValue(id, 0);
     await wait(180);
   };
-  const point = async (x, y) => {
-    const guide = s().guide;
-    d.controllers.right.position.set(
-      guide.position[0] + (x / 1024 - 0.5) * guide.size[0],
-      1.6 + guide.position[1] + (0.5 - y / 512) * guide.size[1],
-      -0.3,
-    );
-    d.controllers.right.quaternion.set(0, 0, 0, 1);
-    await wait(200);
+  const point = async (action) => {
+    const panel = s().vrPanel, rect = panel?.actionRects?.[action];
+    assert(panel?.visible && rect?.enabled, `central-${action}-action-available`, panel);
+    const [px, py, pz] = panel.position, [width, height] = panel.size;
+    const [cw, ch] = panel.canvas;
+    const x = px + ((rect.x + rect.w / 2) / cw - .5) * width;
+    const y = py + (.5 - (rect.y + rect.h / 2) / ch) * height, z = pz + .3;
+    const { x: qx, y: qy, z: qz, w: qw } = d.quaternion;
+    const ix = qw * x + qy * z - qz * y, iy = qw * y + qz * x - qx * z;
+    const iz = qw * z + qx * y - qy * x, iw = -qx * x - qy * y - qz * z;
+    d.controllers.right.position.set(d.position.x + ix * qw - iw * qx - iy * qz + iz * qy,
+      d.position.y + iy * qw - iw * qy - iz * qx + ix * qz,
+      d.position.z + iz * qw - iw * qz - ix * qy + iy * qx);
+    d.controllers.right.quaternion.set(qx, qy, qz, qw);
+    const deadline = performance.now() + 8000;
+    while (s().vrPanel.hovered !== action && performance.now() < deadline) await wait(100);
+    assert(s().vrPanel.hovered === action, `actual-ray-hovers-central-${action}`, s().vrPanel);
     await button("right", "trigger");
   };
-  assert(s().xr && s().panelVisible, "immersive-session-stereo-panel", s());
+  assert(s().xr && s().panelVisible && s().vrPanel.visible && s().vrPanel.panelCount === 1,
+    "immersive-session-one-central-panel", s());
+  await point("tab-observe");
   await button("right", "a-button");
   assert(
     s().current === "west" && distance(s().head, [-70, 76, 10]) < 0.1,
@@ -69,7 +79,8 @@
   d.controllers.left.updateAxes("thumbstick", 0, 0);
   await wait(100);
   await button("left", "x-button");
-  assert(!s().panelVisible, "X-hide-panel");
+  assert(!s().panelVisible && s().vrPanel.visible && s().vrReturn.buttonVisible,
+    "X-folds-content-with-central-return-still-visible");
   await button("left", "x-button");
   assert(s().panelVisible, "X-show-panel");
   const beforeHead = s().head;
@@ -78,12 +89,12 @@
   assert(distance(s().head, beforeHead) > 0.1, "head-pose-tracked");
   d.position.x -= 0.15;
   await wait(200);
-  await point(182, 192);
+  await point("overview");
   assert(s().current === "overview", "trigger-ray-select-overview", s());
-  await point(512, 192);
+  await point("east");
   assert(s().current === "east", "trigger-ray-select-east", s());
   const enabledPosition = s().head;
-  await point(267, 303);
+  await point("free");
   assert(
     s().free &&
       s().current === "east" &&
@@ -329,7 +340,7 @@
   d.controllers.right.updateAxes("thumbstick", 0, 0);
   await wait(100);
   const exitView = s().vrReturn.view;
-  await point(762, 303);
+  await point("return");
   assert(
     !s().xr && !s().free && s().vrReturn.hasResume && idleSpeeds() &&
       distance(s().camera, exitView.position) < 0.15,

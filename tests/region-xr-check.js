@@ -3,18 +3,30 @@
   const wait = ms => new Promise(r => setTimeout(r, ms));
   const assert = (ok, name, detail) => { results.push({ ok: Boolean(ok), name, detail }); if (!ok) throw new Error(name); };
   const button = async (hand, id) => { d.controllers[hand].updateButtonValue(id, 1); await wait(350); d.controllers[hand].updateButtonValue(id, 0); await wait(350); };
-  const point = async (x, y) => {
-    const g = state().guide;
-    d.controllers.right.position.set(g.position[0] + (x / 1024 - .5) * g.size[0],
-      1.6 + g.position[1] + (.5 - y / 512) * g.size[1], -.3);
-    d.controllers.right.quaternion.set(0, 0, 0, 1); await wait(350); await button('right', 'trigger');
+  const point = async (action, fraction = [.5, .5]) => {
+    const panel = state().vrPanel, rect = panel?.actionRects?.[action];
+    assert(panel?.visible && rect?.enabled, `central-${action}-action-available`, panel);
+    const x = panel.position[0] + ((rect.x + rect.w * fraction[0]) / panel.canvas[0] - .5) * panel.size[0];
+    const y = panel.position[1] + (.5 - (rect.y + rect.h * fraction[1]) / panel.canvas[1]) * panel.size[1];
+    const z = panel.position[2] + .3, { x: qx, y: qy, z: qz, w: qw } = d.quaternion;
+    const ix = qw*x + qy*z - qz*y, iy = qw*y + qz*x - qx*z;
+    const iz = qw*z + qx*y - qy*x, iw = -qx*x - qy*y - qz*z;
+    d.controllers.right.position.set(d.position.x + ix*qw - iw*qx - iy*qz + iz*qy,
+      d.position.y + iy*qw - iw*qy - iz*qx + ix*qz,
+      d.position.z + iz*qw - iw*qz - ix*qy + iy*qx);
+    d.controllers.right.quaternion.set(qx, qy, qz, qw);
+    const deadline = performance.now() + 8000;
+    while (state().vrPanel.hovered !== action && performance.now() < deadline) await wait(100);
+    assert(state().vrPanel.hovered === action, `actual-ray-hovers-central-${action}`, state().vrPanel);
+    await button('right', 'trigger');
   };
   assert(state().xr && state().region.ready, 'immersive-wide-mode-ready');
   await button('left', 'y-button');
-  await point(901, 100);
-  assert(state().region.panelMap, 'controller-ray-opens-upper-right-map');
-  const r = state().region.mapRect;
-  await point(r.x + r.w * .6, r.y + r.h * .45);
+  await point('tab-region');
+  assert(state().region.panelMap && state().vrPanel.tab === 'region', 'controller-ray-opens-central-region-tab');
+  const r = state().vrPanel.actionRects.map;
+  assert(r && r.w > 0 && r.h > 0, 'central-map-exposes-live-canvas-action-rect', r);
+  await point('map', [.6, .45]);
   const before = state(), bounds = before.region.bounds;
   assert(before.current === 'region' && !before.free &&
     Math.abs(before.head[0] - (bounds[0] + (bounds[2] - bounds[0]) * .6)) < 5 && before.head[0] > 5000,
