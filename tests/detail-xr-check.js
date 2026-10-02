@@ -22,7 +22,9 @@
     await wait(350);
   };
   const hudHand = (hand) => state().hud.hands[hand];
-  const bothVisible = () => ["left", "right"].every((hand) => hudHand(hand).spatialVisible && !hudHand(hand).previewVisible);
+  const bothVisible = () => state().vrPanel.visible && state().vrPanel.expanded &&
+    state().vrPanel.tab === "observe" && ["left", "right"].every((hand) =>
+      hudHand(hand).embeddedVisible && !hudHand(hand).spatialVisible && !hudHand(hand).previewVisible);
   const neutral = () => ["left", "right"].every((hand) => {
     const input = hudHand(hand);
     return input.rawAxes.every((axis) => near(axis, 0)) && input.normalizedStick.every((axis) => near(axis, 0)) &&
@@ -40,28 +42,43 @@
         quaternion: [controller.quaternion.x, controller.quaternion.y, controller.quaternion.z, controller.quaternion.w],
       }];
     }));
-    // Keep rays away from the upper-right guide while testing trigger gauges.
-    device.controllers.left.position.set(-0.35, 1.25, -0.25);
-    device.controllers.right.position.set(0.25, 1.25, -0.25);
+    // Place real controller rays outside the shared plane. Gauge input must not
+    // accidentally trigger a central-panel action when its layout changes.
+    const placement = state().vrPanel;
     for (const hand of ["left", "right"]) {
-      device.controllers[hand].quaternion.set(0, 0, 0, 1);
+      const x = placement.position[0] + placement.size[0] * (hand === "left" ? -1 : 1);
+      const y = placement.position[1], z = placement.position[2] + .3;
+      const { x: qx, y: qy, z: qz, w: qw } = device.quaternion;
+      const ix = qw*x + qy*z - qz*y, iy = qw*y + qz*x - qx*z;
+      const iz = qw*z + qx*y - qy*x, iw = -qx*x - qy*y - qz*z;
+      device.controllers[hand].position.set(device.position.x + ix*qw - iw*qx - iy*qz + iz*qy,
+        device.position.y + iy*qw - iw*qy - iz*qx + ix*qz,
+        device.position.z + iz*qw - iw*qz - ix*qy + iy*qx);
+      device.controllers[hand].quaternion.set(qx, qy, qz, qw);
       device.controllers[hand].updateAxes("thumbstick", 0, 0);
     }
     await button("left", "y-button");
     await waitUntil(() => hudHand("left").connected && hudHand("right").connected);
     assert(hudHand("left").connected && hudHand("right").connected, "both-controller-inputs-connected", state().hud.hands);
-    assert(bothVisible(), "two-lower-corner-spatial-huds-visible-and-desktop-previews-hidden", state().hud);
-    const { guide, hud } = state();
-    assert(guide.position[0] > 0 && guide.position[1] > 0 && guide.position[2] < -1,
-      "guide-moved-to-upper-right-head-relative-position", guide);
-    assert(guide.position[0] - guide.size[0] / 2 > 0 && guide.position[1] - guide.size[1] / 2 > 0,
-      "guide-does-not-cover-centre-reticle", guide);
-    assert(hud.layout.left.position[0] < 0 && hud.layout.right.position[0] > 0 &&
-      hud.layout.left.position[1] < 0 && hud.layout.right.position[1] < 0,
-      "controller-huds-order-left-right-below-view-centre", hud.layout);
-    assert(hud.layout.left.position[0] + hud.layout.left.size[0] / 2 < -0.3 &&
-      hud.layout.right.position[0] - hud.layout.right.size[0] / 2 > 0.3,
-      "controller-huds-preserve-central-city-corridor", hud.layout);
+    assert(bothVisible(), "both-controller-diagrams-embedded-with-desktop-previews-hidden", state().hud);
+    const panel = state().vrPanel;
+    assert(panel.visible && panel.expanded && panel.panelCount === 1 && panel.meshCount === 1,
+      "guide-return-and-input-status-share-one-central-mesh", panel);
+    assert(panel.position.length === 3 && panel.position.every(Number.isFinite) &&
+      Math.abs(panel.position[0]) < .01 && panel.position[2] < 0 &&
+      panel.size.every(value => Number.isFinite(value) && value > 0) &&
+      panel.canvas.every(value => Number.isFinite(value) && value > 0) &&
+      near(panel.size[0] / panel.size[1], panel.canvas[0] / panel.canvas[1]),
+      "central-panel-layout-and-canvas-have-matching-aspect", panel);
+    assert(state().vrReturn.buttonVisible && panel.actionRects.return?.enabled,
+      "central-return-is-present-alongside-observe-content", panel.actionRects.return);
+    const { left: leftRect, right: rightRect } = panel.hudRects;
+    assert([leftRect, rightRect].every(rect => rect && [rect.x, rect.y, rect.w, rect.h].every(Number.isFinite) &&
+      rect.x >= 0 && rect.y >= 0 && rect.w > 0 && rect.h > 0 &&
+      rect.x + rect.w <= panel.canvas[0] && rect.y + rect.h <= panel.canvas[1]) &&
+      leftRect.x + leftRect.w <= rightRect.x && near(leftRect.y, rightRect.y) &&
+      leftRect.y >= panel.actionRects.free.y + panel.actionRects.free.h,
+      "left-right-controller-diagrams-fit-below-controls-in-shared-canvas", panel.hudRects);
 
     const selector = document.querySelector("#quality-select");
     const currentQuality = state().quality.id;
@@ -118,17 +135,20 @@
       "X-press-updates-button-chip-without-toggling-guide-until-release", { guideVisible: state().panelVisible, left: hudHand("left") });
     device.controllers.left.updateButtonValue("x-button", 0);
     await wait(350);
-    assert(!state().panelVisible && bothVisible(), "short-X-release-hides-guide-and-keeps-both-controller-huds-visible", state().hud);
+    assert(!state().panelVisible && !state().vrPanel.expanded && !bothVisible() && state().vrPanel.visible &&
+      state().vrReturn.buttonVisible && ["left", "right"].every(hand => hudHand(hand).connected),
+      "short-X-release-folds-content-keeps-return-and-fresh-input-status", { panel: state().vrPanel, hands: state().hud.hands });
     await button("left", "x-button");
-    assert(state().panelVisible && bothVisible(), "X-restores-guide-with-huds-still-visible", state().hud);
+    assert(state().panelVisible && bothVisible(), "X-expands-central-content-and-controller-diagrams", state().hud);
     await waitUntil(neutral);
     assert(neutral() && near(state().flight.horizontalSpeed, 0) && near(state().flight.verticalSpeed, 0),
       "release-clears-stick-button-gauge-state-and-stops-motion", state().hud.hands);
-    // Input state is fresh on every frame; wait for the final <=15Hz upload too.
+    // Input state is fresh on every frame; wait for the final bounded canvas upload.
     await wait(300);
-    const stableCount = state().hud.renderCount;
+    const stableCount = state().vrPanel.redraws;
     await wait(400);
-    assert(state().hud.renderCount === stableCount, "unchanged-neutral-input-skips-texture-redraw", { before: stableCount, after: state().hud.renderCount });
+    assert(Number.isFinite(stableCount) && state().vrPanel.redraws === stableCount,
+      "unchanged-neutral-input-skips-shared-canvas-redraw", { before: stableCount, after: state().vrPanel.redraws });
     await button("left", "y-button");
     assert(!state().free && !hudHand("left").active && !hudHand("right").active && bothVisible(),
       "reset-disables-motion-indicators-without-hiding-huds", state().hud);
@@ -140,7 +160,7 @@
       hudHand("left").buttons.every((entry) => near(entry.value, 0) && !entry.pressed),
       "input-source-detach-clears-controller-data-instead-of-leaving-stale-stick", hudHand("left"));
     assert(hudHand("right").connected && bothVisible(),
-      "one-controller-detach-keeps-other-input-and-both-display-panels", state().hud);
+      "one-controller-detach-keeps-other-input-and-both-embedded-diagrams", state().hud);
     device.controllers.left.updateAxes("thumbstick", 0, 0);
     device.controllers.left.connected = true;
     await waitUntil(() => hudHand("left").connected);

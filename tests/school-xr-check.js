@@ -20,12 +20,20 @@
     finally { device.controllers.right.updateButtonValue("trigger", 0); }
     await pause(250);
   };
-  const point = async (x, y, action, predicate) => {
-    const panel = state().vrWorkshop;
-    device.controllers.right.position.set(panel.position[0] + (x / 1024 - .5) * panel.size[0],
-      1.6 + panel.position[1] + (.5 - y / 552) * panel.size[1], -.3);
-    device.controllers.right.quaternion.set(0, 0, 0, 1);
-    await until(() => state().vrWorkshop.hovered === action, `hover-${action}`);
+  const point = async (action, predicate) => {
+    const panel = state().vrPanel, rect = panel?.actionRects?.[action];
+    check(panel?.visible && rect?.enabled, `central-${action}-action-available`);
+    const x = panel.position[0] + ((rect.x + rect.w / 2) / panel.canvas[0] - .5) * panel.size[0];
+    const y = panel.position[1] + (.5 - (rect.y + rect.h / 2) / panel.canvas[1]) * panel.size[1];
+    const z = panel.position[2] + .3;
+    const { x: qx, y: qy, z: qz, w: qw } = device.quaternion;
+    const ix = qw*x + qy*z - qz*y, iy = qw*y + qz*x - qx*z;
+    const iz = qw*z + qx*y - qy*x, iw = -qx*x - qy*y - qz*z;
+    device.controllers.right.position.set(device.position.x + ix*qw - iw*qx - iy*qz + iz*qy,
+      device.position.y + iy*qw - iw*qy - iz*qx + ix*qz,
+      device.position.z + iz*qw - iw*qz - ix*qy + iy*qx);
+    device.controllers.right.quaternion.set(qx, qy, qz, qw);
+    await until(() => state().vrPanel.hovered === action, `hover-central-${action}`);
     await trigger(predicate, action);
   };
   const groundRay = () => {
@@ -38,36 +46,39 @@
   check(window.__schoolEntryEye && Math.hypot(...state().head.map((v,i) => v-window.__schoolEntryEye[i])) < .1,
     "first-drone-VR-entry-retains-restored-school-eye");
   device.position.set(0, 1.6, 0); device.quaternion.set(0, 0, 0, 1);
+  await point("tab-workshop", () => state().vrPanel.tab === "workshop");
   await until(() => state().vrWorkshop.visible && state().vrWorkshop.canEdit, "signed-HUD-visible");
+  check(state().vrPanel.panelCount === 1 && state().vrWorkshop.embedded && !state().vrWorkshop.spatialVisible,
+    "workshop-embedded-in-one-central-panel");
   check(state().workshop.ownAssets.length > 0, "actual-R2-asset-available");
   for (const [i, axis] of ["x", "y", "z"].entries()) {
     const before = state().workshop.current.rotation[i];
-    await point(257 + i * 328, 255, `rotate-${axis}+`, () => state().workshop.current.rotation[i] > before + .2);
+    await point(`rotate-${axis}+`, () => state().workshop.current.rotation[i] > before + .2);
     check(Math.abs(state().workshop.current.rotation[i] - before - Math.PI / 12) < .0001, `right-trigger-${axis}-15degrees`);
   }
   const beforeScale = state().workshop.current.scale[0];
-  await point(412, 335, "scale+", () => state().workshop.current.scale[0] > beforeScale);
+  await point("scale+", () => state().workshop.current.scale[0] > beforeScale);
   check(Math.abs(state().workshop.current.scale[0] - beforeScale * 1.1) < .0001, "right-trigger-scale-1.1");
-  await point(776, 335, "pick", () => state().vrWorkshop.picking);
+  await point("pick", () => state().vrWorkshop.picking);
   check(!state().free, "ground-selection-stops-locomotion");
   groundRay(); await pause(250);
   await trigger(() => !state().vrWorkshop.picking && state().workshop.current.valid, "real-terrain-ray-preview");
   check(state().workshop.current.position[1] > 10 && Math.abs(state().workshop.current.position[0] + 255) < .1,
     "actual-PLATEAU-height-not-fake-plane");
-  await point(264, 421, "commit", () => state().workshop.committed === 1);
+  await point("commit", () => state().workshop.committed === 1);
   const committedId = state().school.objects[0].id;
   check(state().school.objects.length === 1 && state().workshop.current.committed, "VR-placement-server-ACK");
-  await point(945, 129, "asset-next", () => !state().workshop.current.committed);
+  await point("asset-next", () => !state().workshop.current.committed);
   check(state().workshop.ownAssets.length === 1, "reuse-existing-R2-asset-no-upload");
-  await point(760, 421, "cancel", () => !state().workshop.current);
+  await point("cancel", () => !state().workshop.current);
   check(state().workshop.committed === 1, "cancel-removes-only-draft");
   groundRay(); await pause(250);
   await trigger(() => state().workshop.current?.id === committedId, "ray-select-existing-object");
   check(state().workshop.current.editable && state().workshop.current.committed, "existing-owned-object-editable-in-VR");
   const before = state().workshop.current.rotation[0];
-  await point(257, 255, "rotate-x+", () => !state().workshop.current.committed && state().workshop.current.rotation[0] > before);
+  await point("rotate-x+", () => !state().workshop.current.committed && state().workshop.current.rotation[0] > before);
   check(state().school.objects[0].rotation[0] === before, "edit-draft-does-not-change-server-until-confirm");
-  await point(264, 421, "commit", () => state().workshop.current.committed && state().school.objects[0].rotation[0] > before);
+  await point("commit", () => state().workshop.current.committed && state().school.objects[0].rotation[0] > before);
   check(state().school.objects.length === 1 && state().school.objects[0].id === committedId, "VR-update-preserves-object-identity");
   device.controllers.left.updateButtonValue("x-button", 1);
   try { await until(() => !state().xr, "X-hold-returns-to-2D"); }

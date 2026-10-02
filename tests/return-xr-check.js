@@ -65,6 +65,18 @@
     release(hand, id);
     await wait(350);
   };
+  const pointReturn = async () => {
+    const panel = state().vrPanel, rect = panel?.actionRects?.return;
+    assert(panel?.visible && rect?.enabled, "central-return-action-available", panel);
+    const orientation = quaternion(device.quaternion);
+    const local = [panel.position[0] + ((rect.x + rect.w / 2) / panel.canvas[0] - .5) * panel.size[0],
+      panel.position[1] + (.5 - (rect.y + rect.h / 2) / panel.canvas[1]) * panel.size[1], panel.position[2] + .3];
+    const origin = rotate(local, orientation), head = vector(device.position);
+    device.controllers.right.position.set(...origin.map((value, index) => value + head[index]));
+    device.controllers.right.quaternion.set(...orientation);
+    assert(await waitUntil(() => state().vrPanel.hovered === "return"),
+      "actual-head-relative-ray-hovers-central-return", state().vrPanel);
+  };
   const poseMatches = (actualPosition, actualQuaternion, expected) =>
     distance(actualPosition, expected?.position) < 0.35 && quaternionAngle(actualQuaternion, expected?.quaternion) < 0.1;
   const pageOrigin = performance.timeOrigin;
@@ -88,10 +100,14 @@
     }
     // Reset only for a deterministic test starting pose, never during resume.
     await clickButton("left", "y-button");
-    assert(state().vrReturn.buttonVisible && state().panelVisible, "standalone-return-button-visible-in-vr", state().vrReturn);
-    const buttonLayout = state().vrReturn.button;
-    assert(buttonLayout?.position?.length === 3 && buttonLayout?.size?.length === 2 && buttonLayout.position[1] > state().guide.position[1],
-      "return-button-is-small-and-above-upper-right-guide", buttonLayout);
+    assert(state().vrReturn.buttonVisible && state().panelVisible && state().vrPanel.visible &&
+      state().vrPanel.panelCount === 1 && state().vrPanel.meshCount === 1,
+      "one-central-panel-includes-persistent-return-action", state().vrPanel);
+    const returnRect = state().vrPanel.actionRects.return, canvas = state().vrPanel.canvas;
+    assert(returnRect?.enabled && [returnRect.x, returnRect.y, returnRect.w, returnRect.h].every(Number.isFinite) &&
+      returnRect.x >= 0 && returnRect.y >= 0 && returnRect.w > 0 && returnRect.h > 0 &&
+      returnRect.x + returnRect.w <= canvas[0] && returnRect.y + returnRect.h <= canvas[1],
+      "return-action-is-inside-shared-central-canvas", { returnRect, canvas });
 
     const shortBefore = state().panelVisible;
     device.controllers.left.updateButtonValue("x-button", 1);
@@ -100,8 +116,9 @@
       "X-short-press-waits-for-release-before-toggling-guide", state().vrReturn);
     release("left", "x-button");
     await waitUntil(() => state().panelVisible !== shortBefore);
-    assert(state().xr && !state().panelVisible && state().vrReturn.buttonVisible,
-      "X-short-release-hides-guide-but-keeps-return-button-visible", state().vrReturn);
+    assert(state().xr && !state().panelVisible && !state().vrPanel.expanded && state().vrPanel.visible &&
+      state().vrPanel.actionRects.return?.enabled && state().vrReturn.buttonVisible,
+      "X-short-release-folds-content-but-keeps-central-return-visible", state().vrPanel);
     await clickButton("left", "x-button");
     assert(state().panelVisible && state().xr, "second-X-short-release-restores-guide");
 
@@ -171,8 +188,8 @@
       "X-long-hold-at-least-one-and-half-seconds-exits-to-2D", { exitElapsedMs, vrReturn: afterLong.vrReturn });
     assert(poseMatches(afterLong.camera, afterLong.cameraQuaternion, beforeLong),
       "2D-camera-preserves-last-VR-eye-position-and-orientation", { before: beforeLong, position: afterLong.camera, quaternion: afterLong.cameraQuaternion });
-    assert(pageUnchanged() && !afterLong.vrReturn.buttonVisible,
-      "VR-return-keeps-the-same-page-model-and-hides-spatial-return-button", afterLong.vrReturn);
+    assert(pageUnchanged() && !afterLong.vrReturn.buttonVisible && !afterLong.vrPanel.visible && afterLong.vrPanel.panelCount === 0,
+      "VR-return-keeps-the-same-page-model-and-hides-central-panel", afterLong.vrReturn);
     assert(!afterLong.free && !document.querySelector("#quality-select").disabled,
       "2D-return-stops-flight-and-unlocks-quality-selector");
 
@@ -187,16 +204,10 @@
       "resumed-location-remains-nonstarting-and-stationary-without-page-reload", resumed.vrReturn);
 
     if (state().panelVisible) await clickButton("left", "x-button");
-    assert(!state().panelVisible && state().vrReturn.buttonVisible,
-      "standalone-return-button-still-available-with-guide-hidden-on-resume", state().vrReturn);
+    assert(!state().panelVisible && state().vrPanel.visible && state().vrPanel.actionRects.return?.enabled && state().vrReturn.buttonVisible,
+      "central-return-still-available-with-content-folded-on-resume", state().vrPanel);
     const beforeTrigger = state().vrReturn.view;
-    const placement = state().vrReturn.button.position;
-    const headOrientation = quaternion(device.quaternion);
-    const targetOrigin = rotate([placement[0], placement[1], -0.25], headOrientation);
-    const headOrigin = vector(device.position);
-    device.controllers.right.position.set(...targetOrigin.map((value, index) => value + headOrigin[index]));
-    device.controllers.right.quaternion.set(...headOrientation);
-    await wait(450);
+    await pointReturn();
     device.controllers.right.updateButtonValue("trigger", 1);
     await waitUntil(() => !state().xr);
     release("right", "trigger");
@@ -229,13 +240,7 @@
 
       if (cycle === 1) {
         if (state().panelVisible) await clickButton("left", "x-button");
-        const placement = state().vrReturn.button.position;
-        const orientation = quaternion(device.quaternion);
-        const origin = rotate([placement[0], placement[1], -0.25], orientation);
-        const head = vector(device.position);
-        device.controllers.right.position.set(...origin.map((value, index) => value + head[index]));
-        device.controllers.right.quaternion.set(...orientation);
-        await wait(450);
+        await pointReturn();
         device.controllers.right.updateButtonValue("trigger", 1);
         await waitUntil(() => !state().xr);
         release("right", "trigger");
