@@ -8,6 +8,7 @@ test("shared nicknames keep Japanese and whole emoji while rejecting email and i
   assert.equal(avatarNickname(" 岡崎の生徒 🌸 "), "岡崎の生徒 🌸");
   const emoji = "👩‍🚀"; assert.equal(avatarNickname(emoji.repeat(30)), emoji.repeat(20));
   for (const value of [null, "", " \u0085\u202e\u2066\u200b\u061c", "person@example.com", "person＠example.com", "生徒-ab\u202e12", "12345678-abcd-1234-abcd-123456789abc"]) assert.equal(avatarNickname(value), "参加者");
+  for (const value of ["\u200d", "\u200c\ufe0f", "生徒-ab\u200d12", "12345678-abcd-1234-abcd-123456789ab\u00adc"]) assert.equal(avatarNickname(value), "参加者");
   assert.equal(avatarNickname("<script>\n名前\u202e"), "script名前");
 });
 
