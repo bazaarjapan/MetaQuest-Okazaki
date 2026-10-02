@@ -60,3 +60,24 @@ test("avatar disposes shared resources exactly once and removes its own group", 
   assert.equal(avatar.getState().disposed, true);
   assert.equal(avatar.getState().visible, false);
 });
+
+test("opaque identity generates stable original appearance, without changing the shared cube budget", () => {
+  const first = createBlockAvatar(THREE, { identity: "user-one" });
+  const again = createBlockAvatar(THREE, { identity: "user-one" });
+  const other = createBlockAvatar(THREE, { identity: "user-two" });
+  assert.deepEqual(first.getState().appearance, again.getState().appearance);
+  assert.notDeepEqual(first.getState().appearance, other.getState().appearance);
+  first.setIdentity("user-two"); assert.deepEqual(first.getState().appearance, other.getState().appearance);
+  first.setColor("#112233"); assert.equal(first.group.getObjectByName("torso").material.color.getHexString(), "112233");
+  assert.equal(first.getState().materialCount, 5); first.dispose(); again.dispose(); other.dispose();
+});
+
+test("a shirt matching the old skin color never recolors face or arms", () => {
+  const avatar = createBlockAvatar(THREE, { color: 0xeac198, identity: "user-one" });
+  const face = avatar.group.getObjectByName("face");
+  const skin = face.material.color.getHex();
+  avatar.setColor("#112233");
+  assert.equal(face.material.color.getHex(), skin);
+  assert.equal(avatar.group.getObjectByName("left-arm").material, face.material);
+  assert.notEqual(avatar.group.getObjectByName("torso").material, face.material); avatar.dispose();
+});

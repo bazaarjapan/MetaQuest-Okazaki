@@ -43,13 +43,16 @@ function validView(view) {
 // teleport/XR return. Player feet are independent of the third-person camera.
 export function createCreativeControls(THREE, { camera, rig = camera?.parent,
   domElement, getControls = () => null, avatar = null, constrainPosition = null,
-  groundHeight = () => null, documentTarget = globalThis.document,
+  groundHeight = () => null, cameraObstacles = () => [], documentTarget = globalThis.document,
   windowTarget = globalThis.window, now = () => globalThis.performance?.now?.() ?? Date.now(),
   onChange = () => {} } = {}) {
   if (!camera?.isCamera) throw new TypeError("Creative controls require a Three.js camera");
   const anchor = new THREE.Vector3();
   const orientation = new THREE.Quaternion();
   const forward = new THREE.Vector3(), side = new THREE.Vector3(), displacement = new THREE.Vector3();
+  const cameraRay = new THREE.Raycaster();
+  let cameraDistance = 0;
+  let cameraObstacleSnapshot = [];
   const keys = new Set();
   const lastMovementTap = new Map(), fastMovementKeys = new Set();
   let mode = "drone", viewMode = "first", yaw = 0, pitch = 0, roll = 0;
@@ -108,11 +111,11 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
   function eyePosition() { return anchor.clone().add(new THREE.Vector3(0, creativeConfig.eyeHeight, 0)); }
   function updateAvatar() {
     avatar?.update?.({ position: anchor.toArray(), yaw, pitch, moving,
-      time: elapsed, visible: mode === "creative" && viewMode !== "first" && !xr && !suspendedXR && !disposed });
+      time: elapsed, visible: mode === "creative" && viewMode !== "first" && cameraDistance > 0.7 && !xr && !suspendedXR && !disposed });
   }
-  function renderView() {
+  function renderView(obstacles) {
     const eye = eyePosition(), rotation = headOrientation().clone();
-    if (viewMode === "first") setWorldView(eye, rotation);
+    if (viewMode === "first") { cameraDistance = 0; setWorldView(eye, rotation); }
     else {
       const direction = new THREE.Vector3(0, 0, -1).applyQuaternion(rotation);
       const position = eye.clone().addScaledVector(direction,
@@ -124,6 +127,23 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
       if (typeof cameraGround === "number" && Number.isFinite(cameraGround)) {
         position.y = Math.max(position.y, cameraGround + 0.25);
       }
+      // Cast both ways so a back-facing wall also bounds the camera. Do not
+      // mutate shared city material sides or move the player's signed pose.
+      const segment = position.clone().sub(eye), length = segment.length();
+      if (length > 0) {
+        const meshes = obstacles ?? cameraObstacles() ?? [];
+        cameraObstacleSnapshot = [...meshes];
+        for (const mesh of meshes) mesh.updateWorldMatrix(true, false);
+        const direction = segment.clone().normalize();
+        cameraRay.near = 0; cameraRay.far = length;
+        cameraRay.set(eye, direction);
+        let distance = length;
+        for (const hit of cameraRay.intersectObjects(meshes, false)) distance = Math.min(distance, hit.distance);
+        cameraRay.set(position, direction.clone().negate());
+        for (const hit of cameraRay.intersectObjects(meshes, false)) distance = Math.min(distance, length - hit.distance);
+        if (distance < length) position.copy(eye).addScaledVector(direction, Math.max(0.05, distance - 0.2));
+      }
+      cameraDistance = position.distanceTo(eye);
       // Look at the player's head, not at a shifted OrbitControls target.
       const matrix = new THREE.Matrix4().lookAt(position, eye, new THREE.Vector3(0, 1, 0));
       setWorldView(position, new THREE.Quaternion().setFromRotationMatrix(matrix));
@@ -165,8 +185,7 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
     if (event.code === "F5") {
       event.preventDefault?.();
       if (!inputBlocked(event) && !event.repeat) {
-        viewMode = creativeViews[(creativeViews.indexOf(viewMode) + 1) % creativeViews.length];
-        renderView(); notify();
+        cycleView();
       }
       return;
     }
@@ -190,6 +209,11 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
         if (!flying) jumpQueued = true;
       }
     }
+  }
+  function cycleView() {
+    if (disposed || mode !== "creative" || xr || suspendedXR || dialogOpen()) return false;
+    viewMode = creativeViews[(creativeViews.indexOf(viewMode) + 1) % creativeViews.length];
+    renderView(); notify(); return true;
   }
   function handleKeyUp(event) { keys.delete(event.code); fastMovementKeys.delete(event.code); }
   function handleMouseMove(event) {
@@ -218,6 +242,12 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
     xr = Boolean(options.xr);
     if (!active()) {
       if (previousActive || keys.size || xr || blocked) clearInput({ release: true });
+      if (mode === "creative" && viewMode !== "first" && !xr && !suspendedXR) {
+        const meshes = cameraObstacles() ?? [];
+        // Streaming can change the view even while movement is OFF. Refresh
+        // on mesh changes without raycasting the same stationary scene each frame.
+        if (meshes.length !== cameraObstacleSnapshot.length || meshes.some((mesh, index) => mesh !== cameraObstacleSnapshot[index])) renderView(meshes);
+      }
       updateAvatar(); return;
     }
     const controls = getControls();
@@ -226,6 +256,12 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
     elapsed += deltaTime;
     let x = Number(keys.has("KeyD")) - Number(keys.has("KeyA"));
     let z = Number(keys.has("KeyW")) - Number(keys.has("KeyS"));
+    const axes = options.touchAxes;
+    const validAxes = axes && [axes.left, axes.right].every(values => Array.isArray(values) && values.length === 2 && values.every(Number.isFinite));
+    if (validAxes) {
+      x = Math.max(-1, Math.min(1, axes.right[0])); z = -Math.max(-1, Math.min(1, axes.right[1]));
+      yaw -= Math.max(-1, Math.min(1, axes.left[0])) * deltaTime * 1.2;
+    }
     const magnitude = Math.hypot(x, z);
     if (magnitude > 1) { x /= magnitude; z /= magnitude; }
     const sprint = keys.has("ControlLeft") || keys.has("ControlRight") || fastMovementKeys.size > 0;
@@ -239,7 +275,8 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
     try { height = groundHeight(anchor.x + displacement.x, anchor.z + displacement.z); } catch { height = null; }
     groundAvailable = typeof height === "number" && Number.isFinite(height);
     if (flying) {
-      displacement.y = (Number(keys.has("Space")) - Number(shift)) * speed * deltaTime;
+      const rise = validAxes ? -Math.max(-1, Math.min(1, axes.left[1])) : Number(keys.has("Space")) - Number(shift);
+      displacement.y = rise * speed * deltaTime;
       verticalVelocity = 0; jumpQueued = false;
     } else if (groundAvailable) {
       const grounded = anchor.y <= height + 0.02;
@@ -285,7 +322,7 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
     return { mode, viewMode, anchor: anchor.toArray(), eye: eyePosition().toArray(),
       yaw, pitch, flying, enabled, blocked, xr, suspendedXR, moving,
       pointerLocked: locked(), pointerError, groundAvailable, pressedKeys: [...keys],
-      sprinting: keys.has("ControlLeft") || keys.has("ControlRight") || fastMovementKeys.size > 0, disposed };
+      sprinting: keys.has("ControlLeft") || keys.has("ControlRight") || fastMovementKeys.size > 0, cameraDistance, disposed };
   }
   function dispose() {
     if (disposed) return;
@@ -309,5 +346,5 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
   listen(domElement, "click", requestPointer);
   adopt(worldView());
   return { setMode, step, handleKeyDown, handleKeyUp, handleMouseMove,
-    clearInput, syncFromCamera, captureForXR, restoreAfterXR, getState, dispose };
+    clearInput, cycleView, syncFromCamera, captureForXR, restoreAfterXR, getState, dispose };
 }

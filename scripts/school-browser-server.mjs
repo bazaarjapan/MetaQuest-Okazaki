@@ -214,6 +214,14 @@ export async function startSchoolBrowserServer() {
     for (const sql of migration.split(";").map((part) => part.trim()).filter(Boolean)) await db.prepare(sql).run();
     const teacher = await seedFixturePerson(db, "teacher", 0), students = [];
     for (let i = 0; i < LIMITS.students; i++) students.push(await seedFixturePerson(db, "student", i + 1));
+    // A second temporary session for the same identity exercises logout/relogin
+    // without pretending to verify the external Google credential exchange.
+    const reloginToken = randomToken(), reloginCsrf = randomToken();
+    await db.prepare("INSERT INTO school_sessions(token_hash,user_id,csrf,expires_at,created_at) VALUES(?,?,?,?,?)")
+      .bind(digest(reloginToken), students[0].id, reloginCsrf, students[0].expiresAt, Math.floor(Date.now() / 1000)).run();
+    const studentRelogin = { ...students[0], csrf: reloginCsrf, tokenHash: digest(reloginToken),
+      cookie: `__Host-school-session=${reloginToken}`,
+      browserCookie: { ...students[0].browserCookie, value: reloginToken } };
     // Actual production API creates the room with its normal authorization/CSRF
     // rules. Students remain unjoined to test the real invite + join UI.
     const response = await mf.dispatchFetch(`${origin}/api/worlds`, { method: "POST", headers: {
@@ -224,7 +232,7 @@ export async function startSchoolBrowserServer() {
     const cubeFixture = await createBrowserCubeFixture(assets), cube = cubeFixture.bytes;
     const fixtures = { runId, origin, runtimeUrl, createdAt: new Date().toISOString(),
       ephemeralAuthenticationFixtures: true, realGoogleLoginVerified: false, externalWorkerNetworkDisabled: true,
-      teacher, student: students[0], otherStudent: students[1], students,
+      teacher, student: students[0], studentRelogin, otherStudent: students[1], students,
       world: result.world, inviteURL: schoolInviteURL(origin, result.world.joinCode),
       cubeFile, cube: { sha256: cubeFixture.sha256, triangles: 12, upAxis: "y", units: "m", groundPositions: cubeFixture.groundPositions },
       workerBundleSha256: digest(script), distManifestSha256: assets.manifestSha256,

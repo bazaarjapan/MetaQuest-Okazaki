@@ -32,13 +32,13 @@ const $ = (s) => document.querySelector(s),
 const adaptiveUi = createAdaptiveUi();
 const touchControls = createTouchControls(viewport);
 let touchUiKey = "";
+let mobileAvatarControls = false;
 function syncTouchControls() {
   const ui = adaptiveUi.getState();
-  if (creative && ui.mobile && !state.xr && !xrEntering && !creative.getState().suspendedXR && creative.getState().mode === "creative") {
+  if (creative && ui.mobile && !mobileAvatarControls && !state.xr && !xrEntering && !creative.getState().suspendedXR && creative.getState().mode === "creative") {
     creative.setMode("drone"); setFree(false);
     $("#control-mode").value = "drone"; $("#creative-help").hidden = true;
   }
-  if ($("#control-mode")) $("#control-mode option[value=creative]").disabled = ui.mobile;
   const enabled = ui.mobile && state.free && !state.xr && !xrEntering && !ui.open && !document.querySelector("dialog[open]");
   touchControls.setEnabled(enabled);
   const key = `${enabled}:${state.free}`;
@@ -181,6 +181,7 @@ const workshop = createWorkshop(THREE, { scene, domElement: renderer.domElement,
   onRequireLogin: () => schoolUI?.open(),
   onChange: () => { renderer.shadowMap.needsUpdate = true; } });
 const ownAvatar = createBlockAvatar(THREE);
+let ownIdentity = null, ownColor = null;
 scene.add(ownAvatar.group);
 renderer.domElement.tabIndex = 0;
 let creative = null;
@@ -195,16 +196,37 @@ function terrainOnlySample(x, z) {
 }
 creative = createCreativeControls(THREE, { camera, rig, domElement: renderer.domElement,
   getControls: () => controls, avatar: ownAvatar, groundHeight: terrainOnlySample,
+  cameraObstacles: () => [...city.children, ...regionStreamer.getMeshes()],
+  onChange: () => syncAvatarViewButtons(),
   constrainPosition: (feet) => constrainCreativeFeet(feet, constrainPosition) });
 $("#control-mode").onchange = (event) => {
   if (state.xr || xrEntering || creative.getState().suspendedXR) { event.target.value = creative.getState().mode; return; }
-  const forcedMobile = adaptiveUi.getState().mobile && event.target.value === "creative";
-  if (forcedMobile) event.target.value = "drone";
+  const mobile = adaptiveUi.getState().mobile;
+  if (mobile) mobileAvatarControls = event.target.value === "creative";
   setFree(false); creative.setMode(event.target.value);
-  try { if (!forcedMobile) preferenceStorage?.setItem(controlPreferenceKey, event.target.value); } catch { /* Optional preference. */ }
+  try { if (!mobile) preferenceStorage?.setItem(controlPreferenceKey, event.target.value); } catch { /* Optional preference. */ }
   syncMovementHelp();
   $("#canvas-hint").textContent = event.target.value === "creative"
     ? "自由移動ONでWASD · 3D画面をクリックして見回す · Escでマウス解除 · F5で視点切替" : "ドラッグで回転 · ホイールで拡大";
+};
+function syncAvatarViewButtons() {
+  const current = creative?.getState();
+  const label = current?.mode === "creative" ? { first: "一人称", back: "三人称・後ろ", front: "三人称・前" }[current.viewMode] : "一人称";
+  for (const [id, text] of [["avatar-view", `視点：${label}`], ["mobile-avatar-view", label]]) {
+    const button = $(`#${id}`); if (!button) continue;
+    if (button.textContent !== text) button.textContent = text;
+    button.setAttribute("aria-label", `視点を切り替える（現在：${label}）`);
+    button.disabled = !state.ready || state.xr || xrEntering || current?.suspendedXR;
+  }
+}
+for (const id of ["avatar-view", "mobile-avatar-view"]) $(`#${id}`).onclick = () => {
+  if (!state.ready || state.xr || xrEntering || creative.getState().suspendedXR || document.querySelector("dialog[open]")) return;
+  if (adaptiveUi.getState().mobile) { mobileAvatarControls = true; adaptiveUi.close(); }
+  if (creative.getState().mode !== "creative") {
+    $("#control-mode").value = "creative";
+    $("#control-mode").dispatchEvent(new Event("change"));
+  }
+  creative.cycleView(); renderer.domElement.focus({ preventScroll: true }); syncAvatarViewButtons();
 };
 const exitHold = createExitHold();
 let vrFieldPanel = null;
@@ -246,7 +268,11 @@ schoolClient.subscribe((next, event) => {
   schoolState = next;
   if (event === "pose") return;
   $("#open-workshop").textContent = next.user && next.world ? "自分のSTL作品" : "STL作品（ログイン）";
-  if (next.user?.color) ownAvatar.setColor(next.user.color);
+  if (ownIdentity !== (next.user?.id ?? null)) {
+    ownIdentity = next.user?.id ?? null; ownAvatar.setIdentity(ownIdentity); setFree(false);
+  }
+  if (next.user?.color && ownColor !== next.user.color) { ownColor = next.user.color; ownAvatar.setColor(ownColor); }
+  if (!next.user) { ownColor = null; ownAvatar.group.visible = false; }
   if (!next.world || next.connection !== "connected") { vrWorkshop.cancelPicking(); restoredWorld = null; }
   adoptSchoolPose();
 });
@@ -368,7 +394,7 @@ async function loadCity() {
   $("#control-mode").disabled = false;
   // Let the change handler apply a mobile fallback without persisting it over
   // the user's PC choice. A narrow window must not change desktop preference.
-  $("#control-mode").value = readControlMode(preferenceStorage);
+  $("#control-mode").value = adaptiveUi.getState().mobile ? "drone" : readControlMode(preferenceStorage);
   $("#control-mode").dispatchEvent(new Event("change"));
   adoptSchoolPose();
   if (initialPCMovement({ ready: state.ready, mobile: adaptiveUi.getState().mobile,
@@ -717,6 +743,7 @@ $("#free-move").onchange = (e) => setFree(e.target.checked);
 $("#mobile-flight").onclick = () => {
   if (!state.ready) return;
   adaptiveUi.close(); setFree(!state.free);
+  if (state.free && creative.getState().mode === "creative") renderer.domElement.focus({ preventScroll: true });
 };
 $("#help").onclick = () => { setFree(false); $("#help-dialog").showModal(); };
 $("#close-help").onclick = () => $("#help-dialog").close();
@@ -1122,7 +1149,9 @@ renderer.setAnimationLoop((time, frame) => {
       xrMove(dt, time);
     }
     else {
+      const touch = touchControls.getState();
       creative.step(dt, { enabled: state.free, xr: false,
+        touchAxes: touch.enabled && touch.activePointers > 0 ? touchControls.getAxes() : null,
         blocked: Boolean(document.querySelector("dialog[open]")) || workshop.getState().picking ||
           (adaptiveUi.getState().mobile && adaptiveUi.getState().open) });
       if (creative.getState().mode === "drone") { desktopMove(dt); controls.update(); }
@@ -1140,7 +1169,8 @@ renderer.setAnimationLoop((time, frame) => {
       schoolClient.sendPose({ position: userPosition().toArray(), yaw });
     }
     presence.update(dt);
-    if (!schoolState.user || !schoolState.world || schoolState.connection !== "connected") ownAvatar.group.visible = false;
+    if (!schoolState.user) ownAvatar.group.visible = false;
+    syncAvatarViewButtons();
     if ((state.free || state.current === "region") && time > nextGroundCheck) {
       nextGroundCheck = time + 150;
       const p = camera.getWorldPosition(new THREE.Vector3());

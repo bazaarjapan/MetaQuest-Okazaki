@@ -46,8 +46,8 @@
   const beforeView = [...state().creative.anchor];
   key("F5");
   await until(() => state().creative.viewMode === "back" &&
-    state().avatar.visible === Boolean(state().school.user && state().school.world), "F5-avatar-render-rAF");
-  check(state().creative.viewMode === "back" && state().avatar.visible === Boolean(state().school.user && state().school.world), "F5-behind-camera-avatar-only-for-joined-user");
+    state().avatar.visible === Boolean(state().school.user), "F5-avatar-render-rAF");
+  check(state().creative.viewMode === "back" && state().avatar.visible === Boolean(state().school.user), "F5-behind-camera-avatar-for-logged-in-user");
   check(distance(state().creative.anchor, beforeView) < 1e-6 && distance(state().camera, state().creative.eye) > 4.9, "camera-not-player-anchor");
   key("F5"); await wait(50);
   check(state().creative.viewMode === "front", "F5-front-camera");
@@ -80,6 +80,10 @@
   check(state().creative.pressedKeys.length === 0, "blur-neutralizes-input");
   mode.value = "drone"; mode.dispatchEvent(new Event("change", {bubbles:true})); await wait(100);
   check(state().creative.mode === "drone" && !state().avatar.visible && !state().free, "original-controls-restored-with-motion-off");
+  document.querySelector("#avatar-view").click(); await wait(100);
+  check(state().creative.mode === "creative" && mode.value === "creative" &&
+    document.querySelector("#canvas-hint").textContent.includes("WASD") &&
+    localStorage.getItem("okazaki-control-mode-v2") === "creative", "view-button-applies-mode-hint-and-preference");
   document.querySelector("#tab-observe").click();
   return JSON.stringify({passed:true,environment:"PC browser, not physical Quest",results,gestureTimings});
 })();

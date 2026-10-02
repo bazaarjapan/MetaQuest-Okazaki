@@ -1,17 +1,29 @@
 // Original, low-cost block-shaped avatar. No third-party character assets.
-export function createBlockAvatar(THREE, { color = 0x367fab } = {}) {
+export function avatarAppearance(identity) {
+  // Only the server's opaque user ID seeds the look. No name, email, Google
+  // profile image or third-party character asset is used or persisted here.
+  let seed = 2166136261;
+  for (const character of typeof identity === "string" ? identity.slice(0, 80) : "") {
+    seed = Math.imul(seed ^ character.charCodeAt(0), 16777619) >>> 0;
+  }
+  return { skin: [0xeac198, 0xc99067, 0x936348, 0xf0d4b4][seed % 4],
+    hair: [0x403631, 0x252f40, 0x80532e, 0xb38449][(seed >>> 4) % 4],
+    trousers: [0x33455d, 0x4f5268, 0x315b53, 0x684d5a][(seed >>> 8) % 4] };
+}
+export function createBlockAvatar(THREE, { color = 0x367fab, identity = null } = {}) {
   const group = new THREE.Group();
   group.name = "school-block-avatar";
   const geometry = new THREE.BoxGeometry(1, 1, 1);
   const materials = new Map();
   let disposed = false;
-  function material(value) {
-    if (!materials.has(value)) materials.set(value,
+  function material(value, key) {
+    if (!materials.has(key)) materials.set(key,
       new THREE.MeshStandardMaterial({ color: value, roughness: 1, metalness: 0 }));
-    return materials.get(value);
+    return materials.get(key);
   }
   function block(name, size, position, value, parent = group) {
-    const mesh = new THREE.Mesh(geometry, material(value));
+    const key = name === "torso" ? "shirt" : name === "face" || name.endsWith("arm") ? "skin" : name.endsWith("leg") ? "trousers" : name;
+    const mesh = new THREE.Mesh(geometry, material(value, key));
     mesh.name = name;
     mesh.scale.set(...size);
     mesh.position.set(...position);
@@ -32,6 +44,15 @@ export function createBlockAvatar(THREE, { color = 0x367fab } = {}) {
   const rightArm = block("right-arm", [0.2, 0.66, 0.25], [0.4, 1.06, 0], 0xeac198);
   const leftLeg = block("left-leg", [0.22, 0.76, 0.27], [-0.145, 0.38, 0], 0x33455d);
   const rightLeg = block("right-leg", [0.22, 0.76, 0.27], [0.145, 0.38, 0], 0x33455d);
+  let appearance = { skin: 0xeac198, hair: 0x403631, trousers: 0x33455d };
+  function setIdentity(value) {
+    if (disposed) return;
+    appearance = value ? avatarAppearance(value) : { skin: 0xeac198, hair: 0x403631, trousers: 0x33455d };
+    head.getObjectByName("face").material.color.set(appearance.skin);
+    head.getObjectByName("hair").material.color.set(appearance.hair);
+    leftLeg.material.color.set(appearance.trousers);
+  }
+  setIdentity(identity);
   // Derive all geometry from one cube, with only five simple materials.
   torso.userData.avatarPart = true;
   group.visible = false;
@@ -59,8 +80,8 @@ export function createBlockAvatar(THREE, { color = 0x367fab } = {}) {
   function setColor(value) {
     if (!disposed && (typeof value === "number" || /^#[0-9a-f]{6}$/i.test(value))) torso.material.color.set(value);
   }
-  return { group, update, setColor, dispose,
+  return { group, update, setColor, setIdentity, dispose,
     getState: () => ({ position: group.position.toArray(), yaw: group.rotation.y,
       pitch: head.rotation.x, visible: group.visible, disposed,
-      meshCount: 9, geometryCount: 1, materialCount: materials.size }) };
+      meshCount: 9, geometryCount: 1, materialCount: materials.size, appearance: { ...appearance } }) };
 }
