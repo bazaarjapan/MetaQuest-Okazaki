@@ -129,7 +129,7 @@ export function createVRWorkshop(THREE, { camera, workshop, client, onShadowChan
     c.font = "23px sans-serif"; c.fillStyle = "#bdd5e3";
     const status = state.allowed ?
       state.pending || state.workshopState.busy ? "通信・確認中…" :
-        state.picking ? "右トリガーで地面を選択 → 確定" : "右トリガーでボタンを選択" :
+        state.picking ? "左右どちらかのトリガーで地面を選択 → 確定" : "左右どちらかのトリガーでボタンを選択" :
       !state.clientState?.user ? "作品配置は2D画面でログイン・教室参加" :
         state.clientState?.connection !== "connected" && state.clientState?.world ? "再接続待ち・作品の編集は停止しています" :
           "2D画面で先生の参加コードを入力してください";
