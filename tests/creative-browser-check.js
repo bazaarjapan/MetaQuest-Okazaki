@@ -46,8 +46,8 @@
   const beforeView = [...state().creative.anchor];
   key("F5");
   await until(() => state().creative.viewMode === "back" &&
-    state().avatar.visible === Boolean(state().school.user && state().school.world), "F5-avatar-render-rAF");
-  check(state().creative.viewMode === "back" && state().avatar.visible === Boolean(state().school.user && state().school.world), "F5-behind-camera-avatar-only-for-joined-user");
+    state().avatar.visible === Boolean(state().school.user), "F5-avatar-render-rAF");
+  check(state().creative.viewMode === "back" && state().avatar.visible === Boolean(state().school.user), "F5-behind-camera-avatar-for-logged-in-user");
   check(distance(state().creative.anchor, beforeView) < 1e-6 && distance(state().camera, state().creative.eye) > 4.9, "camera-not-player-anchor");
   key("F5"); await wait(50);
   check(state().creative.viewMode === "front", "F5-front-camera");

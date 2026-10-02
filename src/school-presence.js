@@ -99,7 +99,7 @@ export function createSchoolPresence(THREE, { scene, client,
       let actor = actors.get(participant.id);
       if (actor && actor.color !== participant.color) { remove(participant.id); actor = null; }
       if (!actor) {
-        const avatar = createBlockAvatar(THREE, { color: participant.color });
+        const avatar = createBlockAvatar(THREE, { color: participant.color, identity: participant.id });
         group.add(avatar.group);
         actor = { id: participant.id, avatar, color: participant.color, name: null,
           position: new THREE.Vector3(...participant.feet), target: new THREE.Vector3(...participant.feet),
@@ -136,7 +136,7 @@ export function createSchoolPresence(THREE, { scene, client,
     getState: () => ({ visible: group.visible, count: actors.size, disposed,
       actors: [...actors.values()].map((actor) => ({ id: actor.id, name: actor.name,
         color: actor.color, position: actor.position.toArray(), target: actor.target.toArray(),
-        yaw: actor.yaw, meshes: 9 })) }),
+        yaw: actor.yaw, meshes: 9, appearance: actor.avatar.getState().appearance })) }),
     dispose() {
       if (disposed) return;
       disposed = true; unsubscribe?.(); clear(); group.removeFromParent(); group.visible = false;

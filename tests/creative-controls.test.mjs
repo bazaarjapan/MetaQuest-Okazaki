@@ -313,3 +313,36 @@ test("camera teleport sync, constraints, immutable diagnostics and disposal are 
   assert.equal(f.win.count() + f.doc.count() + f.canvas.count(), 0);
   assert.equal(f.orbit.enabled, true);
 });
+
+test("UI view cycling is bounded and preserves eye pose through repeated switches and XR", () => {
+  const f = fixture(); f.enable(); const eye = f.control.getState().eye;
+  for (let i = 0; i < 30; i++) assert.equal(f.control.cycleView(), true);
+  assert.deepEqual(f.control.getState().eye, eye); assert.equal(f.control.getState().viewMode, "first");
+  f.control.captureForXR(); assert.equal(f.control.cycleView(), false); f.control.restoreAfterXR();
+  assert.equal(f.control.getState().viewMode, "first"); assert.deepEqual(f.control.getState().eye, eye); f.control.dispose();
+});
+
+test("third-person camera stops before a nearby wall while the player stays still", () => {
+  const wall = new THREE.Mesh(new THREE.BoxGeometry(10,10,.2), new THREE.MeshBasicMaterial());
+  wall.position.set(10,31.65,22); wall.updateMatrixWorld(true);
+  const f = fixture({ cameraObstacles: () => [wall] }); f.enable();
+  const eye = f.control.getState().eye; f.control.cycleView();
+  assert.ok(f.camera.position.z < 21.9); assert.ok(f.camera.position.z > 20);
+  assert.deepEqual(f.control.getState().eye, eye); f.control.dispose();
+});
+
+test("touch axes move the player independently of third-person camera and stop when input is released", () => {
+  const f = fixture(); f.enable(); f.control.cycleView();
+  f.control.step(.1,{enabled:true,touchAxes:{left:[0,0],right:[0,-1]}});
+  close(f.control.getState().anchor[2],18.8);
+  f.control.step(.1,{enabled:true,touchAxes:{left:[0,0],right:[0,0]}});
+  close(f.control.getState().anchor[2],18.8);
+  f.control.step(.1,{enabled:true,blocked:true,touchAxes:{left:[1,-1],right:[1,-1]}});
+  close(f.control.getState().anchor[2],18.8); f.control.dispose();
+});
+
+test("malformed touch axes never corrupt the finite player pose", () => {
+  const f = fixture(); f.enable(); const before = f.control.getState().eye;
+  for (const touchAxes of [{left:[],right:[0,0]},{left:[NaN,0],right:[0,0]}, {left:[0],right:[] }]) f.control.step(.1,{enabled:true,touchAxes});
+  assert.deepEqual(f.control.getState().eye,before); f.control.dispose();
+});

@@ -110,7 +110,7 @@ footer > span { white-space: nowrap; }
  .quality-setting select, .region-setting select { font-size: 16px; min-height: 44px; }
  .region-setting #region-map { width: 100%; height: auto; touch-action: manipulation; }
  .region-setting p { font-size: 11px; }
- #mobile-toolbar { display: grid; position: fixed; z-index: 9; bottom: env(safe-area-inset-bottom,0px); left: max(8px,env(safe-area-inset-left,0px)); right: max(8px,env(safe-area-inset-right,0px)); height: 58px; grid-template-columns: repeat(4,minmax(0,1fr)); padding: 5px; gap: 5px; background: white; border: 1px solid #c8d6de; border-radius: 12px; box-shadow: 0 3px 18px #112b3d16; }
+ #mobile-toolbar { display: grid; position: fixed; z-index: 9; bottom: env(safe-area-inset-bottom,0px); left: max(8px,env(safe-area-inset-left,0px)); right: max(8px,env(safe-area-inset-right,0px)); height: 58px; grid-template-columns: repeat(5,minmax(0,1fr)); padding: 5px; gap: 5px; background: white; border: 1px solid #c8d6de; border-radius: 12px; box-shadow: 0 3px 18px #112b3d16; }
  #mobile-toolbar button { padding: 6px 4px; font-size: 12px; min-height: 44px; border: 0; }
  #mobile-toolbar button.active, #mobile-flight[aria-pressed=true] { color: #145d50; background: #e5f4ed; }
  .map-label { top: 12px; left: 12px; right: 48px; }
