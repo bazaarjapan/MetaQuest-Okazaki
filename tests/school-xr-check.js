@@ -14,13 +14,13 @@
   };
   // Change only the emulator's physical input. No application camera, school,
   // placement, authentication or rendering functions are substituted.
-  const trigger = async (predicate, name) => {
-    device.controllers.right.updateButtonValue("trigger", 1);
+  const trigger = async (predicate, name, hand = "right") => {
+    device.controllers[hand].updateButtonValue("trigger", 1);
     try { await until(predicate, name); }
-    finally { device.controllers.right.updateButtonValue("trigger", 0); }
+    finally { device.controllers[hand].updateButtonValue("trigger", 0); }
     await pause(250);
   };
-  const point = async (action, predicate) => {
+  const point = async (action, predicate, hand = "right") => {
     const panel = state().vrPanel, rect = panel?.actionRects?.[action];
     check(panel?.visible && rect?.enabled, `central-${action}-action-available`);
     const x = panel.position[0] + ((rect.x + rect.w / 2) / panel.canvas[0] - .5) * panel.size[0];
@@ -29,18 +29,18 @@
     const { x: qx, y: qy, z: qz, w: qw } = device.quaternion;
     const ix = qw*x + qy*z - qz*y, iy = qw*y + qz*x - qx*z;
     const iz = qw*z + qx*y - qy*x, iw = -qx*x - qy*y - qz*z;
-    device.controllers.right.position.set(device.position.x + ix*qw - iw*qx - iy*qz + iz*qy,
+    device.controllers[hand].position.set(device.position.x + ix*qw - iw*qx - iy*qz + iz*qy,
       device.position.y + iy*qw - iw*qy - iz*qx + ix*qz,
       device.position.z + iz*qw - iw*qz - ix*qy + iy*qx);
-    device.controllers.right.quaternion.set(qx, qy, qz, qw);
-    await until(() => state().vrPanel.hovered === action, `hover-central-${action}`);
-    await trigger(predicate, action);
+    device.controllers[hand].quaternion.set(qx, qy, qz, qw);
+    await until(() => state().vrPanel.perHand[hand].hovered === action, `hover-${hand}-central-${action}`);
+    await trigger(predicate, action, hand);
   };
-  const groundRay = () => {
+  const groundRay = (hand = "right") => {
     const {rig, rigYaw} = state(), dx = -255 - rig[0], dz = -350 - rig[2];
-    device.controllers.right.position.set(Math.cos(rigYaw) * dx - Math.sin(rigYaw) * dz,
+    device.controllers[hand].position.set(Math.cos(rigYaw) * dx - Math.sin(rigYaw) * dz,
       16 - rig[1], Math.sin(rigYaw) * dx + Math.cos(rigYaw) * dz);
-    device.controllers.right.quaternion.set(-Math.SQRT1_2, 0, 0, Math.SQRT1_2);
+    device.controllers[hand].quaternion.set(-Math.SQRT1_2, 0, 0, Math.SQRT1_2);
   };
   check(state().xr && state().school.connection === "connected", "signed-connected-immersive-session");
   check(window.__schoolEntryEye && Math.hypot(...state().head.map((v,i) => v-window.__schoolEntryEye[i])) < .1,
@@ -53,16 +53,17 @@
   check(state().workshop.ownAssets.length > 0, "actual-R2-asset-available");
   for (const [i, axis] of ["x", "y", "z"].entries()) {
     const before = state().workshop.current.rotation[i];
-    await point(`rotate-${axis}+`, () => state().workshop.current.rotation[i] > before + .2);
-    check(Math.abs(state().workshop.current.rotation[i] - before - Math.PI / 12) < .0001, `right-trigger-${axis}-15degrees`);
+    const hand = i % 2 === 0 ? "left" : "right";
+    await point(`rotate-${axis}+`, () => state().workshop.current.rotation[i] > before + .2, hand);
+    check(Math.abs(state().workshop.current.rotation[i] - before - Math.PI / 12) < .0001, `${hand}-trigger-${axis}-15degrees`);
   }
   const beforeScale = state().workshop.current.scale[0];
-  await point("scale+", () => state().workshop.current.scale[0] > beforeScale);
-  check(Math.abs(state().workshop.current.scale[0] - beforeScale * 1.1) < .0001, "right-trigger-scale-1.1");
-  await point("pick", () => state().vrWorkshop.picking);
+  await point("scale+", () => state().workshop.current.scale[0] > beforeScale, "left");
+  check(Math.abs(state().workshop.current.scale[0] - beforeScale * 1.1) < .0001, "left-trigger-scale-1.1");
+  await point("pick", () => state().vrWorkshop.picking, "left");
   check(!state().free, "ground-selection-stops-locomotion");
-  groundRay(); await pause(250);
-  await trigger(() => !state().vrWorkshop.picking && state().workshop.current.valid, "real-terrain-ray-preview");
+  groundRay("left"); await pause(250);
+  await trigger(() => !state().vrWorkshop.picking && state().workshop.current.valid, "left-real-terrain-ray-preview", "left");
   check(state().workshop.current.position[1] > 10 && Math.abs(state().workshop.current.position[0] + 255) < .1,
     "actual-PLATEAU-height-not-fake-plane");
   await point("commit", () => state().workshop.committed === 1);

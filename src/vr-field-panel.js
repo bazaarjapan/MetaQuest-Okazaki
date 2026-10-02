@@ -14,6 +14,10 @@ const tabs = [
 export const fieldRegionMapRect = Object.freeze({ x: 40, y: 196, w: 922, h: 584 });
 const workshopRect = Object.freeze({ x: 40, y: 186, w: 1184, h: 638.25 });
 const within = (rect, x, y) => x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h;
+const pointerHands = Object.freeze(["left", "right"]);
+const pointerColors = Object.freeze({ left: "#6fe7ff", right: "#ffce75" });
+const clickFlashMs = 180;
+const isKnownHand = (hand) => hand === "left" || hand === "right";
 
 /** One shared texture and mesh own every visible in-headset control. */
 export function createVRFieldPanel(THREE, { camera, controllerHud, vrWorkshop,
@@ -33,6 +37,38 @@ export function createVRFieldPanel(THREE, { camera, controllerHud, vrWorkshop,
   camera.add(mesh);
   let tab = "observe", expanded = true, interactive = false, hovered = null;
   let progress = 0, exiting = false, lastKey = "", lastDraw = -Infinity, redraws = 0, disposed = false;
+  let lastTime = 0, feedbackGeneration = 0;
+  // Reuse these slots for both rays; no spatial resources are allocated per frame.
+  const hoveredHands = { left: null, right: null };
+  const flashes = { left: { action: null, until: 0 }, right: { action: null, until: 0 } };
+
+  function clearFeedback() {
+    hovered = null; feedbackGeneration++;
+    for (const hand of pointerHands) {
+      hoveredHands[hand] = null; flashes[hand].action = null; flashes[hand].until = 0;
+    }
+  }
+  function isHovered(action) {
+    return hovered === action || hoveredHands.left === action || hoveredHands.right === action;
+  }
+  function enabledHover(action, list) {
+    return typeof action === "string" && list.some((entry) => entry.action === action && entry.enabled) ? action : null;
+  }
+  function pruneFeedback(time, list = actions()) {
+    if (!mesh.visible || !interactive || exiting) { clearFeedback(); return; }
+    hovered = enabledHover(hovered, list);
+    for (const hand of pointerHands) {
+      hoveredHands[hand] = enabledHover(hoveredHands[hand], list);
+      if (time >= flashes[hand].until || !enabledHover(flashes[hand].action, list)) {
+        flashes[hand].action = null; flashes[hand].until = 0;
+      }
+    }
+  }
+  function flash(action, hand, generation = feedbackGeneration) {
+    if (generation !== feedbackGeneration || !isKnownHand(hand) || !mesh.visible || !interactive || exiting ||
+      !enabledHover(action, actions())) return;
+    flashes[hand].action = action; flashes[hand].until = lastTime + clickFlashMs;
+  }
 
   function returnRect() {
     return { action: "return", label: "2Dに戻る", x: 40, y: expanded ? 838 : 194,
@@ -66,7 +102,8 @@ export function createVRFieldPanel(THREE, { camera, controllerHud, vrWorkshop,
   }
   function draw(time, force = false) {
     const view = getViewState(), hud = controllerHud.getState(), workshop = vrWorkshop.getState();
-    const key = JSON.stringify({ visible: mesh.visible, expanded, tab, hovered, exiting,
+    const key = JSON.stringify({ visible: mesh.visible, expanded, tab, hovered, hoveredHands,
+      flashLeft: flashes.left.action, flashRight: flashes.right.action, exiting,
       progress: Math.round(progress * 100), free: view.free,
       horizontal: Number(view.horizontalSpeed ?? 0).toFixed(1), vertical: Number(view.verticalSpeed ?? 0).toFixed(1),
       regionReady: view.regionReady, mapSecond: tab === "region" ? Math.floor(time / 1000) : 0,
@@ -84,11 +121,11 @@ export function createVRFieldPanel(THREE, { camera, controllerHud, vrWorkshop,
 
     const drawButton = (entry, selected = false) => {
       const active = entry.enabled !== false;
-      c.fillStyle = active ? hovered === entry.action ? "#386f85" :
+      c.fillStyle = active ? isHovered(entry.action) ? "#386f85" :
         entry.action === "return" ? "#1b665b" : selected ? "#33675e" : "#244253" : "#172a38";
       c.beginPath(); c.roundRect(entry.x, entry.y, entry.w, entry.h, 16); c.fill();
-      c.strokeStyle = active && hovered === entry.action ? "white" : selected ? "#9bf3d5" : "#547789";
-      c.lineWidth = hovered === entry.action ? 4 : 2; c.stroke();
+      c.strokeStyle = active && isHovered(entry.action) ? "white" : selected ? "#9bf3d5" : "#547789";
+      c.lineWidth = active && isHovered(entry.action) ? 4 : 2; c.stroke();
       c.fillStyle = active ? "white" : "#7d929d"; c.font = "bold 34px sans-serif"; c.textAlign = "center";
       c.fillText(entry.label, entry.x + entry.w / 2, entry.y + entry.h / 2 + 12, entry.w - 32);
     };
@@ -114,10 +151,24 @@ export function createVRFieldPanel(THREE, { camera, controllerHud, vrWorkshop,
       } else c.drawImage(vrWorkshop.getCanvas(), workshopRect.x, workshopRect.y, workshopRect.w, workshopRect.h);
     } else drawButton(list.find((entry) => entry.action === "expand"));
     const exit = returnRect();
-    drawButton({ ...exit, label: exiting ? "2Dに戻っています…" : hovered === "return" ?
+    drawButton({ ...exit, label: exiting ? "2Dに戻っています…" : isHovered("return") ?
       "2Dに戻る · トリガーで選択" : "2Dに戻る · Xを1.5秒長押し" });
     if (progress > 0) {
       c.fillStyle = "#94f5ce"; c.fillRect(exit.x + 8, exit.y + exit.h - 10, (exit.w - 16) * progress, 5);
+    }
+    // Highlight the exact shared-canvas rectangles, including embedded workshop
+    // buttons. Two inset outlines remain visible when both hands aim at one target.
+    for (const entry of list) {
+      if (!entry.enabled) continue;
+      for (const hand of pointerHands) {
+        const pressed = flashes[hand].action === entry.action;
+        if (hoveredHands[hand] !== entry.action && !pressed) continue;
+        const inset = hand === "left" ? 3 : 8;
+        c.beginPath(); c.roundRect(entry.x + inset, entry.y + inset,
+          entry.w - inset * 2, entry.h - inset * 2, Math.max(4, 16 - inset));
+        if (pressed) { c.fillStyle = "rgba(168,255,215,.22)"; c.fill(); }
+        c.strokeStyle = pressed ? "#a8ffd7" : pointerColors[hand]; c.lineWidth = 4; c.stroke();
+      }
     }
     texture.needsUpdate = true;
   }
@@ -125,17 +176,17 @@ export function createVRFieldPanel(THREE, { camera, controllerHud, vrWorkshop,
     expanded = Boolean(value);
     canvas.height = expanded ? vrFieldPanelLayout.canvas[1] : vrFieldPanelLayout.compactHeight;
     mesh.scale.y = canvas.height / vrFieldPanelLayout.canvas[1];
-    hovered = null; synchronizeContent(performance.now()); draw(performance.now(), true);
+    clearFeedback(); synchronizeContent(lastTime); draw(lastTime, true);
   }
   function selectTab(value) {
     if (!tabs.some((entry) => entry.tab === value)) return false;
-    tab = value; hovered = null;
-    synchronizeContent(performance.now()); draw(performance.now(), true); return true;
+    tab = value; clearFeedback();
+    synchronizeContent(lastTime); draw(lastTime, true); return true;
   }
   function actionAt(x, y, { handedness = "right" } = {}) {
     if (disposed || !mesh.visible || !interactive || exiting) return null;
     const entry = actions().find((entry) => within(entry, x, y) && entry.enabled);
-    if (!entry || tab === "workshop" && !["return", "expand", "tab-observe", "tab-region", "tab-workshop"].includes(entry.action) && handedness !== "right") return null;
+    if (!entry || tab === "workshop" && !["return", "expand", "tab-observe", "tab-region", "tab-workshop"].includes(entry.action) && !isKnownHand(handedness)) return null;
     // Embedded workshop coordinates are validated by its live permission gate.
     if (tab === "workshop" && !entry.action.startsWith("tab-") && !["return", "expand"].includes(entry.action)) {
       return vrWorkshop.actionAt((x - workshopRect.x) * vrWorkshop.getCanvas().width / workshopRect.w,
@@ -156,19 +207,30 @@ export function createVRFieldPanel(THREE, { camera, controllerHud, vrWorkshop,
     const entry = actions().find((entry) => entry.action === action && entry.enabled);
     if (!entry) return false;
     if (action === "expand") { changeExpanded(true); return true; }
-    if (action.startsWith("tab-")) return selectTab(entry.tab);
-    if (tab === "workshop" && action !== "return") {
-      if (handedness !== "right") return false;
-      return vrWorkshop.activate(action);
+    if (action.startsWith("tab-")) {
+      const selected = selectTab(entry.tab); if (selected) flash(action, handedness); return selected;
     }
-    await onAction(action, { x, y, rect: { ...entry } }); return true;
+    const generation = feedbackGeneration;
+    if (tab === "workshop" && action !== "return") {
+      if (!isKnownHand(handedness)) return false;
+      const accepted = await vrWorkshop.activate(action);
+      if (accepted) flash(action, handedness, generation);
+      return accepted;
+    }
+    const result = await onAction(action, { x, y, rect: { ...entry } });
+    if (result === false) return false;
+    flash(action, handedness, generation); return true;
   }
   function getState() {
     const list = actions().map(({ action, x, y, w, h, enabled }) => ({ action, x, y, w, h, enabled }));
     return { name: mesh.name, visible: mesh.visible, position: mesh.position.toArray(),
       size: [vrFieldPanelLayout.size[0], vrFieldPanelLayout.size[1] * mesh.scale.y],
       canvas: [canvas.width, canvas.height], tab, expanded, guideExpanded: expanded,
-      hovered, redraws, meshCount: disposed ? 0 : 1, panelCount: Number(mesh.visible && !disposed),
+      hovered, hoveredActions: [...new Set([hoveredHands.left, hoveredHands.right, hovered].filter(Boolean))],
+      hoveredHands: { ...hoveredHands },
+      perHand: Object.fromEntries(pointerHands.map((hand) => [hand, {
+        hovered: hoveredHands[hand], flashAction: flashes[hand].action, flashUntil: flashes[hand].until }])),
+      redraws, meshCount: disposed ? 0 : 1, panelCount: Number(mesh.visible && !disposed),
       rendered: { panelCount: Number(mesh.visible && !disposed) },
       hudRects: { left: { x: 40, y: 442, w: 540, h: 380 }, right: { x: 684, y: 442, w: 540, h: 380 } },
       actions: list, actionRects: Object.fromEntries(list.map((entry) => [entry.action, { ...entry }])),
@@ -179,23 +241,30 @@ export function createVRFieldPanel(THREE, { camera, controllerHud, vrWorkshop,
     return { position: [mesh.position.x + ((rect.x + rect.w / 2) / canvas.width - .5) * size[0],
       mesh.position.y + (.5 - (rect.y + rect.h / 2) / canvas.height) * size[1], mesh.position.z],
       size: [rect.w / canvas.width * size[0], rect.h / canvas.height * size[1]],
-      rect: { ...rect }, visible: mesh.visible, progress, exiting, hovered: hovered === "return" };
+      rect: { ...rect }, visible: mesh.visible, progress, exiting, hovered: isHovered("return") };
   }
   draw(0, true);
   return { mesh, hit, actionAt, activate, selectTab, setExpanded: changeExpanded,
     toggleExpanded: () => changeExpanded(!expanded), getState, getReturnState,
-    update({ xr = mesh.visible, interactive: nextInteractive = interactive, hovered: nextHover = hovered,
+    update({ xr = mesh.visible, interactive: nextInteractive = interactive, hovered: nextHover,
+      hoveredHands: nextHoveredHands,
       progress: nextProgress = progress, exiting: nextExiting = exiting, time = performance.now() } = {}) {
       if (disposed) return;
       const changed = mesh.visible !== Boolean(xr);
       mesh.visible = Boolean(xr); interactive = Boolean(mesh.visible && nextInteractive);
       progress = Number.isFinite(nextProgress) ? Math.max(0, Math.min(1, nextProgress)) : 0;
-      exiting = Boolean(nextExiting); hovered = interactive && !exiting ? nextHover : null;
-      synchronizeContent(time); draw(time, changed);
+      exiting = Boolean(nextExiting); lastTime = Number.isFinite(time) ? time : performance.now();
+      if (nextHoveredHands !== undefined) {
+        for (const hand of pointerHands) hoveredHands[hand] = nextHoveredHands?.[hand] ?? null;
+        hovered = nextHover !== undefined ? nextHover : hoveredHands.right ?? hoveredHands.left;
+      } else if (nextHover !== undefined) {
+        hovered = nextHover; hoveredHands.left = null; hoveredHands.right = nextHover;
+      }
+      pruneFeedback(lastTime); synchronizeContent(lastTime); draw(lastTime, changed);
     },
     dispose() {
       if (disposed) return;
-      disposed = true; mesh.visible = false; mesh.removeFromParent();
+      disposed = true; mesh.visible = false; clearFeedback(); mesh.removeFromParent();
       controllerHud.setEmbeddedVisible(false); vrWorkshop.update({ xr: false });
       texture.dispose(); material.dispose(); geometry.dispose();
     } };

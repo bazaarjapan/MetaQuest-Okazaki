@@ -23,6 +23,7 @@ import { createSchoolClient } from "./school-client.js";
 import { createSchoolUI } from "./school-ui.js";
 import { createSchoolPresence } from "./school-presence.js";
 import { createVRWorkshop } from "./vr-workshop.js";
+import { createVRControllerPointer } from "./vr-controller-pointer.js";
 import "./style.css";
 import "./layout.css";
 
@@ -130,6 +131,46 @@ let frameTime = 0,
   ground = 16.5;
 const controllers = [],
   previousButtons = new Map();
+const controllerPointers = {
+  left: createVRControllerPointer(THREE, { parent: scene, handedness: "left" }),
+  right: createVRControllerPointer(THREE, { parent: scene, handedness: "right" }),
+};
+const controllerRaycaster = new THREE.Raycaster();
+const hoveredHands = { left: null, right: null };
+function hideControllerPointers() { controllerPointers.left.hide(); controllerPointers.right.hide(); }
+function controllerInteractionActive(session = renderer.xr.getSession()) {
+  return state.xr && !xrExitPending && !pendingXRView && session?.visibilityState === "visible";
+}
+function trackedControllerSource(controller, session) {
+  const hand = controller.userData.handedness;
+  if (!controller.visible || (hand !== "left" && hand !== "right")) return null;
+  for (const source of session?.inputSources ?? []) {
+    if (source.handedness === hand && source.targetRayMode === "tracked-pointer") return source;
+  }
+  return null;
+}
+function setControllerRay(controller) {
+  controller.updateWorldMatrix(true, false);
+  const { origin, direction } = controllerRaycaster.ray;
+  origin.setFromMatrixPosition(controller.matrixWorld);
+  direction.set(0, 0, -1).transformDirection(controller.matrixWorld);
+  return Number.isFinite(origin.x) && Number.isFinite(origin.y) && Number.isFinite(origin.z) &&
+    Number.isFinite(direction.x) && Number.isFinite(direction.y) && Number.isFinite(direction.z) && direction.lengthSq() > 0;
+}
+function updateControllerPointer(controller, source, hit, time) {
+  return controllerPointers[controller.userData.handedness].update({ enabled: true,
+    origin: controllerRaycaster.ray.origin, direction: controllerRaycaster.ray.direction,
+    hit, pressed: Boolean(source.gamepad?.buttons[0]?.pressed), time });
+}
+function acceptedControllerSelection(controller, source, session) {
+  if (!controllerInteractionActive(session) || renderer.xr.getSession() !== session ||
+    trackedControllerSource(controller, session) !== source) return;
+  controllerPointers[source.handedness].flash(performance.now());
+  const actuator = source.gamepad?.hapticActuators?.[0];
+  if (typeof actuator?.pulse === "function") {
+    try { Promise.resolve(actuator.pulse(.25, 25)).catch(() => {}); } catch { /* Haptics are optional. */ }
+  }
+}
 const flight = createFlightState();
 const schoolClient = createSchoolClient();
 let schoolUI;
@@ -614,6 +655,7 @@ async function returnTo2D() {
   if (!state.xr || !session || xrExitPending) return;
   lastXRView = resolveXRExitView(pendingXRView, lastXRView, () => captureView(camera));
   xrExitPending = true;
+  hideControllerPointers();
   setFree(false);
   keys.clear(); touchControls.releaseAll();
   vrReturnButton.update({ exiting: true });
@@ -793,6 +835,7 @@ $("#enter-vr").onclick = async () => {
   }
 };
 renderer.xr.addEventListener("sessionstart", () => {
+  hideControllerPointers();
   simulationSeconds = 0;
   state.xr = true;
   $("#control-mode").disabled = true;
@@ -808,11 +851,12 @@ renderer.xr.addEventListener("sessionstart", () => {
   vrReturnButton.setVisible(true);
   const session = renderer.xr.getSession();
   session.addEventListener("visibilitychange", () => {
-    if (session.visibilityState !== "visible") setFree(false);
+    if (session.visibilityState !== "visible") { setFree(false); hideControllerPointers(); }
     cancelExitHold(exitHold); vrReturnButton.update({ progress: 0 });
     syncButtons(session);
   });
   session.addEventListener("inputsourceschange", () => {
+    hideControllerPointers();
     setFree(false);
     cancelExitHold(exitHold); vrReturnButton.update({ progress: 0 });
     syncButtons(session);
@@ -828,6 +872,7 @@ renderer.xr.addEventListener("sessionstart", () => {
   updateLabels(pendingXRView ? state.current : "east");
 });
 renderer.xr.addEventListener("sessionend", () => {
+  hideControllerPointers();
   const view = resolveXRExitView(pendingXRView, lastXRView, () => captureView(camera));
   state.xr = false;
   hasVRResume = true; xrExitPending = false; pendingXRView = null;
@@ -884,45 +929,44 @@ function drawPanel() {
 }
 for (let i = 0; i < 2; i++) {
   const controller = renderer.xr.getController(i);
-  const line = new THREE.Line(
-    new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(),
-      new THREE.Vector3(0, 0, -3),
-    ]),
-    new THREE.LineBasicMaterial({ color: 0x52f5c5 }),
-  );
-  controller.add(line);
   controller.addEventListener("connected", (event) => { controller.userData.handedness = event.data.handedness; });
-  controller.addEventListener("disconnected", () => { controller.userData.handedness = null; vrWorkshop.cancelPicking(); });
+  controller.addEventListener("disconnected", () => {
+    controllerPointers[controller.userData.handedness]?.hide();
+    controller.userData.handedness = null; vrWorkshop.cancelPicking();
+  });
   controller.addEventListener("selectstart", () => {
-    if (!state.xr || xrExitPending || renderer.xr.getSession()?.visibilityState !== "visible") return;
-    controller.updateWorldMatrix(true, false);
-    const rotation = new THREE.Matrix4().extractRotation(
-      controller.matrixWorld,
-    );
-    raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
-    raycaster.ray.direction.set(0, 0, -1).applyMatrix4(rotation);
-    const hit = vrFieldPanel.hit(raycaster, { handedness: controller.userData.handedness });
+    const session = renderer.xr.getSession(), source = trackedControllerSource(controller, session);
+    if (!controllerInteractionActive(session) || !source || !setControllerRay(controller)) return;
+    // Never use the previous frame's hover: this is the current physical target ray.
+    const hand = source.handedness, hit = vrFieldPanel.hit(controllerRaycaster, { handedness: hand });
+    updateControllerPointer(controller, source, hit, performance.now());
     if (hit) {
       if (hit.action) {
         if (vrFieldPanel.getState().tab === "workshop" && !hit.action.startsWith("tab-") && hit.action !== "return") setFree(false);
         Promise.resolve(vrFieldPanel.activate(hit.action, { x: hit.x, y: hit.y,
-          handedness: controller.userData.handedness })).catch(() => {});
+          handedness: hand })).then(accepted => {
+            if (accepted) acceptedControllerSelection(controller, source, session);
+          }).catch(() => {});
       }
       // The visible surface consumes blank/disabled hits as well, preventing
       // a panel click from selecting or placing an object behind the canvas.
       return;
     }
-    if (controller.userData.handedness === "right" && workshop.getState().canEdit) {
+    if (workshop.getState().canEdit) {
       if (vrWorkshop.getState().picking) {
         // Placement uses only verified station-core DEM, never roofs or a fake plane.
-        const terrainHit = raycaster.intersectObjects(placementEnvironment.terrainMeshes, false)[0];
-        if (terrainHit) { workshop.moveSelected(terrainHit.point.toArray()); vrWorkshop.activate("picked"); }
+        const terrainHit = controllerRaycaster.intersectObjects(placementEnvironment.terrainMeshes, false)[0];
+        if (terrainHit && workshop.moveSelected(terrainHit.point.toArray()).valid) {
+          Promise.resolve(vrWorkshop.activate("picked")).then(accepted => {
+            if (accepted) acceptedControllerSelection(controller, source, session);
+          }).catch(() => {});
+        }
         return;
       }
-      const objectHit = raycaster.intersectObjects(workshop.group.children, false)[0];
+      const objectHit = controllerRaycaster.intersectObjects(workshop.group.children, false)[0];
       if (objectHit?.object.userData.creationId) {
-        setFree(false); workshop.selectObject(objectHit.object.userData.creationId);
+        setFree(false);
+        if (workshop.selectObject(objectHit.object.userData.creationId)) acceptedControllerSelection(controller, source, session);
       }
     }
   });
@@ -1121,22 +1165,26 @@ renderer.setAnimationLoop((time, frame) => {
   }
   controllerHud.update(renderer.xr.getSession()?.inputSources,
     { free: state.free, flight }, time);
-  const panelInteractive = state.xr && !xrExitPending && !pendingXRView &&
-    renderer.xr.getSession()?.visibilityState === "visible";
+  const session = renderer.xr.getSession(), panelInteractive = controllerInteractionActive(session);
   vrFieldPanel.update({ xr: state.xr, interactive: panelInteractive, time });
-  let panelHover = null;
+  let panelHover = null, leftSeen = false, rightSeen = false;
+  hoveredHands.left = hoveredHands.right = null;
   if (panelInteractive) {
     for (const controller of controllers) {
-      if (!controller.visible) continue;
-      controller.updateWorldMatrix(true, false);
-      raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
-      raycaster.ray.direction.set(0, 0, -1).applyMatrix4(new THREE.Matrix4().extractRotation(controller.matrixWorld));
-      const action = vrFieldPanel.hit(raycaster, { handedness: controller.userData.handedness })?.action;
-      if (action) panelHover = action;
-      if (action === "return") break;
+      const source = trackedControllerSource(controller, session);
+      if (!source || !setControllerRay(controller)) continue;
+      const hand = source.handedness, hit = vrFieldPanel.hit(controllerRaycaster, { handedness: hand });
+      if (updateControllerPointer(controller, source, hit, time)) {
+        if (hand === "left") leftSeen = true; else rightSeen = true;
+        hoveredHands[hand] = hit?.action ?? null;
+      }
     }
+    panelHover = hoveredHands.left === "return" || hoveredHands.right === "return" ? "return" :
+      hoveredHands.right ?? hoveredHands.left;
   }
-  vrFieldPanel.update({ xr: state.xr, interactive: panelInteractive, hovered: panelHover, time });
+  if (!leftSeen) controllerPointers.left.hide();
+  if (!rightSeen) controllerPointers.right.hide();
+  vrFieldPanel.update({ xr: state.xr, interactive: panelInteractive, hovered: panelHover, hoveredHands, time });
   renderer.render(scene, camera);
   if (panelInteractive && frame) {
     const viewerPose = frame.getViewerPose(renderer.xr.getReferenceSpace());
@@ -1170,6 +1218,7 @@ window.__okazaki = {
       : null,
     panelVisible: panel.visible && vrFieldPanel.getState().expanded,
     vrPanel: vrFieldPanel.getState(),
+    pointers: { left: controllerPointers.left.getState(), right: controllerPointers.right.getState() },
     version: "1.7.0",
     vrReturn: { buttonVisible: vrReturnButton.getState().visible,
       holdProgress: vrReturnButton.getState().progress, exiting: xrExitPending,
