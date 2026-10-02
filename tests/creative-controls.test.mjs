@@ -346,3 +346,21 @@ test("malformed touch axes never corrupt the finite player pose", () => {
   for (const touchAxes of [{left:[],right:[0,0]},{left:[NaN,0],right:[0,0]}, {left:[0],right:[] }]) f.control.step(.1,{enabled:true,touchAxes});
   assert.deepEqual(f.control.getState().eye,before); f.control.dispose();
 });
+
+test("stationary third-person camera reacts to loaded and removed obstacles without moving the player", () => {
+  let obstacles = [];
+  const wall = new THREE.Mesh(new THREE.BoxGeometry(10,10,.2), new THREE.MeshBasicMaterial());
+  wall.position.set(10,31.65,20.5);
+  const f = fixture({ cameraObstacles: () => obstacles }); f.enable(); f.control.cycleView();
+  f.control.step(0, { enabled: false });
+  const eye = f.control.getState().eye;
+  close(f.control.getState().cameraDistance, 5);
+  obstacles = [wall]; f.control.step(.1, { enabled: false });
+  assert.ok(f.control.getState().cameraDistance < .5);
+  assert.equal(f.avatar.getState().visible, false);
+  assert.deepEqual(f.control.getState().eye, eye);
+  obstacles = []; f.control.step(.1, { enabled: false });
+  close(f.control.getState().cameraDistance, 5);
+  assert.equal(f.avatar.getState().visible, true);
+  assert.deepEqual(f.control.getState().eye, eye); f.control.dispose();
+});

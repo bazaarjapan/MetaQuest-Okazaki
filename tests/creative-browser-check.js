@@ -80,6 +80,10 @@
   check(state().creative.pressedKeys.length === 0, "blur-neutralizes-input");
   mode.value = "drone"; mode.dispatchEvent(new Event("change", {bubbles:true})); await wait(100);
   check(state().creative.mode === "drone" && !state().avatar.visible && !state().free, "original-controls-restored-with-motion-off");
+  document.querySelector("#avatar-view").click(); await wait(100);
+  check(state().creative.mode === "creative" && mode.value === "creative" &&
+    document.querySelector("#canvas-hint").textContent.includes("WASD") &&
+    localStorage.getItem("okazaki-control-mode-v2") === "creative", "view-button-applies-mode-hint-and-preference");
   document.querySelector("#tab-observe").click();
   return JSON.stringify({passed:true,environment:"PC browser, not physical Quest",results,gestureTimings});
 })();

@@ -52,6 +52,7 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
   const forward = new THREE.Vector3(), side = new THREE.Vector3(), displacement = new THREE.Vector3();
   const cameraRay = new THREE.Raycaster();
   let cameraDistance = 0;
+  let cameraObstacleSnapshot = [];
   const keys = new Set();
   const lastMovementTap = new Map(), fastMovementKeys = new Set();
   let mode = "drone", viewMode = "first", yaw = 0, pitch = 0, roll = 0;
@@ -112,7 +113,7 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
     avatar?.update?.({ position: anchor.toArray(), yaw, pitch, moving,
       time: elapsed, visible: mode === "creative" && viewMode !== "first" && cameraDistance > 0.7 && !xr && !suspendedXR && !disposed });
   }
-  function renderView() {
+  function renderView(obstacles) {
     const eye = eyePosition(), rotation = headOrientation().clone();
     if (viewMode === "first") { cameraDistance = 0; setWorldView(eye, rotation); }
     else {
@@ -130,7 +131,8 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
       // mutate shared city material sides or move the player's signed pose.
       const segment = position.clone().sub(eye), length = segment.length();
       if (length > 0) {
-        const meshes = cameraObstacles() ?? [];
+        const meshes = obstacles ?? cameraObstacles() ?? [];
+        cameraObstacleSnapshot = [...meshes];
         for (const mesh of meshes) mesh.updateWorldMatrix(true, false);
         const direction = segment.clone().normalize();
         cameraRay.near = 0; cameraRay.far = length;
@@ -240,6 +242,12 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
     xr = Boolean(options.xr);
     if (!active()) {
       if (previousActive || keys.size || xr || blocked) clearInput({ release: true });
+      if (mode === "creative" && viewMode !== "first" && !xr && !suspendedXR) {
+        const meshes = cameraObstacles() ?? [];
+        // Streaming can change the view even while movement is OFF. Refresh
+        // on mesh changes without raycasting the same stationary scene each frame.
+        if (meshes.length !== cameraObstacleSnapshot.length || meshes.some((mesh, index) => mesh !== cameraObstacleSnapshot[index])) renderView(meshes);
+      }
       updateAvatar(); return;
     }
     const controls = getControls();

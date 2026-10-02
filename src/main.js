@@ -223,7 +223,8 @@ for (const id of ["avatar-view", "mobile-avatar-view"]) $(`#${id}`).onclick = ()
   if (!state.ready || state.xr || xrEntering || creative.getState().suspendedXR || document.querySelector("dialog[open]")) return;
   if (adaptiveUi.getState().mobile) { mobileAvatarControls = true; adaptiveUi.close(); }
   if (creative.getState().mode !== "creative") {
-    setFree(false); creative.setMode("creative"); $("#control-mode").value = "creative"; syncMovementHelp();
+    $("#control-mode").value = "creative";
+    $("#control-mode").dispatchEvent(new Event("change"));
   }
   creative.cycleView(); renderer.domElement.focus({ preventScroll: true }); syncAvatarViewButtons();
 };
@@ -1150,7 +1151,7 @@ renderer.setAnimationLoop((time, frame) => {
     else {
       const touch = touchControls.getState();
       creative.step(dt, { enabled: state.free, xr: false,
-        touchAxes: touch.enabled && (touch.activePointers > 0 || keys.size === 0) ? touchControls.getAxes() : null,
+        touchAxes: touch.enabled && touch.activePointers > 0 ? touchControls.getAxes() : null,
         blocked: Boolean(document.querySelector("dialog[open]")) || workshop.getState().picking ||
           (adaptiveUi.getState().mobile && adaptiveUi.getState().open) });
       if (creative.getState().mode === "drone") { desktopMove(dt); controls.update(); }
