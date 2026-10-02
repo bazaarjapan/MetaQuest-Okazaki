@@ -65,14 +65,21 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {} }) {
   const closeButton = actionButton("閉じる", () => dialog.close(), "school-close"); heading.append(title, closeButton);
   const description = element("p", "街・VRの閲覧はログイン不要です。作品の配置・共同活動にはGoogleログインと教室への参加が必要です。", "school-note");
   const status = element("p", "接続確認中…", "school-status"); status.id = "school-status"; status.setAttribute("role", "status"); status.setAttribute("aria-live", "polite");
+  const movementStatus = element("p", "", "school-note"); movementStatus.id = "school-movement-status"; movementStatus.hidden = true;
+  movementStatus.setAttribute("role", "status"); movementStatus.setAttribute("aria-live", "polite");
   const content = element("div", undefined, "school-content");
   const privacy = element("a", "ログイン・作品保存について（プライバシー）"); privacy.href = "/privacy.html";
-  dialog.append(heading, description, status, content, privacy); document.body.append(dialog);
+  dialog.append(heading, description, status, movementStatus, content, privacy); document.body.append(dialog);
   const summary = document.querySelector("#school-summary");
   let state = client.getState(), renderKey = "", busy = false, googleGeneration = 0;
   let googleHost = null, participantLabel = null, roomConnection = null;
   const inviteCode = parseSchoolInvite(globalThis.location?.href ?? "");
-  function setStatus(text, error = false) { status.textContent = text; status.classList.toggle("is-error", error); }
+  function setStatus(text, error = false) { if (status.textContent !== text) status.textContent = text; status.classList.toggle("is-error", error); }
+  function updateMovementStatus() {
+    const text = state.movementWarning === "pose_rate_limit" ? "移動の共有を一時的に制限しています。少し待って移動してください。" : "";
+    if (movementStatus.textContent !== text) movementStatus.textContent = text;
+    movementStatus.hidden = !text;
+  }
   async function perform(task, message) {
     if (busy) return;
     busy = true; refreshDisabled(); setStatus("処理中…");
@@ -204,6 +211,7 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {} }) {
   }
   function render(next, event) {
     state = next;
+    updateMovementStatus();
     // High-frequency single-player pose updates only affect the 3D scene. They
     // must not rebuild the login form or announce every movement to screenreaders.
     if (event === "pose") return;

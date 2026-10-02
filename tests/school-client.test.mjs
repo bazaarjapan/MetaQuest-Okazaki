@@ -350,3 +350,53 @@ test("pose subscribers share one readonly snapshot without recopying immutable w
   assert.deepEqual(first[0].participants[0].position, [1, 2, 3]);
   assert.deepEqual(first[1].participants[0].position, [4, 5, 6]); h.client.destroy();
 });
+
+test("pose throttling is coalesced movement status and clears only on own accepted pose", async () => {
+  const h = harness(); await h.join(); const socket = h.sockets.at(-1), events = [];
+  h.client.subscribe((state, event) => events.push(event));
+  socket.message({ type: "error", error: "pose_rate_limit" });
+  assert.equal(h.client.getState().error, null);
+  assert.equal(h.client.getState().movementWarning, "pose_rate_limit");
+  socket.message({ type: "error", error: "pose_rate_limit" });
+  assert.equal(events.filter(event => event === "movement").length, 1);
+  socket.message({ type: "pose", participant: { id: OTHER, position: [0,40,0] } });
+  assert.equal(h.client.getState().movementWarning, "pose_rate_limit");
+  socket.message({ type: "error", error: "object_owner_required", requestId: "unknown" });
+  socket.message({ type: "pose", participant: { id: USER.id, position: [1,40,0] } });
+  const recovery = [...h.timers.entries()].find(([, timer]) => timer.delay === 1000);
+  assert.ok(recovery); h.timers.delete(recovery[0]); recovery[1].fn();
+  assert.equal(h.client.getState().movementWarning, null);
+  assert.equal(h.client.getState().error, "object_owner_required");
+  socket.message({ type: "error", error: "pose_rate_limit" });
+  socket.close(1000);
+  assert.equal(h.client.getState().movementWarning, null);
+  assert.equal(h.client.getState().error, "connection_closed"); h.client.destroy();
+});
+
+test("alternating accepted and limited movement stays one warning until a quiet recovery", async () => {
+  const h = harness(); await h.join(); const socket = h.sockets.at(-1), events = [];
+  h.client.subscribe((state, event) => { if (event === "movement") events.push(state.movementWarning); });
+  for (let i = 0; i < 10; i++) {
+    socket.message({ type: "error", error: "pose_rate_limit" });
+    socket.message({ type: "pose", participant: { id: USER.id, position: [i,40,0] } });
+  }
+  assert.deepEqual(events, ["pose_rate_limit"]);
+  assert.equal([...h.timers.values()].filter(timer => timer.delay === 1000).length, 1);
+  const recovery = [...h.timers.entries()].find(([, timer]) => timer.delay === 1000);
+  h.timers.delete(recovery[0]); recovery[1].fn();
+  assert.deepEqual(events, ["pose_rate_limit", null]);
+  socket.message({ type: "error", error: "pose_rate_limit" });
+  socket.message({ type: "pose", participant: { id: USER.id, position: [10,40,0] } });
+  h.client.leaveWorld(); assert.equal(h.client.getState().movementWarning, null);
+  assert.equal([...h.timers.values()].filter(timer => timer.delay === 1000).length, 0); h.client.destroy();
+});
+
+test("request-correlated failures never become movement-only warnings", async () => {
+  const h = harness(); await h.join(); const socket = h.sockets.at(-1);
+  const edit = h.client.editObject("object.delete", { id: OTHER }); await tick();
+  const requestId = socket.sent.at(-1).requestId;
+  socket.message({ type: "error", error: "pose_rate_limit", requestId });
+  await assert.rejects(edit, /pose_rate_limit/);
+  assert.equal(h.client.getState().error, "pose_rate_limit");
+  assert.equal(h.client.getState().movementWarning, null); h.client.destroy();
+});

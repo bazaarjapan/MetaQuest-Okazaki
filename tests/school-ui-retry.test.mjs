@@ -10,6 +10,8 @@ const source = (await readFile(new URL("../src/school-ui.js", import.meta.url), 
 const tick = async () => { await new Promise(resolve => setImmediate(resolve)); };
 function harness(initial, retry) {
   class Node {
+    set textContent(value) { this.textWrites = (this.textWrites ?? 0) + 1; this.textValue = value; }
+    get textContent() { return this.textValue; }
     constructor(tag) { this.tagName = tag; this.children = []; this.dataset = {}; this.listeners = new Map();
       this.classList = { toggle() {} }; this.disabled = false; this.open = false; this.isConnected = true; }
     append(...nodes) { this.children.push(...nodes); }
@@ -37,6 +39,7 @@ function harness(initial, retry) {
     getState: () => structuredClone(state),
     subscribe(callback) { listener = callback; callback(state, "state"); return () => {}; },
     async init(options) { calls.push(options); state = await retry(); listener(state, "auth"); return structuredClone(state); },
+    async saveWorld() { throw Error("request_timeout"); },
   };
   const context = vm.createContext({ document, URL, location: { href: "https://example.test/", origin: "https://example.test" },
     parseSchoolInvite: () => null, schoolInviteURL: () => "https://example.test/#join=ABCDEFGHIJKL",
@@ -44,7 +47,7 @@ function harness(initial, retry) {
   vm.runInContext(`${source}\nthis.createTestUI = createSchoolUI;`, context);
   const ui = context.createTestUI({ client, button });
   const find = id => document.querySelector(`#${id}`);
-  return { ui, find, calls, get gisLoads() { return gisLoads; } };
+  return { ui, find, calls, emit(next, event) { state = next; listener(state, event); }, get gisLoads() { return gisLoads; } };
 }
 const guest = { configured: false, user: null, world: null, worlds: [], snapshots: [], participants: [], objects: [],
   connection: "guest", error: "school_unavailable" };
@@ -75,4 +78,37 @@ test("a pending retry disables duplicate actions then restores them, with no aut
   resolveReply({ ...guest, configured: true, error: null }); await tick(); await tick();
   assert.equal(h.calls.length, 1); assert.equal(h.find("school-retry").disabled, false);
   assert.equal(h.gisLoads, 0); h.ui.destroy();
+});
+
+test("movement warning recovers on pose without repeated announcements or overwriting a real failure", () => {
+  const initial = { ...guest, configured: true, error: null, movementWarning: null };
+  const h = harness(initial, async () => initial);
+  const warning = { ...initial, movementWarning: "pose_rate_limit" };
+  h.emit(warning, "movement");
+  const notice = h.find("school-movement-status");
+  assert.match(notice.textContent, /移動.*一時/); assert.equal(notice.role, "status");
+  const writes = notice.textWrites;
+  for (let i = 0; i < 20; i++) h.emit(warning, "movement");
+  assert.equal(notice.textWrites, writes);
+  const failed = { ...warning, error: "object_owner_required" };
+  h.emit(failed, "error"); const status = h.find("school-status"), statusWrites = status.textWrites;
+  h.emit({ ...failed, movementWarning: null }, "pose");
+  assert.equal(notice.textContent, ""); assert.equal(notice.hidden, true);
+  assert.match(status.textContent, /操作を完了できません/);
+  h.emit({ ...failed, movementWarning: null }, "objects");
+  assert.equal(status.textWrites, statusWrites); h.ui.destroy();
+});
+
+test("a checkpoint failure remains explicit through movement warning and recovery", async () => {
+  const initial = { ...guest, configured: true, error: null, movementWarning: null,
+    user: { id: "teacher", role: "teacher", name: "先生", color: "#4a90e2" },
+    world: { id: "room", name: "教室", joinCode: "ABCDEFGHIJKL" }, connection: "connected" };
+  const h = harness(initial, async () => initial);
+  h.find("school-world-save").click(); await tick();
+  const status = h.find("school-status");
+  assert.match(status.textContent, /応答を確認できません.*保存状態/);
+  const text = status.textContent;
+  h.emit({ ...initial, movementWarning: "pose_rate_limit" }, "movement");
+  h.emit(initial, "pose");
+  assert.equal(status.textContent, text); h.ui.destroy();
 });

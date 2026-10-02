@@ -13,6 +13,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { build } from "esbuild";
 import { Log, LogLevel, Miniflare, convertV4MiniflareOptions } from "miniflare";
 import WebSocket from "ws";
+import { createSchoolClient } from "../src/school-client.js";
 import { CORE_SOURCE_HASHES, loadCorePlacement } from "../worker/placement-source.mjs";
 import { LIMITS } from "../worker/school-common.mjs";
 import { normalizeSTLPositions, parseSTL } from "../src/stl-model.js";
@@ -350,6 +351,49 @@ try {
     await expectError(`/api/worlds/${other.id}/state`, students[0], null, 403, "world_membership_required");
     assert.equal((await expectJson(`/api/worlds/${world.id}/state`, teacher, null)).participants.length, 31);
     isolated.probe.close();
+  });
+  await check("pose limit recovers while edits and checkpoint continue in the actual client", async () => {
+    const room = (await expectJson("/api/worlds", teacher, { name: "Pose warning fixture" }, 201)).world;
+    let live;
+    class ClientSocket extends WebSocket {
+      constructor(address) {
+        const url = new URL(address); url.host = new URL(runtimeUrl).host;
+        super(url, { headers: { Origin: origin, Host: new URL(origin).host, Cookie: teacher.cookie } });
+        live = this;
+      }
+    }
+    let clock = Date.now();
+    const client = createSchoolClient({ origin, WebSocketImpl: ClientSocket, now: () => clock,
+      fetchImpl: (address, options) => mf.dispatchFetch(address, { ...options,
+        headers: { ...options.headers, Origin: origin, Cookie: teacher.cookie } }) });
+    const waitFor = async (predicate) => {
+      const until = performance.now() + 15000;
+      while (!predicate(client.getState())) { assert.ok(performance.now() < until, "client state timed out"); await delay(10); }
+    };
+    try {
+      await client.init(); await client.openWorld(room.id); await waitFor(s => s.connection === "connected");
+      const packets = []; live.on("message", bytes => packets.push(JSON.parse(bytes.toString())));
+      const uploaded = await client.uploadAsset({ buffer: bytes, name: "pose-fixture.stl", upAxis: "y", units: "m" });
+      await client.editObject("object.create", { assetId: uploaded.id, position: empty.position, rotation: [.3,.5,.2], scale: [.5,.5,.5] });
+      // Deliberately bypass 8Hz client pacing to reproduce transport bunching.
+      // Two client-generated packets retain their real sequence/epoch fields.
+      client.sendPose({ position: [1,40,0], yaw: 0 }); clock += 125; client.sendPose({ position: [2,40,0], yaw: 0 });
+      await waitFor(() => packets.some(p => p.error === "pose_rate_limit"));
+      assert.equal(client.getState().error, null, "movement limit must not be an operation failure");
+      assert.equal(client.getState().movementWarning, "pose_rate_limit");
+      await delay(300); clock += 1000;
+      const owned = client.getState().objects[0];
+      await client.editObject("object.update", { id: owned.id, position: owned.position, rotation: [0,.6,0], scale: [.5,.5,.5] });
+      const checkpoint = await client.saveWorld(); assert.equal(checkpoint.revision, 2);
+      await delay(150); clock += 125; client.sendPose({ position: [3,40,0], yaw: 0 });
+      await waitFor(s => s.participants.some(p => p.id === teacher.id && p.position[0] === 3));
+      await waitFor(s => s.movementWarning === null);
+      assert.equal(client.getState().movementWarning, null); assert.equal(client.getState().error, null);
+      await delay(300); clock += 1000;
+      await assert.rejects(client.editObject("object.delete", { id: randomUUID() }), /object_not_found/);
+      assert.equal(client.getState().error, "object_not_found");
+      return { realPoseLimit: true, continuedEditAndCheckpoint: true, ownPoseRecovery: true };
+    } finally { client.destroy(); }
   });
   await check("expired real D1 session closes live socket and rejects private API", async () => {
     const victim = students.at(-1), probe = classroom.at(-1).probe;

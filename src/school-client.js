@@ -40,7 +40,7 @@ export function createSchoolClient(options = {}) {
   const clearTimer = options.clearTimeoutImpl ?? globalThis.clearTimeout;
   const setEvery = options.setIntervalImpl ?? globalThis.setInterval;
   const clearEvery = options.clearIntervalImpl ?? globalThis.clearInterval;
-  const state = { configured: false, user: null, world: null, worlds: [], assets: [], objects: [], participants: [], snapshots: [], revision: 0, restoreCommit: null, snapshotSeq: 0, connection: "guest", error: null };
+  const state = { configured: false, user: null, world: null, worlds: [], assets: [], objects: [], participants: [], snapshots: [], revision: 0, restoreCommit: null, snapshotSeq: 0, connection: "guest", error: null, movementWarning: null };
   const listeners = new Set(), pending = new Map();
   const readonlySnapshot = readonlySnapshotFactory();
   let csrf = null, nonce = null, clientId = null, authEpoch = 0, roomEpoch = 0;
@@ -48,6 +48,11 @@ export function createSchoolClient(options = {}) {
   let poseSeq = 0, lastPoseAt = -Infinity, lastEditAt = -Infinity, lastFullStateRevision = -1, initialized = null, sessionRefresh = null;
   let editTail = Promise.resolve();
   let metadataRefresh = null;
+  let movementRecoveryTimer = null;
+  function cancelMovementRecovery() {
+    if (movementRecoveryTimer !== null) clearTimer(movementRecoveryTimer);
+    movementRecoveryTimer = null;
+  }
   const getState = () => clone(state);
   function emit(event = "state") {
     // Share one immutable snapshot with all subscribers. Unchanged world/assets/
@@ -57,6 +62,7 @@ export function createSchoolClient(options = {}) {
     for (const listener of listeners) { try { listener(snapshot, event); } catch { /* One view must not disable the others. */ } }
   }
   function clearRoom(code = "room_changed", keepWorld = false) {
+    cancelMovementRecovery();
     roomEpoch++;
     if (heartbeat !== null) clearEvery(heartbeat);
     if (reconnectTimer !== null) clearTimer(reconnectTimer);
@@ -68,7 +74,7 @@ export function createSchoolClient(options = {}) {
     pending.clear(); retry = 0; poseSeq = 0; lastPoseAt = lastEditAt = -Infinity; lastFullStateRevision = -1; metadataRefresh = null;
     editTail = Promise.resolve();
     if (!keepWorld) { state.world = null; state.assets = []; state.objects = []; state.snapshots = []; state.revision = 0; }
-    state.restoreCommit = null; state.participants = []; state.connection = state.user ? "idle" : "guest";
+    state.restoreCommit = null; state.participants = []; state.movementWarning = null; state.connection = state.user ? "idle" : "guest";
   }
   function clearIdentity(code = "login_required") {
     authEpoch++; clearRoom(code ?? "signed_out"); csrf = nonce = null;
@@ -237,7 +243,8 @@ export function createSchoolClient(options = {}) {
         if (value.restoreCommit !== null && !(typeof value.restoreCommit === "string" && idPattern.test(value.restoreCommit))) {
           live.close(1011, "invalid pose epoch"); return;
         }
-        applySnapshot(value); state.connection = "connected"; state.error = null; retry = 0;
+        cancelMovementRecovery();
+        applySnapshot(value); state.connection = "connected"; state.error = null; state.movementWarning = null; retry = 0;
         // HTTP metadata/object reads can overtake a restore broadcast. Preserve
         // their newer object revision, but still adopt this ordered live camera
         // snapshot. Compare full WS states with each other, not with HTTP reads.
@@ -251,6 +258,16 @@ export function createSchoolClient(options = {}) {
         emit("room");
       } else if (value.type === "participants" && Array.isArray(value.participants)) { state.participants = clone(value.participants); emit("participants"); }
       else if (value.type === "pose" && value.participant?.id) {
+        // Only our server-accepted movement proves recovery. Peer movement and
+        // edit ACKs cannot confirm that this participant is no longer limited.
+        if (value.participant.id === state.user?.id && state.movementWarning && movementRecoveryTimer === null) {
+          // A short quiet period keeps alternating accepted/rejected bursts
+          // from flashing and repeatedly announcing the same warning.
+          movementRecoveryTimer = setTimer(() => {
+            movementRecoveryTimer = null;
+            if (current()) { state.movementWarning = null; emit("movement"); }
+          }, 1000);
+        }
         const index = state.participants.findIndex((item) => item.id === value.participant.id);
         const participants = [...state.participants];
         if (index >= 0) participants[index] = clone(value.participant);
@@ -285,6 +302,15 @@ export function createSchoolClient(options = {}) {
         // rejected. Do not turn that safe rejection into an auth/edit failure;
         // the authoritative full WS snapshot owns the next movement epoch.
         if (value.error === "stale_pose_epoch") return;
+        // Pose has no request ID or mutation ACK. Keep correlated errors on the
+        // existing failure path, even if their code happens to match this one.
+        if (value.error === "pose_rate_limit" && !Object.hasOwn(value, "requestId")) {
+          cancelMovementRecovery();
+          if (state.movementWarning !== "pose_rate_limit") {
+            state.movementWarning = "pose_rate_limit"; emit("movement");
+          }
+          return;
+        }
         const error = new SchoolClientError(value.error ?? "room_error"); state.error = error.code;
         const item = pending.get(value.requestId);
         if (item) { pending.delete(value.requestId); clearTimer(item.timer); item.reject(error); }
@@ -300,7 +326,7 @@ export function createSchoolClient(options = {}) {
       if (heartbeat !== null) clearEvery(heartbeat); heartbeat = null;
       if (openingTimer !== null) clearTimer(openingTimer); openingTimer = null;
       for (const item of pending.values()) { clearTimer(item.timer); item.reject(new SchoolClientError("connection_lost")); } pending.clear();
-      state.participants = [];
+      cancelMovementRecovery(); state.participants = []; state.movementWarning = null;
       if (code === 1000) { state.connection = "offline"; state.error = reason === "connected in another tab" ? "connected_elsewhere" : "connection_closed"; emit("connection"); return; }
       if (code === 1008) {
         state.connection = "offline"; state.error = "session_or_membership_expired"; emit("connection");
