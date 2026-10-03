@@ -4,7 +4,7 @@ export function avatarNickname(value) {
   const clean = value.slice(0, 512).replace(/[\p{Cc}\p{Bidi_Control}<>\u200b\u2060-\u206f\ufeff]/gu, "").trim();
   // Ignore invisible formatting for privacy checks, but keep valid emoji ZWJ
   // sequences in the displayed text. Formatting/combining marks alone are empty.
-  const privacyText = clean.replace(/\p{Cf}/gu, "").normalize("NFKC");
+  const privacyText = clean.replace(/[\p{Cf}\p{Default_Ignorable_Code_Point}]/gu, "").normalize("NFKC");
   if (!/[^\p{C}\p{M}\p{Z}]/u.test(privacyText) || privacyText.includes("@") || /^生徒-[a-f0-9]{4}$/iu.test(privacyText) ||
     /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/iu.test(privacyText)) return "参加者";
   return [...segments.segment(clean)].slice(0, 20).map((part) => part.segment).join("") || "参加者";

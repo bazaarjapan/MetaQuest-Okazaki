@@ -12,6 +12,13 @@ test("shared nicknames keep Japanese and whole emoji while rejecting email and i
   assert.equal(avatarNickname("<script>\n名前\u202e"), "script名前");
 });
 
+test("invisible variation selectors cannot disguise IDs while valid emoji retain their selectors", () => {
+  for (const value of ["生徒-ab\uFE0F12", "12345678-abcd-1234-abcd-123456789ab\uFE0Fc", "生徒-ab\u034f12"]) {
+    assert.equal(avatarNickname(value), "参加者");
+  }
+  assert.equal(avatarNickname("花🌸\uFE0F 👩‍🚀"), "花🌸\uFE0F 👩‍🚀");
+});
+
 test("billboard is reused, width truncates whole graphemes without squeezing, and resources dispose once", () => {
   const writes = [], context = { measureText: (text) => ({ width: [...text].length * 28 }),
     clearRect() {}, fillRect() {}, fillText: (...args) => writes.push(args) };
