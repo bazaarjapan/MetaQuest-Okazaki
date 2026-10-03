@@ -7,13 +7,13 @@ import { createSchoolPresence, eyeToFeet, interpolateYaw, remoteParticipants,
 function participant(id, extra = {}) {
   return { id, name: `生徒-${id}`, color: "#2ecc71", role: "student", position: [1, 21.65, 3], yaw: 0, ...extra };
 }
-function fixture() {
+function fixture(documentTarget = null) {
   let state = { user: { id: "own", role: "student" }, world: { id: "class-1" },
     connection: "connected", participants: [participant("own"), participant("other")] };
   const listeners = new Set();
   const client = { getState: () => state, subscribe: (fn) => { listeners.add(fn); return () => listeners.delete(fn); } };
   const scene = new THREE.Scene();
-  const presence = createSchoolPresence(THREE, { scene, client, documentTarget: null });
+  const presence = createSchoolPresence(THREE, { scene, client, documentTarget });
   return { presence, scene, client, listeners, state: () => state,
     set(value) { state = { ...state, ...value }; for (const listener of listeners) listener(state); } };
 }
@@ -84,4 +84,25 @@ test("avatar nickname and approved color updates are bounded; snapshot cannot mu
   const view = f.presence.getState(); assert.equal(view.actors[0].name, "myNickname");
   assert.equal(view.actors[0].color, "#e67e22"); view.actors[0].position[0] = 999;
   assert.equal(f.presence.getState().actors[0].position[0], 1); f.presence.dispose();
+});
+
+
+test("shared room nickname updates reuse one label and leaving releases its resources", () => {
+  let paints = 0;
+  const context = { measureText: () => ({ width: 80 }), clearRect() {}, fillRect() {}, fillText() { paints++; } };
+  const f = fixture({ createElement: () => ({ getContext: () => context }) });
+  const actor = f.presence.group.children[0];
+  const label = actor.children.find((child) => child.isSprite);
+  let textures = 0, materials = 0;
+  label.material.map.addEventListener("dispose", () => textures++);
+  label.material.addEventListener("dispose", () => materials++);
+  f.set({ participants: [participant("other", { name: "新しい名前🌸" })] });
+  f.set({ participants: [participant("other", { name: "新しい名前🌸" })] });
+  assert.equal(actor.children.filter((child) => child.isSprite).length, 1);
+  assert.equal(paints, 2); assert.equal(f.presence.getState().actors[0].label.name, "新しい名前🌸");
+  f.set({ connection: "reconnecting" });
+  assert.equal(textures, 1); assert.equal(materials, 1); assert.equal(actor.parent, null);
+  f.set({ connection: "connected", participants: [participant("other", { name: "復帰した名前" })] });
+  assert.equal(f.presence.getState().actors[0].label.name, "復帰した名前");
+  assert.equal(f.presence.getState().actors[0].label.count, 1); f.presence.dispose();
 });

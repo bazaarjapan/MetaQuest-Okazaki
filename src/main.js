@@ -1,3 +1,4 @@
+import { createAvatarLabel } from "./avatar-label.js";
 import * as THREE from "three";
 import "./xr-dev.js";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
@@ -181,6 +182,7 @@ const workshop = createWorkshop(THREE, { scene, domElement: renderer.domElement,
   onRequireLogin: () => schoolUI?.open(),
   onChange: () => { renderer.shadowMap.needsUpdate = true; } });
 const ownAvatar = createBlockAvatar(THREE);
+const ownAvatarLabel = createAvatarLabel(THREE, { parent: ownAvatar.group });
 let ownIdentity = null, ownColor = null;
 scene.add(ownAvatar.group);
 renderer.domElement.tabIndex = 0;
@@ -272,6 +274,7 @@ schoolClient.subscribe((next, event) => {
     ownIdentity = next.user?.id ?? null; ownAvatar.setIdentity(ownIdentity); setFree(false);
   }
   if (next.user?.color && ownColor !== next.user.color) { ownColor = next.user.color; ownAvatar.setColor(ownColor); }
+  ownAvatarLabel.setName(next.user?.name);
   if (!next.user) { ownColor = null; ownAvatar.group.visible = false; }
   if (!next.world || next.connection !== "connected") { vrWorkshop.cancelPicking(); restoredWorld = null; }
   adoptSchoolPose();
@@ -1238,7 +1241,7 @@ window.__okazaki = {
     vrWorkshop: vrWorkshop.getState(),
     workshop: workshop.getState(),
     creative: creative.getState(),
-    avatar: ownAvatar.getState(),
+    avatar: { ...ownAvatar.getState(), label: ownAvatarLabel.getState() },
     camera: camera.position.toArray(),
     cameraQuaternion: camera.quaternion.toArray(),
     rig: rig.position.toArray(),
