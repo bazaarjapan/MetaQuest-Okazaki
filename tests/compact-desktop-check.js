@@ -5,6 +5,11 @@
   const visible = el => Boolean(el && el.getBoundingClientRect().width && getComputedStyle(el).visibility !== 'hidden');
   const inside = el => { const r=el.getBoundingClientRect(); return r.left>=0 && r.top>=0 && r.right<=innerWidth+1 && r.bottom<=innerHeight+1; };
   assert(s().ready && !s().ui.mobile && s().version==='1.8.0','compact-desktop-ready');
+  assert(!s().ui.open && !visible(document.querySelector('#control-panel')),'right-menu-initially-closed');
+  assert(document.querySelectorAll('#stl-hotbar button').length===10 && inside(document.querySelector('#stl-hotbar')),
+    'ten-hotbar-slots-inside-screen');
+  document.querySelector('#simple-menu').click();
+  assert(s().ui.open && visible(document.querySelector('#control-panel')),'menu-button-opens-right-panel');
   assert(document.documentElement.scrollHeight<=innerHeight+1 && document.documentElement.scrollWidth<=innerWidth+1,
     'entire-workspace-fits-one-window',{width:innerWidth,height:innerHeight,scrollHeight:document.documentElement.scrollHeight});
   assert(['#viewport','#control-panel','#home','#fullscreen','#free-move','#enter-vr','.control-tabs'].every(id=>inside(document.querySelector(id))),

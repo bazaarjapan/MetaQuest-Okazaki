@@ -29,14 +29,13 @@
     assert(state().parts === 5 && state().triangles === 58845 && !state().error,
       "quality-cycle-preserves-original-geometry", { parts: state().parts, triangles: state().triangles });
   }
-  const viewport = document.querySelector("#viewport").getBoundingClientRect();
-  const rects = ["left", "right"].map((hand) => document.querySelector(".controller-hud-" + hand).getBoundingClientRect());
-  assert(rects.every((rect) => rect.left >= viewport.left && rect.right <= viewport.right &&
-    rect.top > viewport.top && rect.bottom < viewport.bottom) && rects[0].right < rects[1].left,
-  "desktop-hud-contained-at-separate-lower-corners");
+  assert(["left", "right"].every(hand => getComputedStyle(document.querySelector(".controller-hud-"+hand)).display === "none"),
+    "desktop-controller-diagrams-hidden-for-simple-hotbar-layout");
+  assert(document.querySelectorAll("#stl-hotbar button").length === 10 && getComputedStyle(document.querySelector("#stl-hotbar")).display !== "none",
+    "desktop-has-ten-visible-STL-slots");
   assert(["left", "right"].every((hand) => {
     const h = state().hud.hands[hand];
-    return h.previewVisible && !h.spatialVisible && !h.connected && !h.active;
+    return !h.spatialVisible && !h.connected && !h.active;
   }), "desktop-preview-does-not-claim-live-quest-input");
   document.querySelector("#help").click();
   const guide = document.querySelector("#help-dialog").getBoundingClientRect();

@@ -69,7 +69,11 @@
   await point("commit", () => state().workshop.committed === 1);
   const committedId = state().school.objects[0].id;
   check(state().school.objects.length === 1 && state().workshop.current.committed, "VR-placement-server-ACK");
-  await point("asset-next", () => !state().workshop.current.committed);
+  if (state().school.singleClassroom) {
+    await point("cancel", () => !state().workshop.current);
+    await point("asset-next", () => state().workshop.current?.id === committedId && state().workshop.current.committed);
+    check(state().workshop.count === 1, "shared-slot-reselects-existing-placement-without-duplicate");
+  } else await point("asset-next", () => !state().workshop.current.committed);
   check(state().workshop.ownAssets.length === 1, "reuse-existing-R2-asset-no-upload");
   await point("cancel", () => !state().workshop.current);
   check(state().workshop.committed === 1, "cancel-removes-only-draft");
