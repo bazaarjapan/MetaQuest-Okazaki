@@ -12,6 +12,8 @@ function explainError(error) {
   if (/login|session|unauth/.test(message)) return "ログインし直してください。";
   if (/stale_revision|conflict/.test(message)) return "他の人の変更と競合しました。最新のワールドで位置を確認し、もう一度確定してください。";
   if (/owner/.test(message)) return "変更できるのは自分の作品だけです。";
+  if (/asset_already_placed/.test(message)) return "このSTLは設置済みです。右長押しで回収してから置き直してください。";
+  if (/own_object_limit/.test(message)) return "同時に置ける自分の作品は10点までです。先に回収してください。";
   if (/overlap/.test(message)) return "元の建物や他の作品に重なっています。別の場所を選んでください。";
   if (/asset_limit|quota/.test(message)) return "自分のSTLはワールドごとに10個・合計25MiBまでです。";
   if (/world_triangle_limit/.test(message)) return "ワールド全体の作品は20万三角形までです。";
@@ -196,7 +198,7 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
   function syncObjects() {
     if (!access().canEdit) return;
     const entries = state.objects ?? [], assets = new Map((state.assets ?? []).filter(validAsset).map((asset) => [asset.id, asset]));
-    if (entries.length > 120 || entries.reduce((sum, object) => sum + (object.triangles ?? MAX_WORLD_TRIANGLES + 1), 0) > MAX_WORLD_TRIANGLES) {
+    if (entries.length > 340 || entries.reduce((sum, object) => sum + (object.triangles ?? MAX_WORLD_TRIANGLES + 1), 0) > MAX_WORLD_TRIANGLES) {
       setMessage("ワールドの作品数・形状が表示上限を超えています。再接続してください。"); return;
     }
     const ids = new Set(entries.map((object) => object.id));
@@ -415,7 +417,7 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
   q("workshop-close").onclick = () => dialog.close(); document.querySelector("#open-workshop").onclick = open;
   const unsubscribe = schoolClient?.subscribe(onState) ?? (() => {});
   onState(schoolClient?.getState() ?? {}); renderList();
-  return { group, open, importFiles, selectObject, cycleOwnAsset, moveSelected, adjustSelected,
+  return { group, open, importFiles, useAsset, selectObject, cycleOwnAsset, moveSelected, adjustSelected,
     commitSelected, removeSelected, cancelDraft, retryAssets,
     getState: () => {
       const objects = [...remote.values()].map((item) => draft?.id === item.id ? publicObject(draft) : publicObject(item));

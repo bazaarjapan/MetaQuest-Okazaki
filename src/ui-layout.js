@@ -8,11 +8,14 @@ export function nextPanel(id, offset) {
 export function createAdaptiveUi() {
   const media = matchMedia('(max-width: 800px), (max-width: 1000px) and (max-height: 500px)');
   const aside = document.querySelector('#control-panel');
+  const actions = document.createElement('div'); actions.className = 'simple-detail-actions';
+  for (const id of ['home', 'open-workshop', 'fullscreen']) actions.append(document.getElementById(id));
+  document.querySelector('#panel-observe').append(actions);
   let active = 'observe', open = false, returnFocus = null;
   function render() {
-    document.body.dataset.panelOpen = String(media.matches && open);
-    aside.inert = media.matches && !open;
-    aside.setAttribute('aria-hidden', String(media.matches && !open));
+    document.body.dataset.panelOpen = String(open);
+    aside.inert = !open;
+    aside.setAttribute('aria-hidden', String(!open));
     // Keep the compact mobile sheet for its selected task. VR setup belongs
     // with settings there; desktop keeps the always-visible action footer.
     const vrParent = document.querySelector(media.matches ? '#panel-settings' : '.panel-footer');
@@ -63,7 +66,9 @@ export function createAdaptiveUi() {
   document.querySelector('#panel-close').addEventListener('click', close);
   document.querySelector('#quality-shortcut').addEventListener('click', () => show('settings'));
   document.addEventListener('keydown', event => {
-    if (event.key === 'Escape' && !document.querySelector('#help-dialog').open) close();
+    if (event.key === 'Escape' && !document.querySelector('dialog[open]')) {
+      if (open) close(); else show(active);
+    }
   });
   document.querySelector('#viewport').addEventListener('pointerdown', close);
   media.addEventListener('change', () => {
@@ -74,5 +79,5 @@ export function createAdaptiveUi() {
     open = false; render();
   });
   render();
-  return { show, close, getState: () => ({ mobile: media.matches, active, open: media.matches && open }) };
+  return { show, close, getState: () => ({ mobile: media.matches, active, open }) };
 }

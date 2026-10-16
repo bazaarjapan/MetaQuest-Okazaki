@@ -110,6 +110,7 @@ export function createSchoolClient(options = {}) {
     const result = await request("/api/worlds");
     if (epoch !== authEpoch) return;
     state.worlds = Array.isArray(result.worlds) ? result.worlds : []; emit("worlds");
+    if (state.singleClassroom && state.user && !state.user.namePending && !state.world) await enterClassroom();
   }
   function refreshSession() {
     const epoch = authEpoch;
@@ -145,6 +146,7 @@ export function createSchoolClient(options = {}) {
         const result = await request("/api/config");
         if (epoch !== authEpoch) return getState();
         state.configured = result.configured === true;
+        state.singleClassroom = result.singleClassroom === true;
         clientId = typeof result.googleClientId === "string" ? result.googleClientId : null;
         if (state.configured && clientId) {
           await refreshSession();
@@ -192,6 +194,28 @@ export function createSchoolClient(options = {}) {
     try { await request("/api/auth/logout", { method: "POST", body: {} }); }
     finally { clearIdentity(null); }
     try { await refreshSession(); } catch { /* No local edit session survives sign-out. */ }
+  }
+  async function loginStudent(loginId, password) {
+    await init(); await refreshSession();
+    if (state.user) throw new SchoolClientError("already_logged_in");
+    const epoch = authEpoch;
+    const result = await request("/api/auth/student", { method: "POST", body: { loginId, password, csrf } });
+    if (epoch !== authEpoch) throw new SchoolClientError("login_cancelled");
+    authEpoch++; clearRoom(); csrf = result.csrf; nonce = null; state.user = result.user; state.error = null; state.connection = "idle";
+    emit("auth"); await loadWorlds(); return getState();
+  }
+  async function enterClassroom() {
+    assertUser(); const epoch = authEpoch;
+    const result = await request("/api/classroom/enter", { method: "POST", body: {} });
+    if (epoch !== authEpoch) throw new SchoolClientError("login_cancelled");
+    return openWorld(result.world.id);
+  }
+  async function students(action = "list", value = {}) {
+    assertUser(); const epoch = authEpoch;
+    const result = await request(`/api/classroom/students${action === "reset" ? "/reset" : ""}`,
+      action === "list" ? {} : { method: "POST", body: value });
+    if (epoch !== authEpoch) throw new SchoolClientError("login_cancelled");
+    return result;
   }
   function applySnapshot(value) {
     if (!value.world || value.world.id !== state.world?.id || !Number.isSafeInteger(value.revision)) return;
@@ -361,7 +385,9 @@ export function createSchoolClient(options = {}) {
   async function updateAvatar(avatar) {
     assertUser(); const epoch = authEpoch, result = await request("/api/avatar", { method: "PATCH", body: { name: avatar.name, color: avatar.color } });
     if (epoch !== authEpoch) throw new SchoolClientError("login_cancelled");
-    state.user = result.user; emit("auth"); return clone(result.user);
+    state.user = result.user; emit("auth");
+    if (state.singleClassroom && !state.world) await enterClassroom();
+    return clone(result.user);
   }
   async function uploadAsset({ buffer, name, upAxis, units }) {
     const worldId = assertRoom(), epoch = authEpoch, room = roomEpoch;
@@ -424,5 +450,5 @@ export function createSchoolClient(options = {}) {
   function subscribe(listener) { listeners.add(listener); listener(readonlySnapshot({ ...state }), "state"); return () => listeners.delete(listener); }
   function destroy() { clearRoom("client_closed"); listeners.clear(); authEpoch++; csrf = nonce = null; }
   return { init, subscribe, getState, prepareGoogleLogin, login, refreshSession, logout, createWorld, joinWorld, openWorld, leaveWorld,
-    updateAvatar, uploadAsset, downloadAsset, editObject, saveWorld, restoreWorld, sendPose, destroy };
+    loginStudent, enterClassroom, students, updateAvatar, uploadAsset, downloadAsset, editObject, saveWorld, restoreWorld, sendPose, destroy };
 }

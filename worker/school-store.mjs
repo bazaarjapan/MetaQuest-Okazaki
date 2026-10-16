@@ -1,4 +1,5 @@
 import { LIMITS, cleanName, fail, parseCookies, publicAvatar, randomToken, sha256, validId } from "./school-common.mjs";
+import { managesWorld } from "./classroom-id.mjs";
 
 export const SESSION_COOKIE = "__Host-school-session";
 export const PREAUTH_COOKIE = "__Host-school-preauth";
@@ -84,7 +85,7 @@ export async function authorizeWorld(db, worldId, session, teacher = false) {
   const world = await getWorld(db, worldId);
   const membership = await first(db, "SELECT * FROM school_members WHERE world_id=? AND user_id=?", worldId, session.id);
   if (!membership) fail(403, "world_membership_required");
-  if (teacher && (session.role !== "teacher" || world.teacher_id !== session.id)) fail(403, "teacher_required");
+  if (teacher && !managesWorld(world, session)) fail(403, "teacher_required");
   return { world, membership };
 }
 export async function authorizeRoomSession(db, worldId, sessionHash, now, teacher = false) {
@@ -96,7 +97,7 @@ export async function authorizeRoomSession(db, worldId, sessionHash, now, teache
     JOIN school_members m ON m.user_id=u.id AND m.world_id=?
     JOIN school_worlds w ON w.id=m.world_id WHERE s.token_hash=? AND s.expires_at>?`, worldId, sessionHash, now);
   if (!row) fail(401, "room_login_required");
-  if (teacher && (row.role !== "teacher" || row.teacher_id !== row.id)) fail(403, "teacher_required");
+  if (teacher && !managesWorld({ id: worldId, teacher_id: row.teacher_id }, row)) fail(403, "teacher_required");
   return { session: row, world: { id: worldId, teacher_id: row.teacher_id, name: row.world_name, join_code: row.join_code, created_at: row.world_created_at },
     membership: { world_id: worldId, user_id: row.id, pose_json: row.pose_json, joined_at: row.joined_at } };
 }
@@ -128,6 +129,7 @@ export async function joinWorld(db, session, code, now) {
 }
 export async function updateAvatar(db, session, value) {
   const previous = JSON.parse(session.avatar_json);
+  if (previous.namePending && (typeof value.name !== "string" || !value.name.trim())) fail(400, "name_required");
   const name = cleanName(value.name, previous.name, 20);
   const color = value.color ?? previous.color;
   if (typeof color !== "string" || !/^#[a-f0-9]{6}$/i.test(color)) fail(400, "invalid_avatar_color");

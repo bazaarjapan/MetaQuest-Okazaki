@@ -44,6 +44,26 @@ function harness() {
   return { client, calls, routes, response, timers, intervals, sockets, authenticate, join, advance: (value) => { clock += value; }, setSignedIn: (value) => { signedIn = value; } };
 }
 
+test("single classroom reconnects a signed-in teacher automatically without an invite or picker", async () => {
+  const h=harness();h.setSignedIn(true);
+  h.routes.set("GET /api/config",h.response({configured:true,googleClientId:"test",singleClassroom:true}));
+  h.routes.set("POST /api/classroom/enter",()=>h.response({world:world()}));
+  await h.client.init();assert.equal(h.client.getState().world.id,WORLD);
+  assert.equal(h.sockets.length,1);h.sockets[0].open();assert.equal(h.client.getState().connection,"connected");
+  assert.equal(h.calls.filter(call=>call.path==="/api/classroom/enter").length,1);h.client.destroy();
+});
+test("student password flow requires nickname before auto-entry and keeps credentials out of public state",async()=>{
+  const h=harness(), student={...USER,role:"student",name:"名前未登録",namePending:true};
+  h.routes.set("GET /api/config",h.response({configured:true,googleClientId:"test",singleClassroom:true}));
+  h.routes.set("POST /api/auth/student",()=>h.response({user:student,csrf:"student-csrf"}));
+  h.routes.set("POST /api/classroom/enter",()=>h.response({world:world()}));
+  h.routes.set("PATCH /api/avatar",()=>h.response({user:{...USER,role:"student",name:"まちの人"}}));
+  await h.client.loginStudent("s-test000001","test-only-password");
+  assert.equal(h.client.getState().user.namePending,true);assert.equal(h.client.getState().world,null);
+  assert.ok(!JSON.stringify(h.client.getState()).includes("test-only-password"));
+  await h.client.updateAvatar({name:"まちの人"}); assert.equal(h.client.getState().world.id,WORLD);h.client.destroy();
+});
+
 test("invite URLs use a fragment, not query/referrer, and never trigger autojoin", async () => {
   assert.equal(parseSchoolInvite("https://example.test/?join=ABCDEFGHIJKL"), null);
   assert.equal(parseSchoolInvite("https://example.test/#join=abcdefghijkl"), "ABCDEFGHIJKL");

@@ -196,6 +196,8 @@ try {
   const db = await mf.getD1Database("DB");
   const migration = await readFile(new URL("../migrations/0001_school_worlds.sql", import.meta.url), "utf8");
   for (const sql of migration.split(";").map((part) => part.trim()).filter(Boolean)) await db.prepare(sql).run();
+  const addition = await readFile(new URL("../migrations/0002_single_classroom.sql", import.meta.url), "utf8");
+  for (const sql of addition.split(";").map(part=>part.trim()).filter(Boolean)) await db.prepare(sql).run();
   const teacher = await seedPerson(db, "teacher", 0), students = [];
   for (let i = 0; i < LIMITS.students; i++) students.push(await seedPerson(db, "student", i + 1));
   const extra = await seedPerson(db, "student", 31);
@@ -402,6 +404,34 @@ try {
     await waitClosed(probe, 1008);
     await expectError(`/api/worlds/${world.id}/state`, victim, null, 401, "login_required");
     assert.equal((await expectJson(`/api/worlds/${world.id}/state`, teacher, null)).participants.length, 30);
+  });
+  await check("single classroom: issue 30 IDs, real password login, required nickname, automatic membership and 34 live sockets", async () => {
+    const issued = (await expectJson("/api/classroom/students", teacher, { count: 30 }, 201)).credentials;
+    await expectError("/api/classroom/students", teacher, { count: 1 }, 409, "class_full");
+    const shared = (await expectJson("/api/classroom/enter", teacher, {})).world;
+    const logins = await Promise.all(issued.map(async (entry,index) => {
+      const challengeResponse = await fetchApi("/api/session");
+      const challenge = await challengeResponse.json(), cookie = challengeResponse.headers.get("Set-Cookie").split(";")[0];
+      const response = await fetchApi("/api/auth/student", null, { ...entry, csrf: challenge.csrf }, { headers:{Cookie:cookie} });
+      assert.equal(response.status,200); const result = await response.json(); assert.equal(result.user.namePending,true);
+      const person={id:result.user.id,csrf:result.csrf,cookie:response.headers.getSetCookie().find(value=>value.startsWith("__Host-school-session=")).split(";")[0]};
+      await expectError("/api/classroom/enter",person,{},409,"name_required");
+      await expectJson("/api/avatar",person,{name:`ID student ${index+1}`},200,{method:"PATCH"});
+      assert.equal((await expectJson("/api/classroom/enter",person,{})).world.id,shared.id);
+      return person;
+    }));
+    const otherTeachers=await Promise.all([1,2,3].map(number=>seedPerson(db,"teacher",number)));
+    await Promise.all(otherTeachers.map(person=>expectJson("/api/classroom/enter",person,{})));
+    const connections=await Promise.all([teacher,...otherTeachers,...logins].map(person=>connect(shared.id,person)));
+    const snapshot=await expectJson(`/api/worlds/${shared.id}/state`,teacher,null);
+    assert.equal(snapshot.participants.length,34);
+    assert.equal(snapshot.participants.filter(person=>person.role==="student").length,30);
+    await expectJson(`/api/worlds/${shared.id}/save`,otherTeachers[0],{});
+    const reset=(await expectJson("/api/classroom/students/reset",teacher,{id:logins[0].id})).credentials[0];
+    assert.notEqual(reset.password,issued[0].password);
+    await expectError(`/api/worlds/${shared.id}/state`,logins[0],null,401,"login_required");
+    connections.forEach(({probe})=>probe.close());
+    return {realStudentPasswordLogins:30,realOpenSockets:34,teacherCheckpoint:true,resetRevokesSession:true};
   });
   assert.equal(outboundAttempts, 0, "Runtime gate must not attempt external network requests");
   report = { passed: true, runtime: "Miniflare/workerd with real loopback TCP WebSockets, SQLite D1, R2 and SQLite Durable Objects",

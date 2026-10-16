@@ -1,7 +1,7 @@
 export const LIMITS = Object.freeze({
-  participants: 31, students: 30, stlBytes: 6 * 1024 * 1024,
+  participants: 31, classroomParticipants: 34, students: 30, stlBytes: 6 * 1024 * 1024,
   assetTriangles: 20000, userAssets: 10, userAssetBytes: 25 * 1024 * 1024,
-  objects: 120, worldTriangles: 200000, objectMeters: 100,
+  objects: 340, worldTriangles: 200000, objectMeters: 100,
   messageBytes: 16 * 1024, jsonBytes: 24 * 1024,
   sessionSeconds: 8 * 60 * 60, challengeSeconds: 5 * 60,
 });

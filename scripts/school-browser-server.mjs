@@ -171,7 +171,7 @@ export async function createBrowserCubeFixture(assets) {
   return { bytes, sha256: digest(bytes), groundPositions: await cubeGroundPositions(assets, bytes) };
 }
 
-export async function startSchoolBrowserServer() {
+export async function startSchoolBrowserServer({ singleClassroom = process.argv.includes("--single-classroom") } = {}) {
   await ensurePortFree();
   const assets = await createDistAssetService();
   const compilation = await build({ absWorkingDir: root, entryPoints: ["worker/index.mjs"], bundle: true,
@@ -201,7 +201,7 @@ export async function startSchoolBrowserServer() {
   try {
     mf = new Miniflare(convertV4MiniflareOptions({ name: "school-browser", host, port, modules: true, script,
       compatibilityDate: "2026-09-29", log: new Log(LogLevel.WARN), cf: false, telemetry: { enabled: false },
-      bindings: { APP_ORIGIN: origin, GOOGLE_CLIENT_ID: "browser-fixture-not-google.apps.googleusercontent.com",
+      bindings: { SINGLE_CLASSROOM: String(singleClassroom), APP_ORIGIN: origin, GOOGLE_CLIENT_ID: "browser-fixture-not-google.apps.googleusercontent.com",
         TEACHER_GOOGLE_SUBS: "browser-fixture-not-google-teacher" },
       d1Databases: { DB: randomUUID() }, r2Buckets: { STL_BUCKET: `browser-fixture-${randomUUID()}` },
       durableObjects: { SCHOOL_ROOMS: { className: "SchoolRoom", useSQLite: true } },
@@ -212,6 +212,8 @@ export async function startSchoolBrowserServer() {
     const db = await mf.getD1Database("DB");
     const migration = await readFile(resolve(root, "migrations/0001_school_worlds.sql"), "utf8");
     for (const sql of migration.split(";").map((part) => part.trim()).filter(Boolean)) await db.prepare(sql).run();
+    const addition = await readFile(resolve(root, "migrations/0002_single_classroom.sql"), "utf8");
+    for (const sql of addition.split(";").map(part=>part.trim()).filter(Boolean)) await db.prepare(sql).run();
     const teacher = await seedFixturePerson(db, "teacher", 0), students = [];
     for (let i = 0; i < LIMITS.students; i++) students.push(await seedFixturePerson(db, "student", i + 1));
     // A second temporary session for the same identity exercises logout/relogin
@@ -224,11 +226,11 @@ export async function startSchoolBrowserServer() {
       browserCookie: { ...students[0].browserCookie, value: reloginToken } };
     // Actual production API creates the room with its normal authorization/CSRF
     // rules. Students remain unjoined to test the real invite + join UI.
-    const response = await mf.dispatchFetch(`${origin}/api/worlds`, { method: "POST", headers: {
+    const response = await mf.dispatchFetch(`${origin}${singleClassroom ? "/api/classroom/enter" : "/api/worlds"}`, { method: "POST", headers: {
       Origin: origin, Cookie: teacher.cookie, "X-CSRF-Token": teacher.csrf, "Content-Type": "application/json",
     }, body: JSON.stringify({ name: "ローカル検証用 岡崎教室" }) });
     const result = await response.json();
-    if (response.status !== 201 || !result.world?.id || !result.world.joinCode) throw Error(`Fixture room creation failed (${response.status})`);
+    if (response.status !== (singleClassroom ? 200 : 201) || !result.world?.id || !result.world.joinCode) throw Error(`Fixture room creation failed (${response.status})`);
     const cubeFixture = await createBrowserCubeFixture(assets), cube = cubeFixture.bytes;
     const fixtures = { runId, origin, runtimeUrl, createdAt: new Date().toISOString(),
       ephemeralAuthenticationFixtures: true, realGoogleLoginVerified: false, externalWorkerNetworkDisabled: true,

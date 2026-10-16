@@ -29,12 +29,12 @@ test("remote feet derive from signed eye pose without harvesting profile/email n
   assert.equal(presenceColor("url(javascript:bad)"), "#4a90e2");
 });
 
-test("presence excludes local identity, duplicates, malformed poses and caps valid remote participants at 30", () => {
+test("presence excludes local identity, duplicates, malformed poses and caps 30 students plus other teachers", () => {
   const state = { user: { id: "own" }, world: { id: "class" }, connection: "connected",
     participants: [participant("own"), participant("bad", { position: [1, NaN, 3] }),
       participant("dup"), participant("dup"), ...Array.from({ length: 35 }, (_, i) => participant(`remote-${i}`))] };
   const values = remoteParticipants(state);
-  assert.equal(values.length, 30); assert.equal(new Set(values.map((entry) => entry.id)).size, 30);
+  assert.equal(values.length, 33); assert.equal(new Set(values.map((entry) => entry.id)).size, 33);
   assert.ok(!values.some((entry) => ["own", "bad"].includes(entry.id)));
   for (const extra of [{ user: null }, { world: null }, { connection: "reconnecting" }]) {
     assert.deepEqual(remoteParticipants({ ...state, ...extra }), []);
