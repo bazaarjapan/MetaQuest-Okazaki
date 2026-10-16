@@ -110,7 +110,17 @@ export function createSchoolClient(options = {}) {
     const result = await request("/api/worlds");
     if (epoch !== authEpoch) return;
     state.worlds = Array.isArray(result.worlds) ? result.worlds : []; emit("worlds");
-    if (state.singleClassroom && state.user && !state.user.namePending && !state.world) await enterClassroom();
+    if (state.singleClassroom && state.user && !state.user.namePending && !state.world) {
+      try { await enterClassroom(); }
+      catch (error) {
+        // Admission is not authentication. Keep a valid account/CSRF so a full
+        // classroom or temporary entry failure still permits logout and retry.
+        // A real 401 is already fenced and signed out by request().
+        if (epoch === authEpoch && state.user) {
+          state.error = error.code ?? "school_unavailable"; emit("error");
+        }
+      }
+    }
   }
   function refreshSession() {
     const epoch = authEpoch;
