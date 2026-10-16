@@ -198,6 +198,24 @@ test("multiple placed copies do not incorrectly consume the ten-uploaded-assets 
   assert.equal(f.workshop.getState().committed, 11);
   assert.equal(f.workshop.getState().ownAssets.length, 1); assert.equal(f.calls.uploads, 0);
 });
+
+test("shared-world VR asset cycling reselects a placed object and edits it instead of creating a duplicate", async t => {
+  const f = await fixture(t, {...connected(), singleClassroom:true});
+  await f.workshop.importFiles([f.file()]); await f.workshop.commitSelected(); await f.settle();
+  const firstId=f.workshop.getState().selected;
+  await f.workshop.importFiles([f.file()]); f.workshop.moveSelected([15,5,15]);
+  await f.workshop.commitSelected(); await f.settle();
+  assert.equal(await f.workshop.cycleOwnAsset(-1),true);
+  assert.equal(f.workshop.getState().current.id,firstId);
+  assert.equal(f.workshop.getState().current.committed,true);
+  assert.deepEqual(f.workshop.getState().current.position,[2,5,2]);
+  assert.equal(f.workshop.adjustSelected({scaleFactor:1.5}).valid,true);
+  let sentType;
+  const edit=f.client.editObject; f.client.editObject=(type,data)=>{sentType=type;return edit(type,data);};
+  assert.equal(await f.workshop.commitSelected(),true); await f.settle();
+  assert.equal(sentType,"object.update"); assert.equal(f.workshop.getState().committed,2);
+  assert.equal(f.workshop.getState().current.id,firstId);
+});
 test("peer downloads are capped at two; stale completed bytes cannot repopulate after logout", async (t) => {
   const f = await fixture(t), assets = [f.metadata(), f.metadata(), f.metadata()], finish = [];
   f.client.downloadAsset = () => { f.calls.downloads++; return new Promise((resolve) => finish.push(resolve)); };

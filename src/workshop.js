@@ -67,7 +67,7 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
   const label = document.createElement("label"); label.textContent = "クラウドに保存済みの自分のSTL";
   const librarySelect = document.createElement("select"); librarySelect.id = "workshop-assets"; librarySelect.setAttribute("aria-label", "保存済みの自分のSTL");
   label.append(librarySelect); library.append(label);
-  const reuse = document.createElement("button"); reuse.id = "object-reuse"; reuse.textContent = "選んだSTLを新しく配置"; library.append(reuse);
+  const reuse = document.createElement("button"); reuse.id = "object-reuse"; reuse.textContent = "選んだSTLを使う"; library.append(reuse);
   q("workshop-list").parentElement.before(library);
   const cancel = document.createElement("button"); cancel.id = "object-cancel"; cancel.textContent = "下書きを取り消す";
   const retry = document.createElement("button"); retry.id = "object-retry"; retry.textContent = "表示できない作品を再読込";
@@ -75,7 +75,7 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
 
   function requireAccess(prompt = true) {
     if (access().canEdit && !destroyed) return true;
-    setMessage(!access().userId ? "作品の配置・編集にはGoogleログインが必要です。閲覧とVR体験はログインなしで利用できます。" :
+    setMessage(!access().userId ? "作品の配置・編集には、生徒はID・パスワード、先生はGoogleでログインしてください。閲覧とVR体験はログインなしで利用できます。" :
       "共同ワールドに参加し、接続が完了してから作品を配置してください。");
     if (prompt) onRequireLogin(); return false;
   }
@@ -313,6 +313,17 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
       clearDraft();
       setMessage(`「${asset.name}」を読み込んでいます…`);
       const model = await ensureModel(asset, token); if (!accepts(token) || !model) return false;
+      if (state.singleClassroom) {
+        // Quest asset cycling and 2D reuse both select the existing placement.
+        // Never manufacture a duplicate draft the shared room must reject.
+        syncObjects();
+        const placed = [...remote.values()].find(item => item.assetId === assetId && canChange(item));
+        if (placed) {
+          selected = placed.id;
+          setMessage("設置済みの自分の作品を選びました。位置・回転・大きさを変更できます。");
+          return true;
+        }
+      }
       createDraft(asset, model); return true;
     } catch (error) { if (accepts(token)) setMessage(explainError(error)); return false; }
     finally { if (operation === marker) operation = null; renderList(); onChange(); }
