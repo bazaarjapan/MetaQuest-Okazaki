@@ -3,35 +3,40 @@ import { createGoogleIdentityLoader } from "./google-identity.js";
 import "./school.css";
 
 const ERROR_TEXT = {
+  invalid_student_login: "IDまたはパスワードが違います。先生から受け取った内容を確認してください。",
+  student_id_required: "Googleログインは登録済みの先生専用です。生徒は先生が発行したID・パスワードを使ってください。",
+  name_required: "最初にアバターの名前を入力してください。",
+  classroom_not_ready: "先生がログインするとワールドが準備されます。",
   school_not_configured: "共同教室は準備中です。ログインなしの街・VR閲覧は引き続き使えます。",
   school_unavailable: "共同教室に接続できません。街の閲覧はそのまま使えます。",
-  login_required: "Googleログインが必要です。",
+  login_required: "ログインが必要です。生徒はID・パスワード、先生はGoogleでログインしてください。",
   invalid_join_code: "先生から受け取った12文字の参加コード、または招待URLを入力してください。",
   join_code_not_found: "参加コードが見つかりません。先生に確認してください。",
   class_full: "この教室は30人の生徒で満員です。先生に確認してください。",
+  teacher_full: "このワールドに登録できる先生は4人までです。管理者に確認してください。",
   room_full: "同時参加人数の上限に達しました。しばらくしてからもう一度開いてください。",
   other_teacher_world: "先生は自分が作成した教室のみ開けます。",
   teacher_required: "この操作はワールドを作成した先生だけができます。",
   stale_revision: "ほかの人の変更が先に保存されました。最新状態に更新したので、内容を確認してもう一度操作してください。",
-  session_expired: "ログイン期限が切れました。もう一度Googleでログインしてください。",
+  session_expired: "ログイン期限が切れました。生徒はID・パスワード、先生はGoogleでログインし直してください。",
   room_login_required: "ログインまたは教室への参加が必要です。",
   connected_elsewhere: "同じアカウントで別のタブ・端末が参加しました。こちらでは活動を停止しました。",
   connection_lost: "通信が切れました。接続が戻るまで作品の操作はできません。",
-  connection_closed: "教室との接続が閉じられました。「続きを開く」で再接続できます。",
+  connection_closed: "ワールドとの接続が閉じられました。共同教室の画面から再接続してください。",
   request_timeout: "応答を確認できませんでした。保存状態を確認してから再操作してください。",
   edit_timeout: "配置の応答を確認できません。最新状態を読み直してから確認してください。",
   restore_recovery_pending: "ワールドの復元を安全に確認しています。少し待って再接続してください。",
   login_rate_limit: "ログインの試行が多いため、1分ほど待ってからやり直してください。",
   gis_unavailable: "Googleログインを読み込めませんでした。通信・ブラウザの制限を確認し、もう一度お試しください。",
-  invalid_csrf: "ログインの準備が更新されました。もう一度Googleログインを表示してください。",
+  invalid_csrf: "ログインの準備が更新されました。生徒はID・パスワードで再試行し、先生はGoogleログインを表示し直してください。",
   already_logged_in: "このブラウザではログイン済みです。教室を選んで参加してください。",
   google_keys_unavailable: "Googleの本人確認に必要な公開鍵を取得できませんでした。1分ほど待ってから、もう一度Googleログインを表示してください。",
   invalid_token: "Googleのログイン情報を確認できませんでした。もう一度Googleログインを表示し、アカウントを選び直してください。",
-  login_challenge_required: "ログインの準備情報が見つかりません。もう一度Googleログインを表示してください。続く場合は、このサイトのCookieが許可されているか確認してください。",
-  login_challenge_expired: "ログインの準備が期限切れ、または使用済みです。もう一度Googleログインを表示してからログインしてください。",
+  login_challenge_required: "ログインの準備情報が見つかりません。生徒はIDで再試行し、先生はGoogleログインを表示し直してください。続く場合は、このサイトのCookieが許可されているか確認してください。",
+  login_challenge_expired: "ログインの準備が期限切れ、または使用済みです。生徒はIDで再試行し、先生はGoogleログインを表示し直してください。",
   invalid_origin: "ログインするページのURLを確認できませんでした。https://metaquest001.gigach.net/ を開き直してお試しください。",
-  login_cancelled: "ログイン中にアカウントの状態が変わりました。現在の状態を確認し、必要ならもう一度Googleログインを表示してください。",
-  login_failed: "Googleログインの通信を完了できませんでした。通信を確認してから、もう一度Googleログインを表示してください。",
+  login_cancelled: "ログイン中にアカウントの状態が変わりました。現在の状態を確認し、生徒はIDで再試行、先生はGoogleログインを表示し直してください。",
+  login_failed: "ログインの通信を完了できませんでした。通信を確認して、生徒はIDで再試行、先生はGoogleログインを表示し直してください。",
 };
 export function explainSchoolError(error) {
   const code = error?.code ?? error?.message ?? error;
@@ -63,7 +68,7 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {} }) {
   const heading = element("div", undefined, "school-heading");
   const title = element("h2", "共同教室", "school-title"); title.id = "school-title";
   const closeButton = actionButton("閉じる", () => dialog.close(), "school-close"); heading.append(title, closeButton);
-  const description = element("p", "街・VRの閲覧はログイン不要です。作品の配置・共同活動にはGoogleログインと教室への参加が必要です。", "school-note");
+  const description = element("p", "みんなで1つのワールドを使います。見学はログイン不要。生徒は先生から受け取ったID、先生は登録済みGoogleアカウントで入ります。", "school-note");
   const status = element("p", "接続確認中…", "school-status"); status.id = "school-status"; status.setAttribute("role", "status"); status.setAttribute("aria-live", "polite");
   const movementStatus = element("p", "", "school-note"); movementStatus.id = "school-movement-status"; movementStatus.hidden = true;
   movementStatus.setAttribute("role", "status"); movementStatus.setAttribute("aria-live", "polite");
@@ -73,6 +78,7 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {} }) {
   const summary = document.querySelector("#school-summary");
   let state = client.getState(), renderKey = "", busy = false, googleGeneration = 0;
   let googleHost = null, participantLabel = null, roomConnection = null;
+  let issuedCredentials = [], credentialsOwner = null;
   const inviteCode = parseSchoolInvite(globalThis.location?.href ?? "");
   function setStatus(text, error = false) { if (status.textContent !== text) status.textContent = text; status.classList.toggle("is-error", error); }
   function updateMovementStatus() {
@@ -106,7 +112,7 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {} }) {
           if (generation !== googleGeneration || !dialog.open || !response?.credential) return;
           // No One Tap, no access/refresh token storage, no external account
           // revocation: this GCP consent application is shared with another app.
-          await perform(() => client.login(response.credential), "ログインしました。先生の参加コードで教室を開いてください。");
+          await perform(() => client.login(response.credential), "ログインしました。");
           if (!client.getState().user && generation === googleGeneration) {
             host.replaceChildren(element("p", "ログインを表示し直してから再試行してください。", "school-note"));
           }
@@ -116,8 +122,21 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {} }) {
     });
   }
   function renderGuest() {
+    if (state.singleClassroom) {
+      const form = element("form", undefined, "school-section");
+      form.append(element("h3", "生徒：IDで入る"));
+      const id = inputField("ID", { id: "student-login-id", maxLength: 40 }); id.input.autocomplete = "username";
+      const password = inputField("パスワード", { id: "student-password", type: "password", maxLength: 128 }); password.input.autocomplete = "current-password";
+      const submit = element("button", "ワールドに入る"); submit.type = "submit"; submit.dataset.schoolAction = "true";
+      form.append(id.label, password.label, submit);
+      form.addEventListener("submit", event => { event.preventDefault(); void perform(async () => {
+        const secret = password.input.value; password.input.value = "";
+        await client.loginStudent(id.input.value, secret);
+      }, "ログインしました。初めての人は名前を決めてください。"); });
+      content.append(form);
+    }
     const section = element("section", undefined, "school-section");
-    section.append(element("h3", "1. Googleでログイン"), element("p", "学校のGoogleアカウント、またはGmailを使います。同じアカウントで次回も同じアバターと作品を開けます。", "school-note"));
+    section.append(element("h3", state.singleClassroom ? "先生：Googleで入る" : "1. Googleでログイン"), element("p", "先生として登録済みのGoogleアカウントを使います。", "school-note"));
     section.append(element("p", "Googleの確認画面では、既存プロジェクトの共通アプリ名「教職員異動検索」が表示される場合があります。このアプリでは基本的な本人確認だけを行います。", "school-note"));
     const googleButton = command("Googleログインを表示", showGoogleButton, "school-login", !state.configured);
     googleHost = element("div", undefined, "school-google"); googleHost.id = "school-google";
@@ -135,7 +154,8 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {} }) {
     const section = element("section", undefined, "school-section");
     section.append(element("h3", state.user.role === "teacher" ? "先生としてログイン中" : "生徒としてログイン中"));
     const row = element("div", undefined, "school-row");
-    const name = inputField("アバターの名前（20文字まで）", { value: state.user.name, maxLength: 20, id: "school-avatar-name" });
+    if (state.user.namePending) section.append(element("p", "最初に、みんなに見える名前を決めましょう。本名でなくても大丈夫です。保存するとワールドに入ります。"));
+    const name = inputField("頭の上に表示する名前（20文字まで）", { value: state.user.namePending ? "" : state.user.name, maxLength: 20, id: "school-avatar-name" });
     const color = inputField("色", { type: "color", value: state.user.color, id: "school-avatar-color" });
     row.append(name.label, color.label); section.append(row);
     const actions = element("div", undefined, "school-actions");
@@ -144,6 +164,11 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {} }) {
     section.append(actions); content.append(section);
   }
   function renderEntry() {
+    if (state.singleClassroom) {
+      if (!state.user.namePending && state.connection !== "connected") content.append(command("ワールドに接続", () => perform(() => client.enterClassroom()), "school-classroom-enter"));
+      if (state.user.role === "teacher") renderStudents();
+      return;
+    }
     const section = element("section", undefined, "school-section"); section.append(element("h3", "教室に参加"));
     const code = inputField("先生の参加コード・招待URL", { value: inviteCode ?? "", maxLength: 300, id: "school-join-code" });
     code.input.autocomplete = "off"; code.input.spellcheck = false;
@@ -163,6 +188,41 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {} }) {
     }
     content.append(section);
   }
+  function renderStudents() {
+    const section = element("section", undefined, "school-section"); section.append(element("h3", "先生：生徒のIDを発行（最大30人）"));
+    const count = inputField("発行する人数", { type: "number", value: "1", id: "student-issue-count" }); count.input.min = "1"; count.input.max = "30";
+    const output = element("textarea"); output.id = "student-issued-credentials"; output.readOnly = true; output.hidden = !issuedCredentials.length; output.rows = 8; output.setAttribute("aria-label", "今回発行したIDとパスワード");
+    const credentialText = () => "ID\tパスワード\n" + issuedCredentials.map(row => `${row.loginId}\t${row.password}`).join("\n");
+    if (issuedCredentials.length) output.value = credentialText();
+    const note = element("p", "パスワードは発行・再発行した時だけ表示します。各生徒に自分の1行だけを安全に渡してください。再発行しても名前・作品は残ります。", "school-note");
+    const roster = element("div");
+    const showSecrets = result => {
+      // Socket arrival may rerender the dialog during issuance. Keep this one
+      // response in volatile UI memory and update the CURRENT textarea, not a
+      // detached closure node. Never persist passwords in browser storage.
+      issuedCredentials = result.credentials; credentialsOwner = state.user?.id;
+      const current = dialog.querySelector("#student-issued-credentials") ?? output;
+      current.hidden = false; current.value = credentialText();
+      current.focus(); current.select();
+    };
+    async function refreshRoster() {
+      const result = await client.students(); roster.replaceChildren();
+      roster.append(element("p", `発行済み ${result.students.length} / 30人`));
+      for (const student of result.students) {
+        const row = element("div", undefined, "school-row");
+        row.append(element("span", `${student.slot}. ${student.name} (${student.loginId})`), command("パスワード再発行", () => {
+          if (!confirm("この生徒の古いパスワードを無効にして再発行しますか？作品は残ります。")) return;
+          void perform(async () => showSecrets(await client.students("reset", { id: student.id })), "新しいパスワードを本人に渡してください。");
+        })); roster.append(row);
+      }
+      refreshDisabled();
+    }
+    section.append(count.label, command("ID・パスワードを発行", () => perform(async () => {
+      showSecrets(await client.students("issue", { count: Number(count.input.value) })); await refreshRoster();
+    }, "発行しました。表示された情報を控えてください。"), "student-issue"), note, output,
+    command("生徒一覧を確認", () => perform(refreshRoster), "student-roster"), roster);
+    content.append(section);
+  }
   function renderRoom() {
     if (!state.world) return;
     const section = element("section", undefined, "school-section school-current"); section.id = "school-current-world";
@@ -173,6 +233,7 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {} }) {
     const actions = element("div", undefined, "school-actions");
     actions.append(command("教室を退出", () => client.leaveWorld(), "school-world-leave")); section.append(actions);
     if (state.world.joinCode && state.user.role === "teacher") {
+      if (!state.singleClassroom) {
       section.append(element("p", "生徒に配る参加コード", "school-note"));
       const code = element("code", state.world.joinCode, "school-invite-code"); code.id = "school-invite-code"; section.append(code);
       const invite = inputField("配布用URL（閲覧のみでは参加しません）", { value: schoolInviteURL(globalThis.location.origin, state.world.joinCode), id: "school-invite-url" });
@@ -181,6 +242,7 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {} }) {
         try { await navigator.clipboard.writeText(invite.input.value); setStatus("招待URLをコピーしました。Classroomなどで配ってください。"); }
         catch { invite.input.focus(); invite.input.select(); setStatus("URL欄を選択しました。ブラウザのコピー操作でコピーしてください。"); }
       }, "school-invite-copy"));
+      }
       section.append(element("h3", "先生：クラウド保存・復元"), element("p", "配置は随時クラウドへ保存されます。「授業の状態を保存」は全員の位置・作品の復元ポイントを残します。", "school-note"));
       section.append(command("授業の状態を保存", () => perform(() => client.saveWorld(), "全員の位置と作品を復元ポイントに保存しました。"), "school-world-save", state.connection !== "connected"));
       if (state.snapshots.length) {
@@ -201,9 +263,10 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {} }) {
     content.append(section);
   }
   function updateConnection() {
+    if (state.singleClassroom) { const entry = dialog.querySelector("#school-classroom-enter"); if (entry) entry.hidden = state.connection === "connected"; }
     const description = state.connection === "connected" ? "接続中：共同活動できます" : state.connection === "reconnecting" ? "再接続中：作品操作は一時停止" : state.world ? "接続待ち・停止中：作品操作はできません" : "教室を選んでください";
     if (roomConnection) roomConnection.textContent = description;
-    if (participantLabel) participantLabel.textContent = `参加者 ${state.participants.length} / 31人 · 作品 ${state.objects.length}点`;
+    if (participantLabel) participantLabel.textContent = `参加者 ${state.participants.length}人（生徒最大30人） · 作品 ${state.objects.length}点`;
     if (summary) summary.textContent = state.user ? `${state.user.role === "teacher" ? "先生" : "生徒"} · ${state.world ? `${state.world.name} · ${description}` : "未参加"}` : "ゲスト：VR閲覧のみ（共同活動はログイン後）";
     if (button) button.textContent = state.user ? "共同教室・アカウント" : "共同教室 / ログイン";
     for (const node of dialog.querySelectorAll("#school-world-save,#school-world-restore,#school-restore-confirm")) node.dataset.unavailable = String(state.connection !== "connected");
@@ -211,6 +274,7 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {} }) {
   }
   function render(next, event) {
     state = next;
+    if (credentialsOwner !== state.user?.id) { issuedCredentials = []; credentialsOwner = state.user?.id; }
     updateMovementStatus();
     // High-frequency single-player pose updates only affect the 3D scene. They
     // must not rebuild the login form or announce every movement to screenreaders.
@@ -219,16 +283,16 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {} }) {
     if (key !== renderKey) {
       renderKey = key; googleGeneration++; googleHost = participantLabel = roomConnection = null;
       content.replaceChildren();
-      if (!state.user) renderGuest(); else { renderAccount(); renderEntry(); renderRoom(); }
+      if (!state.user) renderGuest(); else { renderAccount(); renderEntry(); if (!state.user.namePending) renderRoom(); }
     }
     updateConnection();
     if (state.error) setStatus(explainSchoolError(state.error), true);
-    else if (event === "auth" || event === "state") setStatus(state.user ? "ログイン中です。教室を選んで参加してください。" : "ログインせず街を見ることもできます。");
+    else if (event === "auth" || event === "state") setStatus(state.user ? (state.user.namePending ? "頭の上に表示する名前を決めてください。" : "ログイン中です。みんなのワールドに接続します。") : "ログインせず街を見ることもできます。");
   }
   async function open() {
     const allowed = await onBeforeOpen();
     if (allowed === false) {
-      if (summary) summary.textContent = "Googleログイン・教室の操作は、VRを終了して2Dブラウザへ戻ってから行ってください。";
+      if (summary) summary.textContent = "ログイン・教室の操作は、VRを終了して2Dブラウザへ戻ってから行ってください。";
       return false;
     }
     if (!dialog.open) dialog.showModal(); return true;

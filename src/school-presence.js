@@ -2,7 +2,7 @@ import { avatarNickname, createAvatarLabel } from "./avatar-label.js";
 import { createBlockAvatar } from "./block-avatar.js";
 import { creativeConfig } from "./creative-controls.js";
 
-export const presenceLimits = Object.freeze({ remoteParticipants: 30, labelWidth: 256,
+export const presenceLimits = Object.freeze({ remoteParticipants: 33, labelWidth: 256,
   labelHeight: 64, labelCharacters: 20, teleportDistance: 25, smoothing: 12 });
 
 // Labels use the explicitly selected avatar nickname, never Google profile

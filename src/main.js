@@ -22,11 +22,13 @@ import { createCreativeControls, constrainCreativeFeet, readControlMode, control
 import { createBlockAvatar } from "./block-avatar.js";
 import { createSchoolClient } from "./school-client.js";
 import { createSchoolUI } from "./school-ui.js";
+import { createHotbar } from "./hotbar.js";
 import { createSchoolPresence } from "./school-presence.js";
 import { createVRWorkshop } from "./vr-workshop.js";
 import { createVRControllerPointer } from "./vr-controller-pointer.js";
 import "./style.css";
 import "./layout.css";
+import "./hotbar.css";
 
 const $ = (s) => document.querySelector(s),
   viewport = $("#viewport");
@@ -181,6 +183,9 @@ const workshop = createWorkshop(THREE, { scene, domElement: renderer.domElement,
   schoolClient, isXR: () => state.xr,
   onRequireLogin: () => schoolUI?.open(),
   onChange: () => { renderer.shadowMap.needsUpdate = true; } });
+const hotbar = createHotbar({ workshop, client: schoolClient, scene, camera, canvas: renderer.domElement,
+  getEnvironment: () => placementEnvironment, getObstacles: () => [...city.children, ...regionStreamer.getMeshes()],
+  isXR: () => state.xr, menu: adaptiveUi });
 const ownAvatar = createBlockAvatar(THREE);
 const ownAvatarLabel = createAvatarLabel(THREE, { parent: ownAvatar.group });
 let ownIdentity = null, ownColor = null;
@@ -188,7 +193,12 @@ scene.add(ownAvatar.group);
 renderer.domElement.tabIndex = 0;
 let creative = null;
 renderer.domElement.addEventListener("pointerdown", () => {
-  if (creative?.getState().mode === "creative" && !state.xr) renderer.domElement.focus();
+  if (creative?.getState().mode === "creative" && !state.xr && !document.querySelector("dialog[open]")) {
+    adaptiveUi.close(); renderer.domElement.focus();
+    if (schoolClient.getState().singleClassroom) {
+      setFree(true); creative.step(0, { enabled: true, blocked: false, xr: false });
+    }
+  }
 });
 const terrainRay = new THREE.Raycaster();
 function terrainOnlySample(x, z) {
@@ -622,7 +632,7 @@ function updateLabels(id) {
     question: "市街地と周辺で、建物の集まり方はどう違う？",
     detail: "広域マップで移動して比較しよう。収録範囲は行政界ではなく、2020年度モデルの範囲です。",
   } : id === "school" ? {
-    title: "共同教室でまちづくり", description: "保存された位置から再開 · 移動はOFF",
+    title: "共同教室でまちづくり", description: "画面クリックで移動開始 · WASD / Space / Shift",
     question: "この街にどんな作品を加えたい？",
     detail: "自分のSTLを空いている実地面へ配置しよう。元の街と他の人の作品は変更できません。",
   } : null);
@@ -1156,12 +1166,13 @@ renderer.setAnimationLoop((time, frame) => {
       creative.step(dt, { enabled: state.free, xr: false,
         touchAxes: touch.enabled && touch.activePointers > 0 ? touchControls.getAxes() : null,
         blocked: Boolean(document.querySelector("dialog[open]")) || workshop.getState().picking ||
-          (adaptiveUi.getState().mobile && adaptiveUi.getState().open) });
+          adaptiveUi.getState().open });
       if (creative.getState().mode === "drone") { desktopMove(dt); controls.update(); }
       const dir = camera.getWorldDirection(new THREE.Vector3());
       $("#north span").style.transform =
         `rotate(${Math.atan2(dir.x, -dir.z)}rad)`;
     }
+    hotbar.update(time);
     regionStreamer.update(userPosition(), quality.id, time);
     adoptSchoolPose();
     if (schoolState.user && schoolState.world && schoolState.connection === "connected" &&
@@ -1240,6 +1251,7 @@ window.__okazaki = {
     presence: presence.getState(),
     vrWorkshop: vrWorkshop.getState(),
     workshop: workshop.getState(),
+    hotbar: hotbar.getState(),
     creative: creative.getState(),
     avatar: { ...ownAvatar.getState(), label: ownAvatarLabel.getState() },
     camera: camera.position.toArray(),
@@ -1252,7 +1264,7 @@ window.__okazaki = {
     panelVisible: panel.visible && vrFieldPanel.getState().expanded,
     vrPanel: vrFieldPanel.getState(),
     pointers: { left: controllerPointers.left.getState(), right: controllerPointers.right.getState() },
-    version: "1.7.0",
+    version: "1.8.0",
     vrReturn: { buttonVisible: vrReturnButton.getState().visible,
       holdProgress: vrReturnButton.getState().progress, exiting: xrExitPending,
       hasResume: hasVRResume, view: lastXRView ? {

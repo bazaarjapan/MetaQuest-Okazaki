@@ -19,7 +19,7 @@ test("school Worker uses dedicated resources and API-first routing, not a public
 });
 
 test("registered public Google client is configured but teacher allowlist stays server secret only", () => {
-  assert.deepEqual(config.vars, { APP_ORIGIN: "https://metaquest001.gigach.net",
+  assert.deepEqual(config.vars, { SINGLE_CLASSROOM: "true", APP_ORIGIN: "https://metaquest001.gigach.net",
     GOOGLE_CLIENT_ID: "995759572361-9ogma8658lvf8usle2o3ut47d8a1agjf.apps.googleusercontent.com" });
   assert.equal(config.vars.TEACHER_GOOGLE_SUBS, undefined);
   assert.equal(config.vars.TEACHER_GOOGLE_EMAILS, undefined);

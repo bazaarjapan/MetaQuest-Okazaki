@@ -4,11 +4,20 @@
   const assert = (ok, name, detail) => { results.push({ok:Boolean(ok),name,detail}); if(!ok) throw new Error(name+': '+JSON.stringify(detail)); };
   const visible = el => Boolean(el && el.getBoundingClientRect().width && getComputedStyle(el).visibility !== 'hidden');
   const inside = el => { const r=el.getBoundingClientRect(); return r.left>=0 && r.top>=0 && r.right<=innerWidth+1 && r.bottom<=innerHeight+1; };
-  assert(s().ready && !s().ui.mobile && s().version==='1.7.0','compact-desktop-ready');
+  assert(s().ready && !s().ui.mobile && s().version==='1.8.0','compact-desktop-ready');
+  assert(!s().ui.open && !visible(document.querySelector('#control-panel')),'right-menu-initially-closed');
+  assert(document.querySelectorAll('#stl-hotbar button').length===10 && inside(document.querySelector('#stl-hotbar')),
+    'ten-hotbar-slots-inside-screen');
+  document.querySelector('#simple-menu').click();
+  assert(s().ui.open && visible(document.querySelector('#control-panel')),'menu-button-opens-right-panel');
   assert(document.documentElement.scrollHeight<=innerHeight+1 && document.documentElement.scrollWidth<=innerWidth+1,
     'entire-workspace-fits-one-window',{width:innerWidth,height:innerHeight,scrollHeight:document.documentElement.scrollHeight});
-  assert(['#viewport','#control-panel','#home','#fullscreen','#free-move','#enter-vr','.control-tabs'].every(id=>inside(document.querySelector(id))),
+  assert(['#viewport','#control-panel','#enter-vr','.control-tabs'].every(id=>inside(document.querySelector(id))),
     'main-scene-and-primary-actions-inside-screen');
+  for(const id of ['#home','#fullscreen','#free-move']) {
+    const action=document.querySelector(id);action.scrollIntoView({block:'nearest'});
+    assert(inside(action),'detail-action-reachable-with-menu-scroll-'+id);
+  }
   for(const id of ['observe','region','settings']) {
     document.querySelector('#tab-'+id).click();
     assert(s().ui.active===id && visible(document.querySelector('#panel-'+id)) &&

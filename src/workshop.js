@@ -12,6 +12,8 @@ function explainError(error) {
   if (/login|session|unauth/.test(message)) return "ログインし直してください。";
   if (/stale_revision|conflict/.test(message)) return "他の人の変更と競合しました。最新のワールドで位置を確認し、もう一度確定してください。";
   if (/owner/.test(message)) return "変更できるのは自分の作品だけです。";
+  if (/asset_already_placed/.test(message)) return "このSTLは設置済みです。右長押しで回収してから置き直してください。";
+  if (/own_object_limit/.test(message)) return "同時に置ける自分の作品は10点までです。先に回収してください。";
   if (/overlap/.test(message)) return "元の建物や他の作品に重なっています。別の場所を選んでください。";
   if (/asset_limit|quota/.test(message)) return "自分のSTLはワールドごとに10個・合計25MiBまでです。";
   if (/world_triangle_limit/.test(message)) return "ワールド全体の作品は20万三角形までです。";
@@ -65,7 +67,7 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
   const label = document.createElement("label"); label.textContent = "クラウドに保存済みの自分のSTL";
   const librarySelect = document.createElement("select"); librarySelect.id = "workshop-assets"; librarySelect.setAttribute("aria-label", "保存済みの自分のSTL");
   label.append(librarySelect); library.append(label);
-  const reuse = document.createElement("button"); reuse.id = "object-reuse"; reuse.textContent = "選んだSTLを新しく配置"; library.append(reuse);
+  const reuse = document.createElement("button"); reuse.id = "object-reuse"; reuse.textContent = "選んだSTLを使う"; library.append(reuse);
   q("workshop-list").parentElement.before(library);
   const cancel = document.createElement("button"); cancel.id = "object-cancel"; cancel.textContent = "下書きを取り消す";
   const retry = document.createElement("button"); retry.id = "object-retry"; retry.textContent = "表示できない作品を再読込";
@@ -73,7 +75,7 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
 
   function requireAccess(prompt = true) {
     if (access().canEdit && !destroyed) return true;
-    setMessage(!access().userId ? "作品の配置・編集にはGoogleログインが必要です。閲覧とVR体験はログインなしで利用できます。" :
+    setMessage(!access().userId ? "作品の配置・編集には、生徒はID・パスワード、先生はGoogleでログインしてください。閲覧とVR体験はログインなしで利用できます。" :
       "共同ワールドに参加し、接続が完了してから作品を配置してください。");
     if (prompt) onRequireLogin(); return false;
   }
@@ -196,7 +198,7 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
   function syncObjects() {
     if (!access().canEdit) return;
     const entries = state.objects ?? [], assets = new Map((state.assets ?? []).filter(validAsset).map((asset) => [asset.id, asset]));
-    if (entries.length > 120 || entries.reduce((sum, object) => sum + (object.triangles ?? MAX_WORLD_TRIANGLES + 1), 0) > MAX_WORLD_TRIANGLES) {
+    if (entries.length > 340 || entries.reduce((sum, object) => sum + (object.triangles ?? MAX_WORLD_TRIANGLES + 1), 0) > MAX_WORLD_TRIANGLES) {
       setMessage("ワールドの作品数・形状が表示上限を超えています。再接続してください。"); return;
     }
     const ids = new Set(entries.map((object) => object.id));
@@ -311,6 +313,17 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
       clearDraft();
       setMessage(`「${asset.name}」を読み込んでいます…`);
       const model = await ensureModel(asset, token); if (!accepts(token) || !model) return false;
+      if (state.singleClassroom) {
+        // Quest asset cycling and 2D reuse both select the existing placement.
+        // Never manufacture a duplicate draft the shared room must reject.
+        syncObjects();
+        const placed = [...remote.values()].find(item => item.assetId === assetId && canChange(item));
+        if (placed) {
+          selected = placed.id;
+          setMessage("設置済みの自分の作品を選びました。位置・回転・大きさを変更できます。");
+          return true;
+        }
+      }
       createDraft(asset, model); return true;
     } catch (error) { if (accepts(token)) setMessage(explainError(error)); return false; }
     finally { if (operation === marker) operation = null; renderList(); onChange(); }
@@ -415,7 +428,7 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
   q("workshop-close").onclick = () => dialog.close(); document.querySelector("#open-workshop").onclick = open;
   const unsubscribe = schoolClient?.subscribe(onState) ?? (() => {});
   onState(schoolClient?.getState() ?? {}); renderList();
-  return { group, open, importFiles, selectObject, cycleOwnAsset, moveSelected, adjustSelected,
+  return { group, open, importFiles, useAsset, selectObject, cycleOwnAsset, moveSelected, adjustSelected,
     commitSelected, removeSelected, cancelDraft, retryAssets,
     getState: () => {
       const objects = [...remote.values()].map((item) => draft?.id === item.id ? publicObject(draft) : publicObject(item));

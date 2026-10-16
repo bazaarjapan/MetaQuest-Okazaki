@@ -3,6 +3,7 @@ import { LIMITS, SchoolError, fail, json, publicAvatar, sha256, validId } from "
 import { all, assetPublic, authorizeRoomSession, first, getAsset, sessionByHash, worldPublic } from "./school-store.mjs";
 import { readAssetModel } from "./school-assets.mjs";
 import { loadCorePlacement } from "./placement-source.mjs";
+import { CLASSROOM_ID, managesWorld } from "./classroom-id.mjs";
 
 const DEFAULT_POSE = Object.freeze({ position: [195, 74.4, 105], yaw: 0 });
 const livePoseKey = (userId) => `live-pose:${userId}`;
@@ -113,7 +114,8 @@ export class SchoolRoom {
     // reconnects/capacity checks race-safe, including the old close event.
     await this.pruneExpired();
     const previous = [...this.sessions].filter(([, attachment]) => attachment.userId === caller.session.id);
-    if (this.sessions.size - previous.length >= LIMITS.participants) fail(409, "room_full");
+    const capacity = caller.world.id === CLASSROOM_ID ? LIMITS.classroomParticipants : LIMITS.participants;
+    if (this.sessions.size - previous.length >= capacity) fail(409, "room_full");
     const savedPose = await this.identityPose(caller.session.id, caller.membership.pose_json, previous[0]?.[1]);
     // Preserve the old connection if durable pose storage is unavailable. Each
     // member has one small record, never a history or an 8Hz world-state rewrite.
@@ -150,7 +152,8 @@ export class SchoolRoom {
       pose: { position: [...pose.position], yaw: pose.yaw } });
   }
   async memberPoses(members) {
-    if (members.length > LIMITS.participants) fail(503, "room_members_invalid");
+    const capacity = this.state.worldId === CLASSROOM_ID ? LIMITS.classroomParticipants : LIMITS.participants;
+    if (members.length > capacity) fail(503, "room_members_invalid");
     const active = new Map([...this.sessions.values()].map((attachment) => [attachment.userId, attachment]));
     return Object.fromEntries(await Promise.all(members.map(async (member) =>
       [member.user_id, await this.identityPose(member.user_id, member.pose_json, active.get(member.user_id))])));
@@ -159,11 +162,11 @@ export class SchoolRoom {
     return [...this.sessions.values()].map((attachment) => ({ ...attachment.avatar, position: [...attachment.pose.position], yaw: attachment.pose.yaw }));
   }
   async snapshot(world, session) {
-    const assets = await all(this.env.DB, "SELECT * FROM school_assets WHERE world_id=? AND status='ready' ORDER BY created_at,id", world.id);
+    const assets = await all(this.env.DB, "SELECT * FROM school_assets WHERE world_id=? AND status='ready' ORDER BY created_at,rowid", world.id);
     const saved = await all(this.env.DB, "SELECT id,revision,created_at FROM school_snapshots WHERE world_id=? ORDER BY created_at DESC,id DESC LIMIT 20", world.id);
-    return { revision: this.state.revision, restoreCommit: this.poseRestoreCommit(), world: worldPublic(world, session.id === world.teacher_id && session.role === "teacher"),
+    return { revision: this.state.revision, restoreCommit: this.poseRestoreCommit(), world: worldPublic(world, managesWorld(world, session)),
       participants: this.participants(), objects: this.state.objects, assets: assets.map(assetPublic),
-      snapshots: session.id === world.teacher_id && session.role === "teacher" ? saved.map((row) => ({ id: row.id, revision: row.revision, createdAt: row.created_at })) : [] };
+      snapshots: managesWorld(world, session) ? saved.map((row) => ({ id: row.id, revision: row.revision, createdAt: row.created_at })) : [] };
   }
   broadcast(message) {
     const data = JSON.stringify(message);
@@ -306,6 +309,10 @@ export class SchoolRoom {
     if (value.type === "object.create" && this.state.objects.length >= LIMITS.objects) fail(409, "world_object_limit");
     if (value.type === "object.create" && value.id !== undefined && (!validId(value.id) || current)) fail(409, "object_id_unavailable");
     const assetId = value.type === "object.create" ? value.assetId : current.assetId;
+    if (world.id === CLASSROOM_ID && value.type === "object.create") {
+      if (this.state.objects.some(object => object.assetId === assetId)) fail(409, "asset_already_placed");
+      if (this.state.objects.filter(object => object.ownerId === session.id).length >= 10) fail(409, "own_object_limit");
+    }
     if (value.assetId !== undefined && value.assetId !== assetId) fail(400, "asset_change_not_allowed");
     const asset = await getAsset(this.env.DB, world.id, assetId);
     if (asset.owner_id !== session.id) fail(403, "asset_owner_required");

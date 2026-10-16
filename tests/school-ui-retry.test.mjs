@@ -8,7 +8,7 @@ import vm from "node:vm";
 const source = (await readFile(new URL("../src/school-ui.js", import.meta.url), "utf8"))
   .replace(/^import .*;\r?\n/gm, "").replace(/^export /gm, "");
 const tick = async () => { await new Promise(resolve => setImmediate(resolve)); };
-function harness(initial, retry) {
+function harness(initial, retry, extraClient = {}) {
   class Node {
     set textContent(value) { this.textWrites = (this.textWrites ?? 0) + 1; this.textValue = value; }
     get textContent() { return this.textValue; }
@@ -23,6 +23,9 @@ function harness(initial, retry) {
     showModal() { this.open = true; }
     close() { this.open = false; this.listeners.get("close")?.(); }
     remove() { this.isConnected = false; }
+    focus() {}
+    select() {}
+    querySelector(selector) { return this.querySelectorAll(selector)[0] ?? null; }
     querySelectorAll(selector) {
       const descendants = this.children.flatMap(child => [child, ...child.querySelectorAll("*")]);
       if (selector === "*") return descendants;
@@ -40,6 +43,7 @@ function harness(initial, retry) {
     subscribe(callback) { listener = callback; callback(state, "state"); return () => {}; },
     async init(options) { calls.push(options); state = await retry(); listener(state, "auth"); return structuredClone(state); },
     async saveWorld() { throw Error("request_timeout"); },
+    ...extraClient,
   };
   const context = vm.createContext({ document, URL, location: { href: "https://example.test/", origin: "https://example.test" },
     parseSchoolInvite: () => null, schoolInviteURL: () => "https://example.test/#join=ABCDEFGHIJKL",
@@ -111,4 +115,30 @@ test("a checkpoint failure remains explicit through movement warning and recover
   h.emit({ ...initial, movementWarning: "pose_rate_limit" }, "movement");
   h.emit(initial, "pose");
   assert.equal(status.textContent, text); h.ui.destroy();
+});
+
+test("issued student passwords survive room rerender only for the issuing teacher", async () => {
+  const initial = { ...guest, singleClassroom: true, configured: true, error: null,
+    user: { id: "teacher", role: "teacher", name: "先生", color: "#4a90e2" } };
+  let finishIssue;
+  const response = new Promise(resolve => { finishIssue = resolve; });
+  const h = harness(initial, async () => initial, {
+    students: async action => action === "issue" ? response : { students: [] },
+  });
+  const oldOutput = h.find("student-issued-credentials");
+  h.find("student-issue").click();
+  const connected = { ...initial, world: { id: "room", name: "共通ワールド" }, connection: "connected" };
+  h.emit(connected, "world");
+  assert.notEqual(h.find("student-issued-credentials"), oldOutput);
+  finishIssue({ credentials: [{ loginId: "s-test", password: "fixture-only-random-password" }] });
+  await tick(); await tick();
+  assert.equal(h.find("student-issued-credentials").hidden, false);
+  assert.match(h.find("student-issued-credentials").value, /s-test\tfixture-only-random-password/);
+  h.emit({ ...connected, snapshots: [{ id: "snapshot", revision: 1 }] }, "snapshot");
+  assert.match(h.find("student-issued-credentials").value, /fixture-only-random-password/);
+  h.emit({ ...guest, singleClassroom: true }, "auth");
+  h.emit(initial, "auth");
+  assert.equal(h.find("student-issued-credentials").hidden, true);
+  assert.equal(h.find("student-issued-credentials").value, undefined);
+  h.ui.destroy();
 });
