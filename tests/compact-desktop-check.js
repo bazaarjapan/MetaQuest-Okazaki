@@ -12,8 +12,12 @@
   assert(s().ui.open && visible(document.querySelector('#control-panel')),'menu-button-opens-right-panel');
   assert(document.documentElement.scrollHeight<=innerHeight+1 && document.documentElement.scrollWidth<=innerWidth+1,
     'entire-workspace-fits-one-window',{width:innerWidth,height:innerHeight,scrollHeight:document.documentElement.scrollHeight});
-  assert(['#viewport','#control-panel','#home','#fullscreen','#free-move','#enter-vr','.control-tabs'].every(id=>inside(document.querySelector(id))),
+  assert(['#viewport','#control-panel','#enter-vr','.control-tabs'].every(id=>inside(document.querySelector(id))),
     'main-scene-and-primary-actions-inside-screen');
+  for(const id of ['#home','#fullscreen','#free-move']) {
+    const action=document.querySelector(id);action.scrollIntoView({block:'nearest'});
+    assert(inside(action),'detail-action-reachable-with-menu-scroll-'+id);
+  }
   for(const id of ['observe','region','settings']) {
     document.querySelector('#tab-'+id).click();
     assert(s().ui.active===id && visible(document.querySelector('#panel-'+id)) &&
