@@ -91,3 +91,19 @@ test("shared room prevents duplicate slot placement and even teachers cannot ret
   await SchoolRoom.prototype.applyEdit.call(room,{type:"object.delete",id:object.id},{id:"student"},{id:CLASSROOM_ID});
   assert.equal(room.state.objects.length,0);
 });
+
+test("a fifth rejected teacher cannot list IDs or reset a student's credentials", async t => {
+  const {db,teacher,teacher2}=await fixture(t);
+  const [issued]=await issueStudents(db,teacher,{count:1},now);
+  await enterClassroom(db,teacher2,now);
+  for (const sub of ["teacher-three", "teacher-four"]) {
+    await enterClassroom(db,await createUser(db,{sub},"teacher",now),now);
+  }
+  const fifth=await createUser(db,{sub:"teacher-five"},"teacher",now);
+  await rejects(()=>enterClassroom(db,fifth,now),"teacher_full");
+  await rejects(()=>studentRoster(db,fifth),"world_membership_required");
+  await rejects(()=>resetStudent(db,fifth,issued.id),"world_membership_required");
+  assert.equal((await authenticateStudent(db,issued,now,"test")).user.id,issued.id);
+  assert.equal((await studentRoster(db,teacher2)).length,1);
+  assert.ok((await resetStudent(db,teacher2,issued.id)).password);
+});

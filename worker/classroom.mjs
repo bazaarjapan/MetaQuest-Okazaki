@@ -21,8 +21,12 @@ export async function enterClassroom(db, user, now) {
   return world;
 }
 function teacher(user) { if (user.role !== "teacher") fail(403, "teacher_required"); }
-export async function studentRoster(db, user) {
+async function admittedTeacher(db, user) {
   teacher(user);
+  if (!await first(db, "SELECT user_id FROM school_members WHERE world_id=? AND user_id=?", CLASSROOM_ID, user.id)) fail(403, "world_membership_required");
+}
+export async function studentRoster(db, user) {
+  await admittedTeacher(db, user);
   return all(db, `SELECT c.slot,c.login_id AS loginId,u.id,u.avatar_json AS avatar FROM school_student_credentials c
     JOIN school_users u ON u.id=c.user_id ORDER BY c.slot`);
 }
@@ -55,7 +59,7 @@ export async function issueStudents(db, user, value, now) {
   return results;
 }
 export async function resetStudent(db, user, id) {
-  teacher(user);
+  await admittedTeacher(db, user);
   const entry = await first(db, "SELECT * FROM school_student_credentials WHERE user_id=?", id);
   if (!entry) fail(404, "student_not_found");
   const key = await newPassword();

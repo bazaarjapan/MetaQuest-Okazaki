@@ -132,16 +132,24 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
   });
   const cancelHold = () => { if (hold) report("回収を取り消しました。回収するときは自分の作品を狙って押し続けます。"); hold=null; };
   window.addEventListener("pointerup",cancelHold); window.addEventListener("blur",cancelHold);
+  canvas.addEventListener("pointercancel", cancelHold);
+  canvas.addEventListener("pointerleave", () => {
+    if (!locked()) { pointerKnown = false; footprint.visible = false; cancelHold(); }
+  });
   canvas.addEventListener("contextmenu", event=>event.preventDefault());
   window.addEventListener("keydown",event=>{
-    if (typing(event.target) || event.repeat || blocked()) return;
+    if (typing(event.target) || event.repeat || event.ctrlKey || event.metaKey || event.altKey || blocked()) return;
     const index=hotbarSlot(event.code); if (index<0) return;
     event.preventDefault(); void select(index);
   });
   function update(time) {
-    root.hidden = hint.hidden = crosshair.hidden = menuButton.hidden = loginButton.hidden = isXR();
+    const xr = isXR();
+    root.hidden = hint.hidden = crosshair.hidden = menuButton.hidden = loginButton.hidden = xr;
+    // The PC UI is absent in VR. Avoid cloning classroom/geometry snapshots on
+    // every headset frame and leave the draft under the VR workshop's control.
+    if (xr) { aiming = false; hold = null; footprint.visible = false; return; }
     const state = currentState(), identity = `${state.userId}:${state.worldId}:${state.canEdit}`;
-    if (isXR() || (aiming && !pending && (!state.current || state.current.committed))) aiming=false;
+    if (aiming && !pending && (!state.current || state.current.committed)) aiming=false;
     if (identity !== previousIdentity) { previousIdentity=identity; active=-1; aiming=false; hold=null; footprint.visible=false; renderSignature=""; }
     render();
     if (blocked() || !state.canEdit) {

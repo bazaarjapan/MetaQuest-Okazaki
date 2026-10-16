@@ -20,6 +20,8 @@ body[data-panel-open=true] #control-panel { display:flex; }
 .simple-detail-actions { display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; }
 .school-section textarea { width:100%; box-sizing:border-box; font-family:monospace; }
 @media(max-width:800px) {
+ body[data-touch-flight=true] #stl-hotbar,
+ body[data-touch-flight=true] #hotbar-hint { display:none; }
  #stl-hotbar { bottom:65px; gap:2px; width:96%; }
  #stl-hotbar button { height:58px; }
  #hotbar-hint { bottom:137px; font-size:10px; }
