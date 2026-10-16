@@ -78,6 +78,7 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {} }) {
   const summary = document.querySelector("#school-summary");
   let state = client.getState(), renderKey = "", busy = false, googleGeneration = 0;
   let googleHost = null, participantLabel = null, roomConnection = null;
+  let issuedCredentials = [], credentialsOwner = null;
   const inviteCode = parseSchoolInvite(globalThis.location?.href ?? "");
   function setStatus(text, error = false) { if (status.textContent !== text) status.textContent = text; status.classList.toggle("is-error", error); }
   function updateMovementStatus() {
@@ -190,13 +191,19 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {} }) {
   function renderStudents() {
     const section = element("section", undefined, "school-section"); section.append(element("h3", "先生：生徒のIDを発行（最大30人）"));
     const count = inputField("発行する人数", { type: "number", value: "1", id: "student-issue-count" }); count.input.min = "1"; count.input.max = "30";
-    const output = element("textarea"); output.id = "student-issued-credentials"; output.readOnly = true; output.hidden = true; output.rows = 8; output.setAttribute("aria-label", "今回発行したIDとパスワード");
+    const output = element("textarea"); output.id = "student-issued-credentials"; output.readOnly = true; output.hidden = !issuedCredentials.length; output.rows = 8; output.setAttribute("aria-label", "今回発行したIDとパスワード");
+    const credentialText = () => "ID\tパスワード\n" + issuedCredentials.map(row => `${row.loginId}\t${row.password}`).join("\n");
+    if (issuedCredentials.length) output.value = credentialText();
     const note = element("p", "パスワードは発行・再発行した時だけ表示します。各生徒に自分の1行だけを安全に渡してください。再発行しても名前・作品は残ります。", "school-note");
     const roster = element("div");
     const showSecrets = result => {
-      output.hidden = false;
-      output.value = "ID\tパスワード\n" + result.credentials.map(row => `${row.loginId}\t${row.password}`).join("\n");
-      output.focus(); output.select();
+      // Socket arrival may rerender the dialog during issuance. Keep this one
+      // response in volatile UI memory and update the CURRENT textarea, not a
+      // detached closure node. Never persist passwords in browser storage.
+      issuedCredentials = result.credentials; credentialsOwner = state.user?.id;
+      const current = dialog.querySelector("#student-issued-credentials") ?? output;
+      current.hidden = false; current.value = credentialText();
+      current.focus(); current.select();
     };
     async function refreshRoster() {
       const result = await client.students(); roster.replaceChildren();
@@ -267,6 +274,7 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {} }) {
   }
   function render(next, event) {
     state = next;
+    if (credentialsOwner !== state.user?.id) { issuedCredentials = []; credentialsOwner = state.user?.id; }
     updateMovementStatus();
     // High-frequency single-player pose updates only affect the 3D scene. They
     // must not rebuild the login form or announce every movement to screenreaders.
