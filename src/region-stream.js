@@ -1,6 +1,7 @@
 import { planRegionTiles, regionProfiles } from "./region-plan.js";
 import { textureMemoryBytes } from "./quality.js";
 import { applyLiveTerrainHeight } from "./terrain-height.js";
+import { createFieldBuildingMaterial,decorateBuildingGeometry } from "./field-style.js";
 
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
 const MAX_TERRAIN_TEXTURE_BYTES = 32 * 1024 * 1024;
@@ -59,6 +60,8 @@ export function createRegionStreamer(THREE, parentGroup, {
   fetchImpl = globalThis.fetch,
   textureLoader,
   heightLoader = applyLiveTerrainHeight,
+  fieldUniform = {value:0},
+  terrainTexture = tile => ({url:`/region/${tile.texture}`}),
 } = {}) {
   const ownedBitmaps = new WeakMap();
   // Modern Quest/desktop browsers use real cancellable HTTP. The fallback is
@@ -66,7 +69,7 @@ export function createRegionStreamer(THREE, parentGroup, {
   // supported without browser APIs.
   const loader = textureLoader ?? (typeof globalThis.createImageBitmap === "function" && typeof THREE.Texture === "function"
     ? loadBrowserTexture : new THREE.TextureLoader());
-  const buildingMaterial = new THREE.MeshStandardMaterial({
+  const buildingMaterial = createFieldBuildingMaterial(THREE,fieldUniform,{
     color: new THREE.Color(0.72, 0.76, 0.78).multiplyScalar(0.84), roughness: 1, metalness: 0,
   });
   let tiles = new Map();
@@ -256,6 +259,7 @@ export function createRegionStreamer(THREE, parentGroup, {
       await verifyHash(data, tile.sha256);
       if (!live(task)) return;
       geometry = makeGeometry(data, tile);
+      if(tile.type==='building')decorateBuildingGeometry(THREE,geometry);
       let heightStats = null;
       if (tile.type === "terrain" && tile.heightMode === "live-gsi-dem") {
         heightStats = await heightLoader(THREE, geometry, tile, { signal: task.controller.signal, fetchImpl });
@@ -263,7 +267,7 @@ export function createRegionStreamer(THREE, parentGroup, {
       }
       let decodedBytes = 0;
       if (tile.type === "terrain" && tile.texture) {
-        map = await loadTexture(`/region/${tile.texture}`, task.controller.signal);
+        map = await loadTexture(terrainTexture(tile).url, task.controller.signal);
         if (!live(task)) return;
         const width = map.image?.width ?? map.image?.naturalWidth;
         const height = map.image?.height ?? map.image?.naturalHeight;
@@ -298,8 +302,8 @@ export function createRegionStreamer(THREE, parentGroup, {
       // The final guard is directly before attach. No awaiting occurs afterward.
       if (!live(task)) return;
       parentGroup.add(mesh);
-      const geometryBytes = tile.format === "region-building-v1"
-        ? tile.vertices * 15 + tile.indices * 4 : tile.bytes;
+      const geometryBytes = (tile.format === "region-building-v1"
+        ? tile.vertices * 15 + tile.indices * 4 : tile.bytes) + (geometry.attributes.fieldColor?.array.byteLength ?? 0);
       resident.set(tile.id, { mesh, type: tile.type, triangles: tile.triangles,
         bytes: tile.bytes, geometryBytes, textureBytes: decodedBytes });
       geometry = map = material = null;

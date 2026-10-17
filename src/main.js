@@ -23,6 +23,7 @@ import { createBlockAvatar } from "./block-avatar.js";
 import { createSchoolClient } from "./school-client.js";
 import { createSchoolUI } from "./school-ui.js";
 import { createActivityGate } from "./activity-gate.js";
+import { readFieldStyle,FIELD_STYLE_KEY,createFieldBuildingMaterial,decorateBuildingGeometry,gameTerrainFile } from "./field-style.js";
 import { createHotbar } from "./hotbar.js";
 import { createHeldSTL } from "./held-stl.js";
 import { createSchoolPresence } from "./school-presence.js";
@@ -66,6 +67,8 @@ function syncTouchControls() {
 let preferenceStorage;
 try { preferenceStorage = window.localStorage; } catch { /* Optional preference only. */ }
 let quality = readQuality(preferenceStorage);
+let fieldStyle=readFieldStyle(preferenceStorage),fieldManifest=null;
+const fieldUniform={value:fieldStyle==='game'?1:0};
 const state = {
   ready: false,
   current: "overview",
@@ -133,7 +136,9 @@ scene.add(city);
 const regionGroup = new THREE.Group();
 regionGroup.name = "streamed-okazaki-region";
 scene.add(regionGroup);
-const regionStreamer = createRegionStreamer(THREE, regionGroup);
+const regionStreamer = createRegionStreamer(THREE, regionGroup,{fieldUniform,
+  terrainTexture:tile=>({url:fieldStyle==='game'&&fieldManifest?.region[tile.id]
+    ? `/field/${fieldManifest.region[tile.id].file}`:`/region/${tile.texture}`})});
 let regionManifest = null, regionUiTime = 0;
 const textures = new Map();
 let detail = null, terrainMesh = null, terrainFile = "Texture-001.png";
@@ -363,6 +368,9 @@ async function fetchChecked(url, type) {
   return type === "json" ? response.json() : response.arrayBuffer();
 }
 async function loadCity() {
+  try { fieldManifest=await fetchChecked('/field/manifest.json','json'); }
+  catch { fieldStyle='photo';fieldUniform.value=0;$('#field-style-note').textContent='ゲーム風の地図を取得できませんでした。写真表示で利用できます。'; }
+  $('#field-style').value=fieldStyle;
   const manifest = await fetchChecked("/city/manifest.json", "json");
   // Detail assets are optional: the original published atlas remains a fallback.
   try { detail = await fetchChecked("/city/detail.json", "json"); } catch { detail = null; }
@@ -399,6 +407,10 @@ async function loadCity() {
       const preferred = isTerrain ? terrainVariant(quality.id) : p.texture;
       try { map = await loadTexture(preferred); }
       catch {
+        if(isTerrain&&fieldStyle==='game'){
+          fieldStyle='photo';fieldUniform.value=0;$('#field-style').value='photo';
+          $('#field-style-note').textContent='ゲーム風の地面を取得できなかったため写真表示に切り替えました。選び直すと再試行できます。';
+        }
         map = await loadTexture(p.texture);
         $("#quality-note").textContent = "高解像度写真を取得できなかったため、元の写真で表示しています。";
       }
@@ -407,14 +419,12 @@ async function loadCity() {
     const color = map
       ? new THREE.Color(1, 1, 1)
       : new THREE.Color(...p.color).multiplyScalar(0.84);
+    const gameBuilding = !map && p.vertices>30000;
+    if(gameBuilding)decorateBuildingGeometry(THREE,geometry);
+    const materialOptions={color,map,roughness:1,metalness:0};
     const mesh = new THREE.Mesh(
       geometry,
-      new THREE.MeshStandardMaterial({
-        color,
-        map,
-        roughness: 1,
-        metalness: 0,
-      }),
+      gameBuilding?createFieldBuildingMaterial(THREE,fieldUniform,materialOptions):new THREE.MeshStandardMaterial(materialOptions),
     );
     mesh.name = p.name;
     mesh.castShadow = p.texture !== "Texture-001.png";
@@ -439,6 +449,7 @@ async function loadCity() {
     bounds: coreBounds(), terrainMeshes: [terrainMesh] };
   $("#open-workshop").disabled = false;
   state.ready = true;
+  $('#field-style').disabled=false;
   $("#quality-select").disabled = false;
   state.triangles = manifest.triangles;
   state.parts = city.children.length;
@@ -497,7 +508,7 @@ async function loadRegion() {
     source: buildings.source, year: buildings.year,
     geographicBounds: buildings.geographicBounds,
     totalTriangles: buildings.totalTriangles };
-  regionStreamer.setManifest(regionManifest);
+  regionStreamer.setManifest(fieldRegionManifest());
   state.regionReady = true;
   state.regionError = null;
   const width = (buildings.bounds[2] - buildings.bounds[0]) / 1000,
@@ -570,7 +581,8 @@ $("#region-go").onclick = () => {
   const tile = regionManifest?.buildings.find((entry) => entry.id === $("#region-cell").value);
   if (tile) visitRegionPoint((tile.bounds[0] + tile.bounds[2]) / 2, (tile.bounds[1] + tile.bounds[3]) / 2);
 };
-function terrainVariant(id) {
+function terrainVariant(id,style=fieldStyle) {
+  if(style==='game'&&fieldManifest)return gameTerrainFile(fieldManifest,id);
   const variant = id === "high" ? "high" : id === "balanced" ? "standard" : null;
   return detail?.profiles?.[variant]?.file ?? "Texture-001.png";
 }
@@ -609,6 +621,32 @@ function applyRenderQuality() {
   resize();
 }
 $("#quality-select").value = quality.id;
+$('#field-style').value=fieldStyle;
+$('#field-style').onchange=async event=>{
+  if(!state.ready||state.xr||state.qualityLoading)return;
+  const previous=fieldStyle,requested=event.target.value;
+  state.qualityLoading=true;$('#field-style').disabled=true;$('#enter-vr').disabled=true;
+  $('#quality-select').disabled=true;
+  setFree(false);
+  try {
+    if(requested==='game'&&!fieldManifest)fieldManifest=await fetchChecked('/field/manifest.json','json');
+    const nextFile=terrainVariant(quality.id,requested),map=await loadTexture(nextFile),oldFile=terrainFile;
+    fieldStyle=requested;
+    terrainMesh.material.map=map;terrainMesh.material.needsUpdate=true;terrainFile=nextFile;
+    fieldUniform.value=fieldStyle==='game'?1:0;
+    if(oldFile!==nextFile){textures.get(oldFile)?.dispose();textures.delete(oldFile);}
+    if(regionManifest)regionStreamer.setManifest(fieldRegionManifest());
+    try{preferenceStorage?.setItem(FIELD_STYLE_KEY,fieldStyle);}catch{}
+    $('#field-style-note').textContent=fieldStyle==='game'?'道・線路・川を見やすく色分け。草や建物の窓はゲーム風の装飾です。':'航空写真と元の建物の色で表示します。';
+  }catch{
+    fieldStyle=previous;event.target.value=previous;
+    $('#field-style-note').textContent='表示を切り替えられませんでした。現在の表示で続けられます。';
+  }finally{state.qualityLoading=false;$('#field-style').disabled=false;$('#quality-select').disabled=false;await checkVR();}
+};
+function fieldRegionManifest(){
+  return {...regionManifest,tiles:regionManifest.tiles.map(tile=>tile.type==='terrain'&&fieldStyle==='game'&&fieldManifest?.region[tile.id]
+    ? {...tile,textureWidth:512,textureHeight:512}:tile)};
+}
 $("#quality-note").textContent = quality.hint;
 $("#quality-select").onchange = async (event) => {
   if (state.xr || state.qualityLoading) return;
@@ -616,8 +654,9 @@ $("#quality-select").onchange = async (event) => {
   quality = qualityProfile(event.target.value);
   state.qualityLoading = true;
   $("#quality-select").disabled = true;
+  $('#field-style').disabled=true;
   $("#enter-vr").disabled = true;
-  $("#quality-note").textContent = "画質と空中写真を切り替え中…";
+  $("#quality-note").textContent = "画質を切り替え中…";
   try {
     if (terrainMesh) {
       const nextFile = terrainVariant(quality.id);
@@ -642,6 +681,7 @@ $("#quality-select").onchange = async (event) => {
   } finally {
     state.qualityLoading = false;
     $("#quality-select").disabled = false;
+    $('#field-style').disabled=false;
     if (state.ready) await checkVR();
   }
 };
@@ -920,6 +960,7 @@ $("#enter-vr").onclick = async () => {
   }
 };
 renderer.xr.addEventListener("sessionstart", () => {
+  $('#field-style').disabled=true;
   hideControllerPointers();
   simulationSeconds = 0;
   state.xr = true;
@@ -959,6 +1000,7 @@ renderer.xr.addEventListener("sessionstart", () => {
   if (!activityAllowed) session.end().catch(() => {});
 });
 renderer.xr.addEventListener("sessionend", () => {
+  $('#field-style').disabled=false;
   hideControllerPointers();
   const view = resolveXRExitView(pendingXRView, lastXRView, () => captureView(camera));
   state.xr = false;
@@ -1301,6 +1343,8 @@ renderer.domElement.addEventListener("webglcontextlost", (e) => {
 // Read-only diagnostics used by local and deployed acceptance checks.
 window.__okazaki = {
   getState: () => ({
+    field: {style:fieldStyle,available:Boolean(fieldManifest),coreFile:fieldManifest?.core.file,
+      regionTiles:fieldManifest?Object.keys(fieldManifest.region).length:0},
     ...state,
     school: schoolClient.getState(),
     activityAllowed,
@@ -1321,7 +1365,7 @@ window.__okazaki = {
     panelVisible: panel.visible && vrFieldPanel.getState().expanded,
     vrPanel: vrFieldPanel.getState(),
     pointers: { left: controllerPointers.left.getState(), right: controllerPointers.right.getState() },
-    version: "1.9.3",
+    version: "1.10.0",
     vrReturn: { buttonVisible: vrReturnButton.getState().visible,
       holdProgress: vrReturnButton.getState().progress, exiting: xrExitPending,
       hasResume: hasVRResume, view: lastXRView ? {
