@@ -129,6 +129,41 @@ test("teachers and students share one atomic display-name namespace",async t=>{
   await updateAvatar(db,users[winner],{color:"#abcdef"}); // same owner's name is allowed
   assert.equal((await authenticateStudent(db,issued[winner],now,"test")).user.name,"Same Name");
   await updateAvatar(db,users[loser],{name:"同じ名前"}); // freed name may be reused
+  await updateAvatar(db,users[winner],{name:"Alice"});
+  for (const name of ["Alice\u200d", "Alice\ufe0f", "Alice\u034f", "Alice\u{e0100}"]) {
+    await rejects(()=>updateAvatar(db,users[loser],{name}),"name_taken");
+  }
+});
+
+test("admitted teachers with pending names cannot read or reset student credentials",async t=>{
+  const {db,teacher}=await fixture(t);
+  const [student]=await issueStudents(db,teacher,{count:1},now);
+  const pending={...teacher,avatar_json:JSON.stringify({name:"重複",namePending:true})};
+  await rejects(()=>studentRoster(db,pending),"name_required");
+  await rejects(()=>resetStudent(db,pending,student.id),"name_required");
+  assert.equal((await authenticateStudent(db,student,now,"test")).user.id,student.id);
+});
+
+test("migration canonical key matches writes and preserves display emoji",async t=>{
+  const {db,sql,teacher}=await fixture(t);
+  const issued=await issueStudents(db,teacher,{count:2},now);
+  sql.exec("DROP INDEX school_users_unique_avatar_name");
+  for(const [i,entry] of issued.entries()) sql.prepare("UPDATE school_users SET avatar_json=? WHERE id=?")
+    .run(JSON.stringify({name:i?"Alice\u200d":"Alice",color:"#4a90e2"}),entry.id);
+  sql.exec(migrations[2]);
+  const rows=await Promise.all(issued.map(v=>first(db,"SELECT * FROM school_users WHERE id=?",v.id)));
+  assert.equal(rows.filter(r=>JSON.parse(r.avatar_json).namePending).length,1);
+  assert.ok(rows.every(r=>JSON.parse(r.avatar_json).nameKey==="alice"));
+  assert.ok(rows.some(r=>JSON.parse(r.avatar_json).name==="Alice\u200d"));
+  const {avatarNameKey}=await import("../worker/avatar-name-key.mjs");
+  // Exercise every range boundary, including astral selectors, in SQLite and JS.
+  for(const cp of [173,847,1564,4447,4448,6068,6069,6155,6159,8203,8207,8234,8238,8288,8303,12644,65024,65039,65279,65440,65520,65528,113824,113827,119155,119162,917504,921599]) {
+    sql.exec("DROP INDEX school_users_unique_avatar_name");
+    const name=`A${String.fromCodePoint(cp)}B`;
+    sql.prepare("UPDATE school_users SET avatar_json=? WHERE id=?").run(JSON.stringify({name,namePending:true}),issued[0].id);
+    sql.exec(migrations[2]);
+    assert.equal(JSON.parse((await first(db,"SELECT * FROM school_users WHERE id=?",issued[0].id)).avatar_json).nameKey,avatarNameKey(name));
+  }
 });
 
 test("new Google teachers choose a name too; repeat Google login never resets it",async t=>{

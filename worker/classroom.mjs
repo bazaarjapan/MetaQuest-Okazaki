@@ -22,6 +22,7 @@ export async function enterClassroom(db, user, now) {
 function teacher(user) { if (user.role !== "teacher") fail(403, "teacher_required"); }
 async function admittedTeacher(db, user) {
   teacher(user);
+  requireAvatarName(user);
   if (!await first(db, "SELECT user_id FROM school_members WHERE world_id=? AND user_id=?", CLASSROOM_ID, user.id)) fail(403, "world_membership_required");
 }
 export async function studentRoster(db, user) {

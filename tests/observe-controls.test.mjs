@@ -55,7 +55,7 @@ for (const branch of ["keyboard", "touch"]) {
     const controls = { target: new THREE.Vector3().fromArray(viewpoints.overview.target) };
     const keys = new Set(), axes = { left: [0, 0], right: [0, 0] };
     let constraintCalls = 0;
-    const context = { THREE, camera, controls, keys, temp: new THREE.Vector3(),
+    const context = { THREE, camera, controls, keys, temp: new THREE.Vector3(), activityAllowed:true,
       state: { free: true }, flight: createFlightState(), resetFlight, updateFlight, stickAxes,
       document: { querySelector: () => null }, workshop: { getState: () => ({ picking: false }) },
       adaptiveUi: { getState: () => ({ mobile: branch === "touch", open: false }) },

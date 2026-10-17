@@ -10,8 +10,8 @@ const ERROR_TEXT = {
   invalid_avatar_name: "名前は20文字以内で、見える文字を使ってください。メールアドレスや見えない制御文字は使えません。",
   invalid_name: "名前を1〜20文字で入力してください。",
   classroom_not_ready: "先生がログインするとワールドが準備されます。",
-  school_not_configured: "共同教室は準備中です。ログインなしの街・VR閲覧は引き続き使えます。",
-  school_unavailable: "共同教室に接続できません。街の閲覧はそのまま使えます。",
+  school_not_configured: "共同教室は準備中です。先生に確認してから再接続してください。",
+  school_unavailable: "共同教室に接続できません。接続が戻るまで操作を停止しています。",
   login_required: "ログインが必要です。生徒はID・パスワード、先生はGoogleでログインしてください。",
   invalid_join_code: "先生から受け取った12文字の参加コード、または招待URLを入力してください。",
   join_code_not_found: "参加コードが見つかりません。先生に確認してください。",
@@ -71,7 +71,7 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {} }) {
   const heading = element("div", undefined, "school-heading");
   const title = element("h2", "共同教室", "school-title"); title.id = "school-title";
   const closeButton = actionButton("閉じる", () => dialog.close(), "school-close"); heading.append(title, closeButton);
-  const description = element("p", "みんなで1つのワールドを使います。見学はログイン不要。生徒は先生から受け取ったID、先生は登録済みGoogleアカウントで入ります。", "school-note");
+  const description = element("p", "みんなで1つのワールドを使います。操作はログイン後に使えます。生徒は先生から受け取ったID、先生は登録済みGoogleアカウントで入ります。", "school-note");
   const status = element("p", "接続確認中…", "school-status"); status.id = "school-status"; status.setAttribute("role", "status"); status.setAttribute("aria-live", "polite");
   const movementStatus = element("p", "", "school-note"); movementStatus.id = "school-movement-status"; movementStatus.hidden = true;
   movementStatus.setAttribute("role", "status"); movementStatus.setAttribute("aria-live", "polite");
@@ -167,7 +167,7 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {} }) {
     row.append(name.label, color.label); section.append(row);
     const actions = element("div", undefined, "school-actions");
     actions.append(command(state.user.namePending ? "この名前でワールドに入る" : "アバターを保存", () => perform(() => client.updateAvatar({ name: name.input.value, color: color.input.value }), "名前と色を保存しました。次回も同じIDで続きを開けます。"), "school-avatar-save"),
-      command("ログアウト", () => perform(() => client.logout(), "ログアウトしました。街・VRの閲覧は続けられます。"), "school-logout"));
+      command("ログアウト", () => perform(() => client.logout(), "ログアウトしました。操作を再開するにはログインしてください。"), "school-logout"));
     section.append(actions); content.append(section);
   }
   function renderEntry() {
@@ -275,7 +275,7 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {} }) {
     const description = state.connection === "connected" ? "接続中：共同活動できます" : state.connection === "reconnecting" ? "再接続中：作品操作は一時停止" : state.world ? "接続待ち・停止中：作品操作はできません" : "教室を選んでください";
     if (roomConnection) roomConnection.textContent = description;
     if (participantLabel) participantLabel.textContent = `参加者 ${state.participants.length}人（生徒最大30人） · 作品 ${state.objects.length}点`;
-    if (summary) summary.textContent = state.user ? `${state.user.role === "teacher" ? "先生" : "生徒"} · ${state.world ? `${state.world.name} · ${description}` : "未参加"}` : "ゲスト：VR閲覧のみ（共同活動はログイン後）";
+    if (summary) summary.textContent = state.user ? `${state.user.role === "teacher" ? "先生" : "生徒"} · ${state.world ? `${state.world.name} · ${description}` : "未参加"}` : "未ログイン：ログイン後に操作できます";
     if (button) button.textContent = state.user ? "共同教室・アカウント" : "共同教室 / ログイン";
     for (const node of dialog.querySelectorAll("#school-world-save,#school-world-restore,#school-restore-confirm")) node.dataset.unavailable = String(state.connection !== "connected");
     refreshDisabled();
@@ -295,7 +295,7 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {} }) {
     }
     updateConnection();
     if (state.error) setStatus(explainSchoolError(state.error), true);
-    else if (event === "auth" || event === "state") setStatus(state.user ? (state.user.namePending ? "頭の上に表示する名前を決めてください。" : "ログイン中です。みんなのワールドに接続します。") : "ログインせず街を見ることもできます。");
+    else if (event === "auth" || event === "state") setStatus(state.user ? (state.user.namePending ? "頭の上に表示する名前を決めてください。" : "ログイン中です。みんなのワールドに接続します。") : "ログインすると、街の移動・VR・作品づくりを始められます。");
   }
   async function open() {
     const allowed = await onBeforeOpen();

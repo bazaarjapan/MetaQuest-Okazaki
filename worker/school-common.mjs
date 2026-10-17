@@ -100,6 +100,7 @@ export function publicAvatar(user) {
   // A saved name that the renderer would sanitize/fallback is not a usable
   // unique display name. Legacy accounts can repair it without changing ID.
   if (avatarNickname(avatar.name) !== avatar.name) avatar.namePending = true;
+  delete avatar.nameKey;
   return { ...avatar, id: user.id, role: user.role };
 }
 export function requireAvatarName(user) {

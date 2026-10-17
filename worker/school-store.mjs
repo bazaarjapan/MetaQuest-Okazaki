@@ -1,4 +1,5 @@
 import { LIMITS, cleanName, cleanAvatarName, requireAvatarName, fail, parseCookies, publicAvatar, randomToken, sha256, validId } from "./school-common.mjs";
+import { avatarNameKey } from "./avatar-name-key.mjs";
 import { managesWorld } from "./classroom-id.mjs";
 
 export const SESSION_COOKIE = "__Host-school-session";
@@ -138,7 +139,7 @@ export async function updateAvatar(db, session, value) {
   const color = value.color ?? previous.color;
   if (typeof color !== "string" || !/^#[a-f0-9]{6}$/i.test(color)) fail(400, "invalid_avatar_color");
   try {
-    const updated = await first(db, "UPDATE school_users SET avatar_json=? WHERE id=? RETURNING *", JSON.stringify({ name, color }), session.id);
+    const updated = await first(db, "UPDATE school_users SET avatar_json=? WHERE id=? RETURNING *", JSON.stringify({ name, color, nameKey: avatarNameKey(name) }), session.id);
     return publicAvatar(updated);
   } catch (error) {
     // D1 wraps SQLite errors; match only our named unique index, not outages.
