@@ -228,7 +228,7 @@ function syncAvatarViewButtons() {
   const hint = $("#rocket-hint");
   if (hint) hint.hidden = !state.ready || state.xr || current?.mode !== "creative";
   if (hint && current?.mode === "creative") {
-    const text = current.wingFlight ? `${current.animation === "boost" ? "ロケット推進" : "滑空"} · ${Math.round(current.wingSpeed)}m/s · Space：上昇 · Z：加速 · X：停止` :
+    const text = current.wingFlight ? `${current.animation === "boost" ? "ロケット推進" : "滑空"} · ${Math.round(current.wingSpeed)}m/s · ${current.pointerLocked ? "マウス" : "左ドラッグ"}：方向 · Space：上昇 · Z：加速 · X：停止` :
       "Z長押し：ロケット · Space：上昇 · X：空中停止 · F5：視点";
     if (hint.textContent !== text) hint.textContent = text;
   }

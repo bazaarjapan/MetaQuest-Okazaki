@@ -141,7 +141,8 @@ export function createBlockAvatar(THREE, { color = 0x367fab, identity = null } =
       hinge.rotation.y = sign * (airborne ? -.4 : 0);
       inner.visible = airborne;
       inner.scale.y = airborne ? 1.5 : 1;
-      inner.rotation.z = sign * 1.55;
+      // Sweep tips towards the feet/tail, not forward over the head.
+      inner.rotation.z = sign * 1.12;
       inner.rotation.y = sign * (Number.isFinite(time) ? Math.sin(time * 22) * .08 : 0);
     });
     for (const flame of flames) flame.visible = motion === "boost";

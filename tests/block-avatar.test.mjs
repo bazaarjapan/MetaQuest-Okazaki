@@ -99,6 +99,12 @@ test("idle is exact, running has stronger gait, and original wings/rockets follo
   assert.equal(avatar.group.getObjectByName("flame-0").visible, true);
   assert.equal(avatar.group.getObjectByName("wing-inner-0").visible, true);
   assert.equal(avatar.group.getObjectByName("wing-membrane-0").material.transparent, true);
+  for(const i of [0,1]) {
+    const inner=avatar.group.getObjectByName(`wing-inner-${i}`);
+    const tip=new THREE.Vector3(.1,-.94,0).applyMatrix4(inner.matrix).sub(inner.position);
+    assert.ok(tip.y<0,"wing tips sweep towards tail, not head");
+    assert.ok(i ? tip.x>0 : tip.x<0,"wings open outwards on both sides");
+  }
   assert.equal(avatar.hand.parent, avatar.group.getObjectByName("avatar-body"));
   assert.equal(avatar.group.getObjectByName("right-arm").rotation.x, Math.PI / 3);
   avatar.update({ animation: "glide" }); assert.equal(avatar.getState().boosting, false);

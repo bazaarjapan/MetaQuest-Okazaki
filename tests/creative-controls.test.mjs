@@ -76,6 +76,33 @@ test("unknown terrain holds glide altitude while preserving forward motion and e
   f.key("Space");f.control.step(.1,{enabled:true});assert.ok(f.control.getState().anchor[1]>before[1]);f.control.dispose();
 });
 
+test("unlocked flight mouse drag steers yaw/pitch without placing STL or retrying failed pointer lock", () => {
+  const f=fixture(); f.enable();f.key("KeyZ");f.control.step(.1,{enabled:true});
+  let prevented=false,consumed=false;
+  f.canvas.emit("pointerdown",{pointerType:"mouse",button:0,pointerId:9,clientX:100,clientY:100,
+    preventDefault(){prevented=true;},stopImmediatePropagation(){consumed=true;}});
+  assert.equal(prevented,true);assert.equal(consumed,true);assert.equal(f.control.getState().mouseSteering,true);
+  f.canvas.emit("pointermove",{pointerId:9,buttons:1,clientX:200,clientY:50});
+  close(f.control.getState().yaw,-.2);close(f.control.getState().pitch,.1);
+  f.win.emit("pointerup");const yaw=f.control.getState().yaw;
+  f.canvas.emit("pointermove",{pointerId:9,buttons:0,clientX:300,clientY:50});
+  close(f.control.getState().yaw,yaw);
+  f.canvas.emit("click");assert.equal(f.doc.pointerLockElement,null);
+  assert.equal(f.control.getState().wingFlight,true);f.control.dispose();
+});
+
+test("fallback mouse steering is inactive outside flight and clears on blur/modal/XR", () => {
+  const f=fixture();f.enable();
+  const down=()=>f.canvas.emit("pointerdown",{pointerType:"mouse",button:0,pointerId:1,clientX:10,clientY:10});
+  down();assert.equal(f.control.getState().mouseSteering,false);
+  f.key("KeyZ");down();assert.equal(f.control.getState().mouseSteering,true);
+  f.win.emit("blur");assert.equal(f.control.getState().mouseSteering,false);
+  f.key("KeyZ");f.control.step(.1,{enabled:true});down();f.control.step(.1,{enabled:true,blocked:true});
+  assert.equal(f.control.getState().mouseSteering,false);
+  f.control.step(.1,{enabled:true});f.key("KeyZ");down();f.control.captureForXR();
+  assert.equal(f.control.getState().mouseSteering,false);f.control.dispose();
+});
+
 test("Space climbs while gliding or boosting, including downward gaze; double Space never cancels wings", () => {
   const f=fixture(); f.enable(); f.doc.pointerLockElement=f.canvas;
   f.control.handleMouseMove({movementX:0,movementY:450});

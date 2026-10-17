@@ -17,6 +17,13 @@
   const start=s().creative.anchor;key("KeyZ");await until(()=>s().avatar.boosting&&s().creative.wingSpeed>12);
   check(s().avatar.wingsOpen&&s().creative.wingFlight,"rocket-wings-open");
   check(s().creative.anchor.some((v,i)=>Math.abs(v-start[i])>.01),"actual-flight");
+  const heading=s().creative.yaw, pitch=s().creative.pitch;
+  canvas.dispatchEvent(new PointerEvent("pointerdown",{pointerType:"mouse",button:0,buttons:1,pointerId:77,clientX:300,clientY:300,bubbles:true,cancelable:true}));
+  canvas.dispatchEvent(new PointerEvent("pointermove",{pointerType:"mouse",buttons:1,pointerId:77,clientX:380,clientY:260,bubbles:true}));
+  window.dispatchEvent(new PointerEvent("pointerup",{pointerId:77,bubbles:true}));
+  check(s().creative.yaw<heading&&s().creative.pitch>pitch,"unlocked-flight-mouse-steers");
+  canvas.dispatchEvent(new MouseEvent("click",{bubbles:true}));
+  check(s().creative.wingFlight,"steering-click-does-not-cancel-flight");
   const boostHeight=s().creative.anchor[1];key("Space");
   await until(()=>s().creative.anchor[1]>boostHeight+.1);check(s().avatar.boosting,"Space-climbs-during-boost");key("Space","keyup");
   key("KeyZ","keyup");await until(()=>s().avatar.animation==="glide");check(!s().avatar.boosting&&s().avatar.wingsOpen,"release-glides-without-flame");

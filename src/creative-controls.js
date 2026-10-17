@@ -55,6 +55,7 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
   let cameraDistance = 0;
   let thirdPersonDistance = creativeConfig.thirdPersonDistance, preXRViewMode = "first";
   const touchPointers = new Map();
+  let mouseDrag = null, suppressPointerClick = false;
   let cameraObstacleSnapshot = [];
   const keys = new Set();
   const lastMovementTap = new Map(), fastMovementKeys = new Set();
@@ -65,9 +66,9 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
   let lastSpace = -Infinity, elapsed = 0, moving = false, groundAvailable = false;
   let disposed = false, pointerError = null;
   const listeners = [];
-  const listen = (target, type, handler) => {
-    target?.addEventListener?.(type, handler);
-    listeners.push(() => target?.removeEventListener?.(type, handler));
+  const listen = (target, type, handler, options) => {
+    target?.addEventListener?.(type, handler, options);
+    listeners.push(() => target?.removeEventListener?.(type, handler, options));
   };
   const locked = () => Boolean(domElement && documentTarget?.pointerLockElement === domElement);
   const dialogOpen = () => Boolean(documentTarget?.querySelector?.('dialog[open], [role="dialog"][aria-modal="true"]:not([hidden])'));
@@ -80,6 +81,8 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
     }
   }
   function clearInput({ release = false } = {}) {
+    stopMouseDrag();
+    suppressPointerClick = false;
     touchPointers.clear();
     keys.clear(); lastSpace = -Infinity; jumpQueued = false;
     lastMovementTap.clear(); fastMovementKeys.clear();
@@ -236,12 +239,35 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
   function handleKeyUp(event) { keys.delete(event.code); fastMovementKeys.delete(event.code); }
   function handleMouseMove(event) {
     if (!active() || !locked() || inputBlocked(event)) return;
-    const x = Number(event.movementX), y = Number(event.movementY);
+    rotateMouse(Number(event.movementX), Number(event.movementY));
+  }
+  function rotateMouse(x, y) {
     if (!Number.isFinite(x) || !Number.isFinite(y)) return;
     yaw -= Math.max(-1000, Math.min(1000, x)) * creativeConfig.mouseSensitivity;
     pitch = Math.max(-Math.PI * 0.49, Math.min(Math.PI * 0.49,
       pitch - Math.max(-1000, Math.min(1000, y)) * creativeConfig.mouseSensitivity));
     roll = 0; renderView();
+  }
+  function stopMouseDrag() {
+    const pointerId = mouseDrag?.id; mouseDrag = null;
+    if (pointerId !== undefined) {
+      try { domElement?.releasePointerCapture?.(pointerId); } catch { /* Already released. */ }
+    }
+  }
+  function flightMouseDown(event) {
+    if (event.pointerType !== "mouse" || event.button !== 0 || !active() || !wingFlight || locked() || inputBlocked(event)) return;
+    if (![event.clientX,event.clientY].every(Number.isFinite)) return;
+    mouseDrag = {id:event.pointerId,x:event.clientX,y:event.clientY}; suppressPointerClick = true;
+    try { domElement.setPointerCapture?.(event.pointerId); } catch { /* Window-up fallback below. */ }
+    // In capture phase: a steering gesture must not also place the held STL.
+    event.preventDefault?.(); event.stopImmediatePropagation?.();
+  }
+  function flightMouseMove(event) {
+    if (!mouseDrag || event.pointerId !== mouseDrag.id) return;
+    if (!active() || !wingFlight || locked() || inputBlocked(event) || (event.buttons & 1) === 0) { stopMouseDrag(); return; }
+    if (![event.clientX,event.clientY].every(Number.isFinite)) return;
+    rotateMouse(event.clientX-mouseDrag.x,event.clientY-mouseDrag.y);
+    mouseDrag.x=event.clientX; mouseDrag.y=event.clientY; event.preventDefault?.();
   }
   const canTouchLook = (event) => !disposed && mode === "creative" && !enabled &&
     !xr && !suspendedXR && !documentTarget?.hidden && !inputBlocked(event);
@@ -270,6 +296,8 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
     event.preventDefault?.(); renderView();
   }
   async function requestPointer(event) {
+    // Do not request unsupported pointer lock on the click ending a flight drag.
+    if (suppressPointerClick) { suppressPointerClick = false; return; }
     if (!active() || inputBlocked(event) || locked() || typeof domElement?.requestPointerLock !== "function") return;
     try {
       await domElement.requestPointerLock(); pointerError = null;
@@ -388,7 +416,7 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
   function getState() {
     return { mode, viewMode, anchor: anchor.toArray(), eye: eyePosition().toArray(),
       yaw, pitch, flying, wingFlight, wingSpeed, animation, enabled, blocked, xr, suspendedXR, moving,
-      pointerLocked: locked(), pointerError, groundAvailable, pressedKeys: [...keys],
+      pointerLocked: locked(), mouseSteering: Boolean(mouseDrag), pointerError, groundAvailable, pressedKeys: [...keys],
       sprinting: keys.has("ControlLeft") || keys.has("ControlRight") || fastMovementKeys.size > 0, cameraDistance, disposed };
   }
   function dispose() {
@@ -403,6 +431,11 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
   listen(windowTarget, "keyup", handleKeyUp);
   listen(windowTarget, "blur", () => clearInput({ release: true }));
   listen(documentTarget, "mousemove", handleMouseMove);
+  listen(domElement, "pointerdown", flightMouseDown, true);
+  listen(domElement, "pointermove", flightMouseMove);
+  listen(windowTarget, "pointerup", stopMouseDrag);
+  listen(domElement, "pointercancel", stopMouseDrag);
+  listen(domElement, "lostpointercapture", () => { mouseDrag = null; });
   listen(domElement, "pointerdown", touchDown);
   listen(domElement, "pointermove", touchMove);
   for (const type of ["pointerup", "pointercancel", "lostpointercapture"]) {
