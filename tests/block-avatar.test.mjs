@@ -7,14 +7,14 @@ test("original block avatar is a small asset-free group anchored at its feet", (
   const avatar = createBlockAvatar(THREE);
   const meshes = [];
   avatar.group.traverse((object) => { if (object.isMesh) meshes.push(object); });
-  assert.equal(meshes.length, 18);
-  assert.equal(new Set(meshes.map((mesh) => mesh.geometry)).size, 1);
+  assert.equal(meshes.length, 20);
+  assert.equal(new Set(meshes.map((mesh) => mesh.geometry)).size, 3);
   assert.ok(meshes.every((mesh) => !mesh.material.map));
   assert.equal(avatar.getState().visible, false);
   const bounds = new THREE.Box3().setFromObject(avatar.group);
   assert.ok(Math.abs(bounds.min.y) < 1e-9);
   assert.ok(bounds.max.y > 1.8 && bounds.max.y < 2);
-  assert.equal(avatar.getState().materialCount, 7);
+  assert.equal(avatar.getState().materialCount, 10);
 });
 
 test("avatar pose handles independent head pitch and block-limb movement", () => {
@@ -48,14 +48,19 @@ test("avatar disposes shared resources exactly once and removes its own group", 
   const avatar = createBlockAvatar(THREE), scene = new THREE.Scene();
   scene.add(avatar.group);
   let geometryDisposals = 0, materialDisposals = 0;
+  let allGeometryDisposals = 0;
+  const allGeometries = new Set();
+  avatar.group.traverse(object => { if(object.geometry) allGeometries.add(object.geometry); });
+  for(const entry of allGeometries) entry.addEventListener("dispose",()=>allGeometryDisposals++);
   const geometry = avatar.group.getObjectByName("torso").geometry;
   geometry.addEventListener("dispose", () => geometryDisposals++);
   const materials = new Set();
-  avatar.group.traverse((object) => { if (object.isMesh) materials.add(object.material); });
+  avatar.group.traverse((object) => { if (object.material) materials.add(object.material); });
   for (const material of materials) material.addEventListener("dispose", () => materialDisposals++);
   avatar.dispose(); avatar.dispose(); avatar.update({ visible: true });
   assert.equal(geometryDisposals, 1);
-  assert.equal(materialDisposals, 7);
+  assert.equal(allGeometryDisposals, 4);
+  assert.equal(materialDisposals, 10);
   assert.equal(avatar.group.parent, null);
   assert.equal(avatar.getState().disposed, true);
   assert.equal(avatar.getState().visible, false);
@@ -69,7 +74,7 @@ test("opaque identity generates stable original appearance, without changing the
   assert.notDeepEqual(first.getState().appearance, other.getState().appearance);
   first.setIdentity("user-two"); assert.deepEqual(first.getState().appearance, other.getState().appearance);
   first.setColor("#112233"); assert.equal(first.group.getObjectByName("torso").material.color.getHexString(), "112233");
-  assert.equal(first.getState().materialCount, 7); first.dispose(); again.dispose(); other.dispose();
+  assert.equal(first.getState().materialCount, 10); first.dispose(); again.dispose(); other.dispose();
 });
 
 test("a shirt matching the old skin color never recolors face or arms", () => {
@@ -92,11 +97,14 @@ test("idle is exact, running has stronger gait, and original wings/rockets follo
   avatar.update({ animation: "boost", time: .1 });
   assert.equal(avatar.getState().wingsOpen, true); assert.equal(avatar.getState().boosting, true);
   assert.equal(avatar.group.getObjectByName("flame-0").visible, true);
+  assert.equal(avatar.group.getObjectByName("wing-inner-0").visible, true);
+  assert.equal(avatar.group.getObjectByName("wing-membrane-0").material.transparent, true);
   assert.equal(avatar.hand.parent, avatar.group.getObjectByName("avatar-body"));
   assert.equal(avatar.group.getObjectByName("right-arm").rotation.x, Math.PI / 3);
   avatar.update({ animation: "glide" }); assert.equal(avatar.getState().boosting, false);
   avatar.setHolding(false); avatar.update({ animation: "idle", time: 500 });
   assert.equal(leg.rotation.x, 0); assert.equal(avatar.group.getObjectByName("avatar-body").rotation.x, 0);
   assert.equal(avatar.getState().wingsOpen, false); assert.equal(avatar.group.getObjectByName("flame-0").visible, false);
+  assert.equal(avatar.group.getObjectByName("wing-inner-0").visible, false);
   avatar.dispose();
 });

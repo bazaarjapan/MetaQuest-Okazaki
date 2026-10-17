@@ -44,7 +44,7 @@ export function remoteParticipants(state) {
   return result;
 }
 
-// Original eighteen-cube avatars; no imported character or texture assets.
+// Original block avatars with low-poly beetle wings; no imported textures/assets.
 // Identity changes clear the old room before any new room can be rendered.
 export function createSchoolPresence(THREE, { scene, client,
   documentTarget = globalThis.document } = {}) {
