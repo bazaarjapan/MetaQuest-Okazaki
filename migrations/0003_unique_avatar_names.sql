@@ -3,6 +3,9 @@
 -- other accounts choose a new name at their next visit, without losing work.
 -- Canonical collision keys ignore invisible formatting without changing the
 -- displayed name or valid emoji sequences. Ranges match avatar-name-key.mjs.
+-- SQLite has no NFC function. Historical non-NFC display names are gated as
+-- namePending by publicAvatar before authorization, then NFC-normalized by
+-- updateAvatar on confirmation. They cannot enter a room with an alias key.
 WITH RECURSIVE chars(id,rest,key) AS (
   SELECT id,json_extract(avatar_json,'$.name'),'' FROM school_users
   UNION ALL
