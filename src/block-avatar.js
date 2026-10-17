@@ -62,7 +62,16 @@ export function createBlockAvatar(THREE, { color = 0x367fab, identity = null } =
   const backTrim = block("trim-back", [.56, .12, .016], [0, 1.08, .158], 0xf5ba42);
   // Original beetle-like elytra: rounded hard covers over thin, veined hindwings.
   // All avatars reuse these few geometries within the avatar, with no image assets.
-  const shellGeometry = new THREE.SphereGeometry(1, 12, 8); geometries.add(shellGeometry);
+  // User's shield outline: straight centre seam and top, curved outer edge
+  // tapering to the bottom. Mirror the same thin shell for the other side.
+  const shellOutline = new THREE.Shape(); shellOutline.moveTo(0,0);
+  shellOutline.lineTo(.29,0);
+  shellOutline.bezierCurveTo(.32,-.2,.33,-.47,.23,-.61);
+  shellOutline.bezierCurveTo(.17,-.71,.07,-.78,0,-.83);
+  shellOutline.lineTo(0,0);
+  const shellGeometry = new THREE.ExtrudeGeometry(shellOutline, {depth:.055,steps:1,
+    bevelEnabled:true,bevelThickness:.012,bevelSize:.01,bevelSegments:2,curveSegments:8});
+  geometries.add(shellGeometry);
   const shellMaterial = material(0x285b45, "wing-shell");
   shellMaterial.roughness = .3; shellMaterial.metalness = .25;
   const shape = new THREE.Shape(); shape.moveTo(0, 0);
@@ -80,9 +89,9 @@ export function createBlockAvatar(THREE, { color = 0x367fab, identity = null } =
   geometries.add(veinGeometry);
   const veinMaterial = new THREE.LineBasicMaterial({color:0x8f764c}); materials.set("wing-veins",veinMaterial);
   const wings = [-1, 1].map((sign, i) => {
-    const hinge = new THREE.Group(); hinge.position.set(sign * .16, 1.3, .26); group.add(hinge);
+    const hinge = new THREE.Group(); hinge.position.set(sign * .012, 1.38, .18); group.add(hinge);
     const shell = new THREE.Mesh(shellGeometry, shellMaterial); shell.name = `wing-shell-${i}`;
-    shell.scale.set(.25, .50, .105); shell.position.set(sign * .20, -.31, .08); hinge.add(shell);
+    shell.scale.x = sign; hinge.add(shell);
     const inner = new THREE.Group(); inner.name = `wing-inner-${i}`;
     inner.position.set(sign * .15, 1.27, .23); inner.scale.x = sign; group.add(inner);
     const membrane = new THREE.Mesh(membraneGeometry, membraneMaterial); membrane.name = `wing-membrane-${i}`;
@@ -90,8 +99,8 @@ export function createBlockAvatar(THREE, { color = 0x367fab, identity = null } =
     return { hinge, inner, sign };
   });
   const flames = [-1, 1].map((sign, i) => {
-    block(`rocket-${i}`, [.17, .48, .2], [sign * .17, 1.07, .4], 0x33455d);
-    const flame = block(`flame-${i}`, [.12, .48, .12], [sign * .17, .62, .4], 0xffa529);
+    block(`rocket-${i}`, [.15, .48, .06], [sign * .14, 1.07, .19], 0x33455d);
+    const flame = block(`flame-${i}`, [.12, .48, .12], [sign * .14, .62, .19], 0xffa529);
     flame.material.emissive.set(0xff6600); flame.visible = false; return flame;
   });
   // Tilt the body around its centre in flight, leaving the world-space feet and
@@ -137,8 +146,8 @@ export function createBlockAvatar(THREE, { color = 0x367fab, identity = null } =
     rightLeg.rotation.x = leftArm.rotation.x = -swing;
     leftArm.rotation.z = airborne ? -.35 : 0; rightArm.rotation.z = airborne ? .35 : 0;
     wings.forEach(({hinge, inner, sign}) => {
-      hinge.rotation.z = sign * (airborne ? .65 : -.1);
-      hinge.rotation.y = sign * (airborne ? -.4 : 0);
+      hinge.rotation.z = airborne ? sign * .65 : 0;
+      hinge.rotation.y = airborne ? sign * -.4 : 0;
       inner.visible = airborne;
       inner.scale.y = airborne ? 1.5 : 1;
       // Sweep tips towards the feet/tail, not forward over the head.

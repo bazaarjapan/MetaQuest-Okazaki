@@ -114,3 +114,15 @@ test("idle is exact, running has stronger gait, and original wings/rockets follo
   assert.equal(avatar.group.getObjectByName("wing-inner-0").visible, false);
   avatar.dispose();
 });
+
+test("stowed shield elytra meet at a straight central seam and hug the back",()=>{
+  const avatar=createBlockAvatar(THREE);avatar.update({animation:"idle"});
+  const left=avatar.group.getObjectByName("wing-shell-0"),right=avatar.group.getObjectByName("wing-shell-1");
+  const a=new THREE.Box3().setFromObject(left),b=new THREE.Box3().setFromObject(right);
+  assert.ok(a.max.x<0&&b.min.x>0);assert.ok(b.min.x-a.max.x<.01,"central seam <1cm");
+  assert.ok(a.min.z>=.15&&a.max.z<.25,"thin cover sits immediately behind torso");
+  assert.ok(b.min.z>=.15&&b.max.z<.25);
+  assert.ok(a.min.x>-.35&&b.max.x<.35,"stowed covers fit body width");
+  avatar.update({animation:"boost"});assert.ok(Math.abs(left.parent.rotation.z)>.5);
+  avatar.update({animation:"idle"});assert.equal(left.parent.rotation.z,0);avatar.dispose();
+});
