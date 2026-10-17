@@ -302,8 +302,8 @@ export function createRegionStreamer(THREE, parentGroup, {
       // The final guard is directly before attach. No awaiting occurs afterward.
       if (!live(task)) return;
       parentGroup.add(mesh);
-      const geometryBytes = tile.format === "region-building-v1"
-        ? tile.vertices * 15 + tile.indices * 4 : tile.bytes;
+      const geometryBytes = (tile.format === "region-building-v1"
+        ? tile.vertices * 15 + tile.indices * 4 : tile.bytes) + (geometry.attributes.fieldColor?.array.byteLength ?? 0);
       resident.set(tile.id, { mesh, type: tile.type, triangles: tile.triangles,
         bytes: tile.bytes, geometryBytes, textureBytes: decodedBytes });
       geometry = map = material = null;

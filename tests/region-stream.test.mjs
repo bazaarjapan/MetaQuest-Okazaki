@@ -120,7 +120,7 @@ test("loads two pools with nearest terrain priority and releases tile-owned reso
   const state = streamer.getState();
   assert.equal(state.resident, 3);
   assert.equal(state.triangles, 3);
-  assert.equal(state.geometryBytes, tiles.reduce((sum, entry) => sum + entry.bytes, 0));
+  assert.equal(state.geometryBytes, tiles.reduce((sum, entry) => sum + entry.bytes + (entry.type==='building'?entry.vertices*3:0), 0));
   assert.ok(state.textureBytes > 256 * 256 * 4);
   assert.equal(streamer.getGroundMeshes().length, 1);
   assert.equal(streamer.getMeshes().length, 3);
@@ -415,7 +415,7 @@ test("packed building positions decode into world coordinates with normalized In
   assert.deepEqual([...geometry.index.array], [0, 1, 2]);
   assert.ok(streamer.getGroundMeshes()[0].geometry.attributes.uv, "raw terrain retains its UV attribute");
   assert.equal(streamer.getState().sourceBytes, building.bytes + ground.bytes);
-  assert.equal(streamer.getState().geometryBytes, building.vertices * 15 + building.indices * 4 + ground.bytes);
+  assert.equal(streamer.getState().geometryBytes, building.vertices * 18 + building.indices * 4 + ground.bytes);
   streamer.dispose();
 });
 
