@@ -23,6 +23,7 @@ import { createBlockAvatar } from "./block-avatar.js";
 import { createSchoolClient } from "./school-client.js";
 import { createSchoolUI } from "./school-ui.js";
 import { createHotbar } from "./hotbar.js";
+import { createHeldSTL } from "./held-stl.js";
 import { createSchoolPresence } from "./school-presence.js";
 import { createVRWorkshop } from "./vr-workshop.js";
 import { createVRControllerPointer } from "./vr-controller-pointer.js";
@@ -35,7 +36,7 @@ const $ = (s) => document.querySelector(s),
 const adaptiveUi = createAdaptiveUi();
 const touchControls = createTouchControls(viewport);
 let touchUiKey = "";
-let mobileAvatarControls = false;
+let mobileAvatarControls = true;
 function syncTouchControls() {
   const ui = adaptiveUi.getState();
   if (creative && ui.mobile && !mobileAvatarControls && !state.xr && !xrEntering && !creative.getState().suspendedXR && creative.getState().mode === "creative") {
@@ -190,6 +191,7 @@ const ownAvatar = createBlockAvatar(THREE);
 const ownAvatarLabel = createAvatarLabel(THREE, { parent: ownAvatar.group });
 let ownIdentity = null, ownColor = null;
 scene.add(ownAvatar.group);
+const heldSTL = createHeldSTL({ avatar: ownAvatar, camera });
 renderer.domElement.tabIndex = 0;
 let creative = null;
 renderer.domElement.addEventListener("pointerdown", () => {
@@ -273,7 +275,9 @@ function adoptSchoolPose() {
   setFree(false); vrWorkshop.cancelPicking();
   updateLabels("school");
   if (state.xr || xrEntering) pendingXRView = view;
-  if (!state.xr) { restoreDesktopView(view); creative.syncFromCamera(); }
+  // restoreDesktopView already adopts the eye pose once. Re-adopting its rear
+  // camera would move the player backwards by the third-person offset.
+  if (!state.xr) restoreDesktopView(view);
   restoredWorld = schoolState.world.id;
 }
 schoolClient.subscribe((next, event) => {
@@ -285,7 +289,7 @@ schoolClient.subscribe((next, event) => {
   }
   if (next.user?.color && ownColor !== next.user.color) { ownColor = next.user.color; ownAvatar.setColor(ownColor); }
   ownAvatarLabel.setName(next.user?.name);
-  if (!next.user) { ownColor = null; ownAvatar.group.visible = false; }
+  if (!next.user) { ownColor = null; ownAvatar.setColor(0x367fab); heldSTL.clear(); }
   if (!next.world || next.connection !== "connected") { vrWorkshop.cancelPicking(); restoredWorld = null; }
   adoptSchoolPose();
 });
@@ -407,7 +411,7 @@ async function loadCity() {
   $("#control-mode").disabled = false;
   // Let the change handler apply a mobile fallback without persisting it over
   // the user's PC choice. A narrow window must not change desktop preference.
-  $("#control-mode").value = adaptiveUi.getState().mobile ? "drone" : readControlMode(preferenceStorage);
+  $("#control-mode").value = adaptiveUi.getState().mobile ? "creative" : readControlMode(preferenceStorage);
   $("#control-mode").dispatchEvent(new Event("change"));
   adoptSchoolPose();
   if (initialPCMovement({ ready: state.ready, mobile: adaptiveUi.getState().mobile,
@@ -867,7 +871,7 @@ $("#enter-vr").onclick = async () => {
       "VRを開始できませんでした。権限を確認して、もう一度押してください。";
     $("#enter-vr").disabled = false;
     console.warn("XR request rejected", e.name);
-    if (creative.getState().mode === "creative") creative.restoreAfterXR(pendingXRView);
+    if (creative.getState().mode === "creative") creative.restoreAfterXR(pendingXRView, { entryFailed: true });
     pendingXRView = null;
   } finally {
     xrEntering = false;
@@ -1183,7 +1187,10 @@ renderer.setAnimationLoop((time, frame) => {
       schoolClient.sendPose({ position: userPosition().toArray(), yaw });
     }
     presence.update(dt);
-    if (!schoolState.user) ownAvatar.group.visible = false;
+    const heldDraft = !state.xr && !xrEntering ? workshop.getHeldDraft() : null;
+    heldSTL.update({ draft: heldDraft, canEdit: Boolean(heldDraft),
+      xr: state.xr || xrEntering, hidden: document.hidden,
+      thirdPerson: creative.getState().mode === "creative" && creative.getState().viewMode !== "first" });
     syncAvatarViewButtons();
     if ((state.free || state.current === "region") && time > nextGroundCheck) {
       nextGroundCheck = time + 150;
@@ -1252,6 +1259,7 @@ window.__okazaki = {
     vrWorkshop: vrWorkshop.getState(),
     workshop: workshop.getState(),
     hotbar: hotbar.getState(),
+    heldSTL: heldSTL.getState(),
     creative: creative.getState(),
     avatar: { ...ownAvatar.getState(), label: ownAvatarLabel.getState() },
     camera: camera.position.toArray(),
@@ -1264,7 +1272,7 @@ window.__okazaki = {
     panelVisible: panel.visible && vrFieldPanel.getState().expanded,
     vrPanel: vrFieldPanel.getState(),
     pointers: { left: controllerPointers.left.getState(), right: controllerPointers.right.getState() },
-    version: "1.8.0",
+    version: "1.8.1",
     vrReturn: { buttonVisible: vrReturnButton.getState().visible,
       holdProgress: vrReturnButton.getState().progress, exiting: xrExitPending,
       hasResume: hasVRResume, view: lastXRView ? {

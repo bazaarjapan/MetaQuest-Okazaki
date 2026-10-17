@@ -33,7 +33,9 @@ function fixture({ xr = false, entering = false } = {}) {
     creative: { syncFromCamera() { calls.sync++; } },
     updateLabels(value) { calls.label = value; },
   });
-  context.restoreDesktopView = (view) => { context.desktopView = copy(view); calls.desktop++; };
+  // Real restoreDesktopView -> setDesktopView already synchronizes controls.
+  // Count that synchronization so a duplicate adoption of the rear camera fails.
+  context.restoreDesktopView = (view) => { context.desktopView = copy(view); calls.desktop++; context.creative.syncFromCamera(); };
   return { context, calls, run: () => adoptScript.runInContext(context, { timeout: 1000 }) };
 }
 
