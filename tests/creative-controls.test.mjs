@@ -143,6 +143,46 @@ test("ground launch, landing and exact stationary/walk/run animation", () => {
   f.control.dispose();
 });
 
+test("double Space held climbs three times faster in both glide and rocket flight", () => {
+  for (const boost of [false,true]) {
+    const f=fixture();f.enable();f.key("KeyZ");if(!boost)f.release("KeyZ");
+    let y=f.control.getState().anchor[1];f.key("Space");f.control.step(.1,{enabled:true});
+    close(f.control.getState().anchor[1]-y,1.2);
+    f.release("Space");f.advance(100);f.key("Space");
+    assert.equal(f.control.getState().fastClimb,true);
+    y=f.control.getState().anchor[1];f.control.step(.1,{enabled:true});
+    close(f.control.getState().anchor[1]-y,3.6);
+    f.release("Space");assert.equal(f.control.getState().fastClimb,false);
+    f.advance(400);f.key("Space");y=f.control.getState().anchor[1];f.control.step(.1,{enabled:true});
+    close(f.control.getState().anchor[1]-y,1.2);f.control.dispose();
+  }
+});
+
+test("fast climb requires a real double tap within350ms and never stacks", () => {
+  const f=fixture();f.enable();f.key("KeyZ");f.key("Space");
+  f.advance(80);f.key("Space",{repeat:true});f.key("Space");
+  assert.equal(f.control.getState().fastClimb,false);
+  f.release("Space");f.advance(400);f.key("Space");
+  assert.equal(f.control.getState().fastClimb,false);
+  f.release("Space");f.advance(100);f.key("Space");
+  assert.equal(f.control.getState().fastClimb,true);
+  const y=f.control.getState().anchor[1];f.key("ControlLeft");
+  f.control.step(.1,{enabled:true});close(f.control.getState().anchor[1]-y,3.6);
+  f.control.dispose();
+});
+
+test("fast climb and tap history clear on safety stops and cannot cross into wing flight", () => {
+  for(const stop of [f=>f.key("KeyX"),f=>f.win.emit("blur"),
+    f=>f.control.step(0,{enabled:true,blocked:true}),f=>f.control.captureForXR(),
+    f=>f.control.step(0,{enabled:false})]) {
+    const f=fixture();f.enable();f.key("Space");f.release("Space");f.advance(80);f.key("KeyZ");f.key("Space");
+    assert.equal(f.control.getState().fastClimb,false);
+    f.release("Space");f.advance(80);f.key("Space");assert.equal(f.control.getState().fastClimb,true);
+    stop(f);assert.equal(f.control.getState().fastClimb,false);assert.equal(f.control.getState().wingFlight,false);
+    f.control.dispose();
+  }
+});
+
 test("rear/front to drone round trips preserve the player eye, heading and anchor", () => {
   for (const initialView of ["back", "front"]) {
     const f = fixture({ initialView }); f.enable();
