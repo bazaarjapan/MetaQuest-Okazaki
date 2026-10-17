@@ -99,7 +99,7 @@ export function publicAvatar(user) {
   const avatar = JSON.parse(user.avatar_json);
   // A saved name that the renderer would sanitize/fallback is not a usable
   // unique display name. Legacy accounts can repair it without changing ID.
-  if (avatarNickname(avatar.name) !== avatar.name) avatar.namePending = true;
+  if (avatarNickname(avatar.name) !== avatar.name || avatar.name.normalize('NFC') !== avatar.name) avatar.namePending = true;
   delete avatar.nameKey;
   return { ...avatar, id: user.id, role: user.role };
 }
@@ -107,7 +107,7 @@ export function requireAvatarName(user) {
   if (publicAvatar(user).namePending) fail(409, "name_required");
 }
 export function cleanAvatarName(value, fallback) {
-  const name = cleanName(value, fallback, 20);
+  const name = cleanName(typeof value==='string'?value.normalize('NFC'):value, fallback, 20);
   if (avatarNickname(name) !== name) fail(400, "invalid_avatar_name");
   return name;
 }

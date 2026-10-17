@@ -36,6 +36,7 @@ const $ = (s) => document.querySelector(s),
   viewport = $("#viewport");
 let activityAllowed = false;
 const activityGate = createActivityGate({ onOpen: () => schoolUI?.open(), onLock: () => {
+  activityAllowed = false;
   setFree(false); controls.enabled = false;
   for (const dialog of document.querySelectorAll("dialog[open]:not(#school-dialog)")) dialog.close();
   if (document.fullscreenElement) document.exitFullscreen().catch(() => {});

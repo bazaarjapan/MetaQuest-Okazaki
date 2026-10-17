@@ -108,6 +108,7 @@ export function worldPublic(world, teacher = false) {
   return { id: world.id, name: world.name, ...(teacher ? { joinCode: world.join_code } : {}) };
 }
 export async function createWorld(db, session, value, now) {
+  requireAvatarName(session);
   if (session.role !== "teacher") fail(403, "teacher_required");
   const world = { id: crypto.randomUUID(), teacher_id: session.id, name: cleanName(value.name, "岡崎駅 クラスワールド"), join_code: randomToken().slice(0, 12).toUpperCase(), created_at: now };
   const result = await db.batch([
@@ -118,6 +119,7 @@ export async function createWorld(db, session, value, now) {
   return world;
 }
 export async function joinWorld(db, session, code, now) {
+  requireAvatarName(session);
   if (typeof code !== "string" || !/^[A-Z0-9_-]{12}$/i.test(code)) fail(404, "join_code_not_found");
   const world = await first(db, "SELECT * FROM school_worlds WHERE join_code=?", code.toUpperCase());
   if (!world) fail(404, "join_code_not_found");

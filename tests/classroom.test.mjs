@@ -5,7 +5,7 @@ import { readFile } from "node:fs/promises";
 import worker, { SchoolRoom } from "../worker/index.mjs";
 import { enterClassroom, issueStudents, studentRoster, resetStudent, authenticateStudent } from "../worker/classroom.mjs";
 import { CLASSROOM_ID } from "../worker/classroom-id.mjs";
-import { createUser, createSession, updateAvatar, first, createWorld, authorizeWorld, authorizeRoomSession, requestSession } from "../worker/school-store.mjs";
+import { createUser, createSession, updateAvatar, first, createWorld, joinWorld, authorizeWorld, authorizeRoomSession, requestSession } from "../worker/school-store.mjs";
 const migrations = await Promise.all(["0001_school_worlds.sql","0002_single_classroom.sql","0003_unique_avatar_names.sql"].map(file=>readFile(new URL(`../migrations/${file}`,import.meta.url),"utf8")));
 const now=Math.floor(Date.now()/1000), origin="https://classroom.example";
 async function fixture(t) {
@@ -133,6 +133,32 @@ test("teachers and students share one atomic display-name namespace",async t=>{
   for (const name of ["Alice\u200d", "Alice\ufe0f", "Alice\u034f", "Alice\u{e0100}","Alice\ufff9","Alice\u0600","Alice\u{13430}"]) {
     await rejects(()=>updateAvatar(db,users[loser],{name}),"name_taken");
   }
+});
+
+test("canonical Japanese spellings collide and legacy non-NFC names require confirmation",async t=>{
+  const {db,sql,teacher}=await fixture(t);
+  const issued=await issueStudents(db,teacher,{count:2},now);
+  const users=await Promise.all(issued.map(v=>first(db,"SELECT * FROM school_users WHERE id=?",v.id)));
+  const name=await updateAvatar(db,users[0],{name:'か\u3099'});
+  assert.equal(name.name,'が');
+  await rejects(()=>updateAvatar(db,users[1],{name:'が'}),'name_taken');
+  // Historical non-normalized spellings retain identity/display bytes but
+  // cannot appear in a room until reconfirmed through the NFC write path.
+  sql.exec('DROP INDEX school_users_unique_avatar_name');
+  sql.prepare('UPDATE school_users SET avatar_json=? WHERE id=?').run(JSON.stringify({name:'か\u3099',color:'#abcdef'}),users[1].id);
+  sql.exec(migrations[2]);
+  const legacy=await first(db,'SELECT * FROM school_users WHERE id=?',users[1].id);
+  await rejects(()=>enterClassroom(db,legacy,now),'name_required');
+  await rejects(()=>updateAvatar(db,legacy,{name:'か\u3099'}),'name_taken');
+  await updateAvatar(db,legacy,{name:'別の名前'});
+  assert.equal((await first(db,'SELECT * FROM school_users WHERE id=?',legacy.id)).id,legacy.id);
+});
+
+test("pending names cannot mutate legacy multi-world membership either",async t=>{
+  const {db,teacher}=await fixture(t),pending={...teacher,avatar_json:JSON.stringify({name:'未登録',namePending:true})};
+  await rejects(()=>createWorld(db,pending,{},now),'name_required');
+  const world=await createWorld(db,teacher,{},now);
+  await rejects(()=>joinWorld(db,pending,world.join_code,now),'name_required');
 });
 
 test("admitted teachers with pending names cannot read or reset student credentials",async t=>{
