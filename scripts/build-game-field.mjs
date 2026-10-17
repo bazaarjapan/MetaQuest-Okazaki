@@ -57,7 +57,8 @@ await Promise.all(Array.from({length:3},async()=>{while(cursor<terrain.tiles.len
 }}));
 const manifest={version:1,generatedAt:new Date().toISOString(),source:'国土地理院最適化ベクトルタイル',sourceUrl:source,
   attributionUrl:'https://github.com/gsi-cyberjapan/optimal_bvmap',sourceDate:'2026-07-01 (provider metadata, latest may differ)',
-  processing:'道路中心線と幅員・鉄道中心線・水域・河川中心線をゲーム風に描画。幅員不明時は幅員区分の代表値。色・草模様・道路標示・枕木は装飾。トンネル非表示。橋の高さは再現しない。',
+  featureCodeUrl:'https://maps.gsi.go.jp/help/pdf/vector/optbv_featurecodes.pdf',
+  processing:'道路中心線と幅員・鉄道中心線・水域・河川中心線をゲーム風に描画。幅員不明時は幅員区分の代表値。色・草模様・道路標示・枕木は装飾。トンネル・地下水路・枯れ川は非表示。橋の高さは再現しない。',
   geography:'既存PLATEAU地形と同じ北向きMercator UV。元の地形・建築形状・写真は保持。',
   core,region:Object.fromEntries(Object.entries(region).sort(([a],[b])=>a.localeCompare(b))),sourceTiles:sourceRecords.sort((a,b)=>a.x-b.x||a.y-b.y)};
 await fs.writeFile(path.join(output,'manifest.json'),JSON.stringify(manifest,null,2)+'\n');

@@ -407,6 +407,10 @@ async function loadCity() {
       const preferred = isTerrain ? terrainVariant(quality.id) : p.texture;
       try { map = await loadTexture(preferred); }
       catch {
+        if(isTerrain&&fieldStyle==='game'){
+          fieldStyle='photo';fieldUniform.value=0;$('#field-style').value='photo';
+          $('#field-style-note').textContent='ゲーム風の地面を取得できなかったため写真表示に切り替えました。選び直すと再試行できます。';
+        }
         map = await loadTexture(p.texture);
         $("#quality-note").textContent = "高解像度写真を取得できなかったため、元の写真で表示しています。";
       }
@@ -577,8 +581,8 @@ $("#region-go").onclick = () => {
   const tile = regionManifest?.buildings.find((entry) => entry.id === $("#region-cell").value);
   if (tile) visitRegionPoint((tile.bounds[0] + tile.bounds[2]) / 2, (tile.bounds[1] + tile.bounds[3]) / 2);
 };
-function terrainVariant(id) {
-  if(fieldStyle==='game'&&fieldManifest)return '../field/'+fieldManifest.core.file;
+function terrainVariant(id,style=fieldStyle) {
+  if(style==='game'&&fieldManifest)return '../field/'+fieldManifest.core.file;
   const variant = id === "high" ? "high" : id === "balanced" ? "standard" : null;
   return detail?.profiles?.[variant]?.file ?? "Texture-001.png";
 }
@@ -620,13 +624,14 @@ $("#quality-select").value = quality.id;
 $('#field-style').value=fieldStyle;
 $('#field-style').onchange=async event=>{
   if(!state.ready||state.xr||state.qualityLoading)return;
-  const previous=fieldStyle;fieldStyle=event.target.value;
+  const previous=fieldStyle,requested=event.target.value;
   state.qualityLoading=true;$('#field-style').disabled=true;$('#enter-vr').disabled=true;
   $('#quality-select').disabled=true;
   setFree(false);
   try {
-    if(fieldStyle==='game'&&!fieldManifest)fieldManifest=await fetchChecked('/field/manifest.json','json');
-    const nextFile=terrainVariant(quality.id),map=await loadTexture(nextFile),oldFile=terrainFile;
+    if(requested==='game'&&!fieldManifest)fieldManifest=await fetchChecked('/field/manifest.json','json');
+    const nextFile=terrainVariant(quality.id,requested),map=await loadTexture(nextFile),oldFile=terrainFile;
+    fieldStyle=requested;
     terrainMesh.material.map=map;terrainMesh.material.needsUpdate=true;terrainFile=nextFile;
     fieldUniform.value=fieldStyle==='game'?1:0;
     if(oldFile!==nextFile){textures.get(oldFile)?.dispose();textures.delete(oldFile);}

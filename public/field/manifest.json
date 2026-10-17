@@ -1,11 +1,12 @@
 {
   "version": 1,
-  "generatedAt": "2026-10-17T09:04:38.616Z",
+  "generatedAt": "2026-10-17T09:15:29.728Z",
   "source": "国土地理院最適化ベクトルタイル",
   "sourceUrl": "https://cyberjapandata.gsi.go.jp/xyz/optimal_bvmap-v1/optimal_bvmap-v1.pmtiles",
   "attributionUrl": "https://github.com/gsi-cyberjapan/optimal_bvmap",
   "sourceDate": "2026-07-01 (provider metadata, latest may differ)",
-  "processing": "道路中心線と幅員・鉄道中心線・水域・河川中心線をゲーム風に描画。幅員不明時は幅員区分の代表値。色・草模様・道路標示・枕木は装飾。トンネル非表示。橋の高さは再現しない。",
+  "featureCodeUrl": "https://maps.gsi.go.jp/help/pdf/vector/optbv_featurecodes.pdf",
+  "processing": "道路中心線と幅員・鉄道中心線・水域・河川中心線をゲーム風に描画。幅員不明時は幅員区分の代表値。色・草模様・道路標示・枕木は装飾。トンネル・地下水路・枯れ川は非表示。橋の高さは再現しない。",
   "geography": "既存PLATEAU地形と同じ北向きMercator UV。元の地形・建築形状・写真は保持。",
   "core": {
     "file": "station.webp",
@@ -25,8 +26,8 @@
   "region": {
     "g-14-14431-6487": {
       "file": "g-14-14431-6487.webp",
-      "bytes": 115998,
-      "sha256": "fd5d128ed17b6d3139819852c77bdbad9fa114a08d7c2e4b8732c31c1064e05e",
+      "bytes": 115932,
+      "sha256": "0778df0356518dcbd16386b6558c32f144c4f0e775f3221b5d2ff417fa307825",
       "width": 512,
       "height": 512,
       "counts": {
@@ -40,8 +41,8 @@
     },
     "g-14-14431-6488": {
       "file": "g-14-14431-6488.webp",
-      "bytes": 111076,
-      "sha256": "7595848c5d12cea585bf26af2988d0a258301d74a1852728c98701c2d8f05fce",
+      "bytes": 111028,
+      "sha256": "4110047469795849a16b8db004be1642753b147daed788554f152a38f90d9366",
       "width": 512,
       "height": 512,
       "counts": {
@@ -55,8 +56,8 @@
     },
     "g-14-14431-6489": {
       "file": "g-14-14431-6489.webp",
-      "bytes": 122754,
-      "sha256": "6b6014852882d9969ede193a574882f11fbc407bd29dd258c683aac5adc43f4f",
+      "bytes": 122728,
+      "sha256": "ce417243a9708796b3ec0996eef586908c22d941b6a7eb7b28f97773b59098fb",
       "width": 512,
       "height": 512,
       "counts": {
@@ -70,8 +71,8 @@
     },
     "g-14-14431-6490": {
       "file": "g-14-14431-6490.webp",
-      "bytes": 126160,
-      "sha256": "31f022a61309b4ca3031b14cfed9b5852610af69d37c748cb1d82365b853e967",
+      "bytes": 124690,
+      "sha256": "98f520a54dea52c6356f374d431ba4c26bc07e7875b64affa6c7735535e25ef2",
       "width": 512,
       "height": 512,
       "counts": {
@@ -85,8 +86,8 @@
     },
     "g-14-14431-6491": {
       "file": "g-14-14431-6491.webp",
-      "bytes": 101166,
-      "sha256": "cb30ec83650bb5cbcf6eb202870c729ea013eb84330c4ed903234b6d901d34d5",
+      "bytes": 100502,
+      "sha256": "65c89fa8bab2e8ba0a135a40b2cb01a58ca7e2bc31ef7da3fd0e2a90444e5115",
       "width": 512,
       "height": 512,
       "counts": {
@@ -100,8 +101,8 @@
     },
     "g-14-14431-6492": {
       "file": "g-14-14431-6492.webp",
-      "bytes": 131702,
-      "sha256": "90a881f5ec8a28911debe10f502b6d71a0d3215eb322e11b7946e45ffecebf00",
+      "bytes": 131646,
+      "sha256": "8e7e5d19e25ff8ff48c1097a84f178ced4b1086582894a6180d47dd9b0ef6bab",
       "width": 512,
       "height": 512,
       "counts": {
@@ -115,8 +116,8 @@
     },
     "g-14-14431-6493": {
       "file": "g-14-14431-6493.webp",
-      "bytes": 117092,
-      "sha256": "f05c30251b82cf10c85b5c47e892d8e4ff972067cb72cb328b16934c9dd8e11d",
+      "bytes": 117058,
+      "sha256": "8c2d7f1ec7220b941d5e2a654d34640710def0c4f09ce521f038c1c177699175",
       "width": 512,
       "height": 512,
       "counts": {
@@ -130,8 +131,8 @@
     },
     "g-14-14431-6494": {
       "file": "g-14-14431-6494.webp",
-      "bytes": 114914,
-      "sha256": "cfb6391f240e7fea0339f59d729096da630ff54523ee3ad825fd9c0a29d283c5",
+      "bytes": 114882,
+      "sha256": "f710c1d8daa559e5c3b78f6d83b6626dec849aac68d451a6db5d4375cdd05905",
       "width": 512,
       "height": 512,
       "counts": {
@@ -145,8 +146,8 @@
     },
     "g-14-14431-6495": {
       "file": "g-14-14431-6495.webp",
-      "bytes": 109444,
-      "sha256": "37b4242283ed1454c6da8a470a1a9902bf2916cf0b1d546e8baa44b86b627393",
+      "bytes": 109332,
+      "sha256": "2467d6cd0d472cc94326ae5ea7bb525515ec80729bc0dc7f172b13101b12f40c",
       "width": 512,
       "height": 512,
       "counts": {
@@ -175,8 +176,8 @@
     },
     "g-14-14431-6497": {
       "file": "g-14-14431-6497.webp",
-      "bytes": 91738,
-      "sha256": "0b254ea784893af83d3f3200348026e2913272818fe65e7ff9be66cf7610ff6c",
+      "bytes": 91722,
+      "sha256": "0881a355fad46e68f3f0cfaaee42338b133dcfb0a81c9cdd9f56ce864ce5da2f",
       "width": 512,
       "height": 512,
       "counts": {
@@ -190,8 +191,8 @@
     },
     "g-14-14432-6487": {
       "file": "g-14-14432-6487.webp",
-      "bytes": 100592,
-      "sha256": "5f26dc49a876fcbd407b862176e2c9d89294cb32393f52e9fc0c40000987c384",
+      "bytes": 100582,
+      "sha256": "d221a5b544207e026e84dfdc27ebfd3ac673f7197735366f0c408c3bd16dfd54",
       "width": 512,
       "height": 512,
       "counts": {
@@ -205,8 +206,8 @@
     },
     "g-14-14432-6488": {
       "file": "g-14-14432-6488.webp",
-      "bytes": 92768,
-      "sha256": "91446656d690ad2808a0e4d4825ddb6df11ef2cf3ec13c866981c8b5dd4d9ac0",
+      "bytes": 92036,
+      "sha256": "d50881dd65b5c6bfeef779b670e60552acc4d5568e0c993cd3496c501fca3ab5",
       "width": 512,
       "height": 512,
       "counts": {
@@ -220,8 +221,8 @@
     },
     "g-14-14432-6489": {
       "file": "g-14-14432-6489.webp",
-      "bytes": 104430,
-      "sha256": "95e75d8653c2f9e93d4fd2d449448eca48e8bc87893365d76f58fa68cad6a543",
+      "bytes": 102978,
+      "sha256": "2894c62d14f785b5dceefa5bdb6de3ab260d2cc2ae86f32fe8f89c4aceb149c6",
       "width": 512,
       "height": 512,
       "counts": {
@@ -235,8 +236,8 @@
     },
     "g-14-14432-6490": {
       "file": "g-14-14432-6490.webp",
-      "bytes": 115096,
-      "sha256": "e23af12e0601460a20f086147b7df40dd2448b3a1b06074282189077de4319ec",
+      "bytes": 114840,
+      "sha256": "fa64cb1a4ac6d022178922a2d3351bb4db601113126bcb320adef3bc9ae0d97b",
       "width": 512,
       "height": 512,
       "counts": {
@@ -250,8 +251,8 @@
     },
     "g-14-14432-6491": {
       "file": "g-14-14432-6491.webp",
-      "bytes": 122288,
-      "sha256": "6b02fc1f07d0137f4cd8958195dc967001ca689c11b4c6b7afe6197902c667ef",
+      "bytes": 121698,
+      "sha256": "900cdf1dd92ef92092bbab3a026f579377149307f36c2cd9eee65811af400520",
       "width": 512,
       "height": 512,
       "counts": {
@@ -280,8 +281,8 @@
     },
     "g-14-14432-6493": {
       "file": "g-14-14432-6493.webp",
-      "bytes": 95718,
-      "sha256": "86ed67d56281486da4303c93301f37840fa50d138e338cefa8ddf1b9ff5a5b7d",
+      "bytes": 95722,
+      "sha256": "5a67ac925b7e264926235b4b6201e45bd2726cf499a86a1318483866ac859f04",
       "width": 512,
       "height": 512,
       "counts": {
@@ -295,8 +296,8 @@
     },
     "g-14-14432-6494": {
       "file": "g-14-14432-6494.webp",
-      "bytes": 114764,
-      "sha256": "077a769763ff9ed459fee0fb68371cd063d23369ad31eae17b12877414effbe7",
+      "bytes": 114586,
+      "sha256": "effb696f5064a1d954ed3e25ca1230beb58ac4bcd60742b7bc402ff65a552040",
       "width": 512,
       "height": 512,
       "counts": {
@@ -310,8 +311,8 @@
     },
     "g-14-14432-6495": {
       "file": "g-14-14432-6495.webp",
-      "bytes": 115450,
-      "sha256": "c24171f6c68080832fd772ec302c45631327e4495f383622c978e5b8e53b7257",
+      "bytes": 115428,
+      "sha256": "da43b8bfc17c82f5d6c84c3293a3c3bb825dd695c731b06b1409f37eee585bca",
       "width": 512,
       "height": 512,
       "counts": {
@@ -325,8 +326,8 @@
     },
     "g-14-14432-6496": {
       "file": "g-14-14432-6496.webp",
-      "bytes": 99890,
-      "sha256": "b43429a328156fd4a9eecfed0f8fb66e9421f8f6192ae848402b0596521d042f",
+      "bytes": 99866,
+      "sha256": "b6651878519719b37ec09d6be5a3d7d41fcf9d0200578a7920c5bfbcc26bdcb6",
       "width": 512,
       "height": 512,
       "counts": {
@@ -340,8 +341,8 @@
     },
     "g-14-14432-6497": {
       "file": "g-14-14432-6497.webp",
-      "bytes": 50740,
-      "sha256": "75037e125a97517f96efbc5386ec2f9b0a7253546b4cb01eee920711924872ad",
+      "bytes": 50742,
+      "sha256": "a3527a376942f31f50160cebb497d5037efc89e1ebcbe621a7dbb5b08adf3015",
       "width": 512,
       "height": 512,
       "counts": {
@@ -355,8 +356,8 @@
     },
     "g-14-14433-6487": {
       "file": "g-14-14433-6487.webp",
-      "bytes": 125120,
-      "sha256": "f72415ac5b9ea014a505c79cbbccdfa7313434ced4d5bb321eb2867690c37627",
+      "bytes": 122556,
+      "sha256": "229ffea6718436aea042aca4386b30d03ced49158872c1116347541f1cdd1c61",
       "width": 512,
       "height": 512,
       "counts": {
@@ -370,8 +371,8 @@
     },
     "g-14-14433-6488": {
       "file": "g-14-14433-6488.webp",
-      "bytes": 117774,
-      "sha256": "06d45d65d0593b4fc93ee149c837b8a0bb0770088e84da875a728647a6321b48",
+      "bytes": 116478,
+      "sha256": "9aaefdda1a8f6b71e5d6288339aedfd31a84f7c862fa9ae93fe87db98bfa8839",
       "width": 512,
       "height": 512,
       "counts": {
@@ -385,8 +386,8 @@
     },
     "g-14-14433-6489": {
       "file": "g-14-14433-6489.webp",
-      "bytes": 114654,
-      "sha256": "2586f979d0504066cfa3a95d840402ecb308b4a78ced83fd8cafebf0873fcafa",
+      "bytes": 114242,
+      "sha256": "03b9d6910227d62b5a820200f485b8d594df952b4e831771454ee95d4d8ddb88",
       "width": 512,
       "height": 512,
       "counts": {
@@ -400,8 +401,8 @@
     },
     "g-14-14433-6490": {
       "file": "g-14-14433-6490.webp",
-      "bytes": 123932,
-      "sha256": "daca06c792a4fa87db9301cdf32c7d264899c845f6f880e5b3db93723e3815d9",
+      "bytes": 122378,
+      "sha256": "12f70b1c94333a5e15378e38c0b1387c2a5f184c5a999bea5de9d0ce6af889a6",
       "width": 512,
       "height": 512,
       "counts": {
@@ -415,8 +416,8 @@
     },
     "g-14-14433-6491": {
       "file": "g-14-14433-6491.webp",
-      "bytes": 131460,
-      "sha256": "80d1bd8b635d1ce10027653a2e4623b6992d2d4e9d81a08234788b23c933e2f5",
+      "bytes": 128726,
+      "sha256": "2f83100265d803c9d38988cb4da398c016f0bdc2504a77ca743d86041b310dae",
       "width": 512,
       "height": 512,
       "counts": {
@@ -430,8 +431,8 @@
     },
     "g-14-14433-6492": {
       "file": "g-14-14433-6492.webp",
-      "bytes": 116992,
-      "sha256": "91fe90d8b54c2888d13db103b7f6e198ac45078348bb3ac7071ef692b4e1240f",
+      "bytes": 116166,
+      "sha256": "694746c243a448717789fe2b6b01d9b9bee208792f87217fd3040bcbc477183b",
       "width": 512,
       "height": 512,
       "counts": {
@@ -445,8 +446,8 @@
     },
     "g-14-14433-6493": {
       "file": "g-14-14433-6493.webp",
-      "bytes": 129642,
-      "sha256": "787bb23175023709892045eefe1f2a7b1266c6877d36280b6c9decb6ed029de1",
+      "bytes": 129574,
+      "sha256": "12f1a9b5d01df2bcc4cf98e50b0b493bcf4a7e23b95772c4751a03f91126db1a",
       "width": 512,
       "height": 512,
       "counts": {
@@ -460,8 +461,8 @@
     },
     "g-14-14433-6494": {
       "file": "g-14-14433-6494.webp",
-      "bytes": 115642,
-      "sha256": "821400235db30c3af55850fe7f113a85b46e01385aa16eaa614e6839e28b5387",
+      "bytes": 115608,
+      "sha256": "2592cad8dcc20e1c02920644ab5d426b8a9a2d3b6357a343e3d35512b09a547c",
       "width": 512,
       "height": 512,
       "counts": {
@@ -475,8 +476,8 @@
     },
     "g-14-14433-6495": {
       "file": "g-14-14433-6495.webp",
-      "bytes": 108784,
-      "sha256": "ba02f6ce73ca897fe8a04ae78444d43fedfd825b92ff7691ffe565aa00535a9a",
+      "bytes": 108724,
+      "sha256": "2f5f54c97e42eab5774e4e72ba871ed2c1d04ed061bca90c781167eb9aaaf562",
       "width": 512,
       "height": 512,
       "counts": {
@@ -490,8 +491,8 @@
     },
     "g-14-14433-6496": {
       "file": "g-14-14433-6496.webp",
-      "bytes": 74470,
-      "sha256": "8731e28fe408d9f7f751bc77f7d5c314ad4ec8e3d948d488849e85ebb173731d",
+      "bytes": 74296,
+      "sha256": "a7bc7035af68f301139ccfc4b165bc41ba5a5d7d8240d676b3eee661a1d3da59",
       "width": 512,
       "height": 512,
       "counts": {
@@ -520,8 +521,8 @@
     },
     "g-14-14434-6487": {
       "file": "g-14-14434-6487.webp",
-      "bytes": 126708,
-      "sha256": "9779bfe73b4a9ded02a6b2d884461c3697863262c8e32ac46656d41673cd6324",
+      "bytes": 126454,
+      "sha256": "f898a0347283492051294da551e40348318c6449270771423c2cb63325bae42c",
       "width": 512,
       "height": 512,
       "counts": {
@@ -535,8 +536,8 @@
     },
     "g-14-14434-6488": {
       "file": "g-14-14434-6488.webp",
-      "bytes": 110770,
-      "sha256": "d6d6f4c367c9187a8f13c725f966ecf61e2980a9ac30b874eaac98e740739af5",
+      "bytes": 109804,
+      "sha256": "6afed9cb9a45e2d10e153e0ae913ff9dcb64f504fc17e7c0933929581f200c2b",
       "width": 512,
       "height": 512,
       "counts": {
@@ -550,8 +551,8 @@
     },
     "g-14-14434-6489": {
       "file": "g-14-14434-6489.webp",
-      "bytes": 112076,
-      "sha256": "5e764ac14639fa3ffa3a50426b41b0f3aa5e28cf0bda79ab6b6112ad716386d1",
+      "bytes": 112026,
+      "sha256": "d9e7bd6b351be39633435782e6760de49b720f60b7888ba158d360fea2db8c99",
       "width": 512,
       "height": 512,
       "counts": {
@@ -565,8 +566,8 @@
     },
     "g-14-14434-6490": {
       "file": "g-14-14434-6490.webp",
-      "bytes": 134012,
-      "sha256": "231eb5b2196ad8c9f5dcd398d036bffce9cd5cfa49bba54a0438705153eec993",
+      "bytes": 133482,
+      "sha256": "859592848892df4ed64cc0920790c42f75082abd0d27860e6c4528c4dbcc7a9c",
       "width": 512,
       "height": 512,
       "counts": {
@@ -580,8 +581,8 @@
     },
     "g-14-14434-6491": {
       "file": "g-14-14434-6491.webp",
-      "bytes": 138838,
-      "sha256": "dfae9ef364b2662e89cc1142196af8d5785dbaca684f7df6b3921ec139099ad0",
+      "bytes": 137064,
+      "sha256": "37d76889443e1a07845450e691eaf443fd93675e5e568907f40bc8c49159eb0a",
       "width": 512,
       "height": 512,
       "counts": {
@@ -595,8 +596,8 @@
     },
     "g-14-14434-6492": {
       "file": "g-14-14434-6492.webp",
-      "bytes": 134522,
-      "sha256": "cf5405f7db3a13d953e9c0a60cc1eaf85269205834591b671896d64e16683c97",
+      "bytes": 134486,
+      "sha256": "dabd7c39c57ef5f74e4a31cabcfd361384e92f221e6e894bca52f1f529aaa0e8",
       "width": 512,
       "height": 512,
       "counts": {
@@ -610,8 +611,8 @@
     },
     "g-14-14434-6493": {
       "file": "g-14-14434-6493.webp",
-      "bytes": 142030,
-      "sha256": "c6a589bcc1cddcfa9602be7d10ebf0b9f8dfb4143211cda9d533f71941f7cb3f",
+      "bytes": 142024,
+      "sha256": "2c14a0583d3f6c9d4f52bb79322b5748bf1f0da80825e3e9b7984bf40c960a51",
       "width": 512,
       "height": 512,
       "counts": {
@@ -625,8 +626,8 @@
     },
     "g-14-14434-6494": {
       "file": "g-14-14434-6494.webp",
-      "bytes": 129044,
-      "sha256": "929db6b4253c0fd3f51972d5f26254e8c464cda0079b4d497a821e2af9b0eef8",
+      "bytes": 129010,
+      "sha256": "7663c5fb1237f6ba3a255af3be187efc8747a65a25b5d5763d1d7301747a4fcd",
       "width": 512,
       "height": 512,
       "counts": {
@@ -640,8 +641,8 @@
     },
     "g-14-14434-6495": {
       "file": "g-14-14434-6495.webp",
-      "bytes": 113338,
-      "sha256": "44096eca783987fb805ca8ee1313a4c3ce48adf96380af7c604e5e7555fe6e61",
+      "bytes": 113304,
+      "sha256": "d4eca77ee618339702a5cae4a8a4fabbc4a37f9980718501f60bce13f73c2e02",
       "width": 512,
       "height": 512,
       "counts": {
@@ -670,8 +671,8 @@
     },
     "g-14-14434-6497": {
       "file": "g-14-14434-6497.webp",
-      "bytes": 119416,
-      "sha256": "419e49de2ac35f417460baa8bdf643d50adec445816c8c7530919f2c3fd1926b",
+      "bytes": 119398,
+      "sha256": "d22b94b6ec8d90dfedbf115706de4b28158c8433cf577da52e00fe254c1c333d",
       "width": 512,
       "height": 512,
       "counts": {
@@ -685,8 +686,8 @@
     },
     "g-14-14435-6487": {
       "file": "g-14-14435-6487.webp",
-      "bytes": 74608,
-      "sha256": "b86ed1170d56f25407acacfcd2845f2a647f4c0734449ccb82a5e60cd31a5c5e",
+      "bytes": 74578,
+      "sha256": "638347a579567d9aec013ec798cbae80588cf88908f3f6adc1c1d4de4c04073d",
       "width": 512,
       "height": 512,
       "counts": {
@@ -715,8 +716,8 @@
     },
     "g-14-14435-6489": {
       "file": "g-14-14435-6489.webp",
-      "bytes": 52354,
-      "sha256": "9b3cb3507d3022534944f2fb95d21f909020f7de99a8a4675f26fa8c589d03b3",
+      "bytes": 52342,
+      "sha256": "250bee07a0109b6e534be19185bdbb80ac371c6beb89fd4429ddf66f1ac1c7f1",
       "width": 512,
       "height": 512,
       "counts": {
@@ -730,8 +731,8 @@
     },
     "g-14-14435-6490": {
       "file": "g-14-14435-6490.webp",
-      "bytes": 108066,
-      "sha256": "4f59fa12d5db3c0c00a04747c0f243fe1cd1634a932fee604b0c8690a6dbae47",
+      "bytes": 108072,
+      "sha256": "cae01a40b004baa36752a1f683e41eadcfa0d0865a9f6757b368711c8956da49",
       "width": 512,
       "height": 512,
       "counts": {
@@ -745,8 +746,8 @@
     },
     "g-14-14435-6491": {
       "file": "g-14-14435-6491.webp",
-      "bytes": 113610,
-      "sha256": "75b59a3f157a71b73508b4fca6c12a2d30bfdaf20499c38be5c5fa550ea0ea7b",
+      "bytes": 113572,
+      "sha256": "83f189cbd3c38c2fe99273575bbf8bd66e80aadcfa76c9a0f34a9d75a7658dc5",
       "width": 512,
       "height": 512,
       "counts": {
@@ -760,8 +761,8 @@
     },
     "g-14-14435-6492": {
       "file": "g-14-14435-6492.webp",
-      "bytes": 133828,
-      "sha256": "2c270adfb066a4ebc094465b272c89b530996989652e893ef86c0bb602cb6bb6",
+      "bytes": 133820,
+      "sha256": "628b5097a5aa757f764c7bd7908a21cdf429577e8923f217c480864187670218",
       "width": 512,
       "height": 512,
       "counts": {
@@ -775,8 +776,8 @@
     },
     "g-14-14435-6493": {
       "file": "g-14-14435-6493.webp",
-      "bytes": 121480,
-      "sha256": "92362136217ebb7fe946fc8756824ce894838b77c1b28a59743bcf49c33f0ebe",
+      "bytes": 121400,
+      "sha256": "653f63acd4d3917199ade86d99b2325752b5a1d8ddfb704f81dad8162b026fdf",
       "width": 512,
       "height": 512,
       "counts": {
@@ -805,8 +806,8 @@
     },
     "g-14-14435-6495": {
       "file": "g-14-14435-6495.webp",
-      "bytes": 70572,
-      "sha256": "95f4333bf47651f5a8eebb1be5a89f8848c97d59f74665402c0e5fda1150cd6e",
+      "bytes": 70930,
+      "sha256": "f4caadbfbdeaf6bc963fba2d7599cdcbb0a3510957114fa4119a8bfdaeeefc40",
       "width": 512,
       "height": 512,
       "counts": {
@@ -835,8 +836,8 @@
     },
     "g-14-14435-6497": {
       "file": "g-14-14435-6497.webp",
-      "bytes": 50480,
-      "sha256": "588c510ac92628cfbe42bb37cebb96db117e3f05b94208132f7d50c85cb56ceb",
+      "bytes": 49874,
+      "sha256": "467a4270e7630e841f46e9a0fe4c3a3de7e188d91c263a1b29b3d38ce3579803",
       "width": 512,
       "height": 512,
       "counts": {
@@ -925,8 +926,8 @@
     },
     "g-14-14436-6492": {
       "file": "g-14-14436-6492.webp",
-      "bytes": 68924,
-      "sha256": "a4800aeeb4ac5f12c0bb219e3899b1d5aad8be2af3dfc9f7be87509db7a23164",
+      "bytes": 68732,
+      "sha256": "4f8de34a458007e0282b6b9aadfc594afa57397a50e978d17ff98db71aa5e9f7",
       "width": 512,
       "height": 512,
       "counts": {
@@ -940,8 +941,8 @@
     },
     "g-14-14436-6493": {
       "file": "g-14-14436-6493.webp",
-      "bytes": 100350,
-      "sha256": "c76a6281f6f1976ec7b9b7a817bbebfb0e3f9ec9320ec2b3b659aa389c1ca3fc",
+      "bytes": 100296,
+      "sha256": "efb2985f4ad5ff58bb7fd846d4cb94606d9c340369bab4c7065de06b21f7dde5",
       "width": 512,
       "height": 512,
       "counts": {
@@ -955,8 +956,8 @@
     },
     "g-14-14436-6494": {
       "file": "g-14-14436-6494.webp",
-      "bytes": 89928,
-      "sha256": "fbb373fc407226c5c5a78d210702a1341bd95e166a1668601d5ccda1408cd266",
+      "bytes": 90098,
+      "sha256": "7085229a817924c0ae7481ac23da83e3c8e0ae67b9dcf2c5ec3b6d62cef5e55d",
       "width": 512,
       "height": 512,
       "counts": {
@@ -985,8 +986,8 @@
     },
     "g-14-14436-6496": {
       "file": "g-14-14436-6496.webp",
-      "bytes": 31312,
-      "sha256": "08b4b0fba5aed27b221ab9632c74aad35da058316769d31583aacd01fb13ce0d",
+      "bytes": 31310,
+      "sha256": "cfadd592e785ae585ba2ad517ab4e9ec5ddc556e4bc1b514a56b8122c1cf4111",
       "width": 512,
       "height": 512,
       "counts": {
@@ -1015,8 +1016,8 @@
     },
     "g-14-14437-6487": {
       "file": "g-14-14437-6487.webp",
-      "bytes": 40174,
-      "sha256": "c52e25c8f2dc4dd0156cfb88f27fa94b10a078ebb051e7fe4ca995ff09702c57",
+      "bytes": 40146,
+      "sha256": "8c77c1f515bce3974bd92f799fd99384cf079e72134e1a138d936994a2abc1a4",
       "width": 512,
       "height": 512,
       "counts": {
@@ -1045,8 +1046,8 @@
     },
     "g-14-14437-6489": {
       "file": "g-14-14437-6489.webp",
-      "bytes": 39898,
-      "sha256": "018e497abc24968d1587c173d0373523e7c2724c02b97d1b18c3486e37023469",
+      "bytes": 39852,
+      "sha256": "71229911605beeb50fb3f6d9195a58fd5c26940cfaec65ad4a59a6b519a38131",
       "width": 512,
       "height": 512,
       "counts": {
@@ -1060,8 +1061,8 @@
     },
     "g-14-14437-6490": {
       "file": "g-14-14437-6490.webp",
-      "bytes": 34356,
-      "sha256": "d095898aab86cafbe618da2d4369d9f35e4696b4e8a0accb010ff2161aa98cf7",
+      "bytes": 33898,
+      "sha256": "fff8f6e09e99a13444852179e2396f4a80899da71da1279a4ef4dce26bab3930",
       "width": 512,
       "height": 512,
       "counts": {
@@ -1090,8 +1091,8 @@
     },
     "g-14-14437-6492": {
       "file": "g-14-14437-6492.webp",
-      "bytes": 20780,
-      "sha256": "da28519e58dd953c32b6d642e0b08408862fe2b9d924d4cc758d07645f814520",
+      "bytes": 20700,
+      "sha256": "ae73a129b64645914dff10df8996f5e19379888773ca3d992a0d32572a9aea17",
       "width": 512,
       "height": 512,
       "counts": {
@@ -1105,8 +1106,8 @@
     },
     "g-14-14437-6493": {
       "file": "g-14-14437-6493.webp",
-      "bytes": 53060,
-      "sha256": "aaa49212d55b150d709fc79b7a646b6b0eaa349ff4a1b38511c8a0d2c367d2f4",
+      "bytes": 53026,
+      "sha256": "df2ef9fce4ee887ccff7d79b6d845104f131faef73672e2c7bed23dd2c9cdc60",
       "width": 512,
       "height": 512,
       "counts": {
@@ -1120,8 +1121,8 @@
     },
     "g-14-14437-6494": {
       "file": "g-14-14437-6494.webp",
-      "bytes": 70752,
-      "sha256": "facb03f0d5a585ae74fdb644b9c28774299d53f83ae45ca03d5677f15c8c7ac9",
+      "bytes": 70718,
+      "sha256": "9d90514849b6cd9932468e3d0ee2bda08280ce5a777f9098089fbf30de2a8d20",
       "width": 512,
       "height": 512,
       "counts": {
@@ -1135,8 +1136,8 @@
     },
     "g-14-14437-6495": {
       "file": "g-14-14437-6495.webp",
-      "bytes": 54920,
-      "sha256": "bd4c2561e6499e0dad2a09bb1d53fec1ae321f9c17af1a2065cac3127af602d9",
+      "bytes": 54906,
+      "sha256": "12b3d1b3ca2119c9eba4ebf16b4bfbb8abc654b7cfb107cd53405bb91b72d028",
       "width": 512,
       "height": 512,
       "counts": {
@@ -1165,8 +1166,8 @@
     },
     "g-14-14437-6497": {
       "file": "g-14-14437-6497.webp",
-      "bytes": 39166,
-      "sha256": "8a4388689d049353f1469e566418b3aaaf3a89761f31e515394ef6d9593d6feb",
+      "bytes": 38588,
+      "sha256": "44b5c70fa46f0e05645e621aed33ab71c01fcb55b9b2b9e10150d9d299557b0a",
       "width": 512,
       "height": 512,
       "counts": {
@@ -1195,8 +1196,8 @@
     },
     "g-14-14438-6488": {
       "file": "g-14-14438-6488.webp",
-      "bytes": 42440,
-      "sha256": "b7942e5f6dbb5542c49a4d11ded46cb0d18a269b5720a3dd7b9d97576f0480cc",
+      "bytes": 42418,
+      "sha256": "595e146a9bdf5aba9810050438adbba3b20ccc0472a893d775357cd2b84c0955",
       "width": 512,
       "height": 512,
       "counts": {
@@ -1240,8 +1241,8 @@
     },
     "g-14-14438-6491": {
       "file": "g-14-14438-6491.webp",
-      "bytes": 42476,
-      "sha256": "7cc18472b8ab1c9e68286eb449bf57a964d2ec93bb8fd53d98f2438a7cc08338",
+      "bytes": 37934,
+      "sha256": "bc364cdcbd4501ec54d763802696ed0b7ddf4ebcece7185d6cb88e6a247357db",
       "width": 512,
       "height": 512,
       "counts": {
@@ -1255,8 +1256,8 @@
     },
     "g-14-14438-6492": {
       "file": "g-14-14438-6492.webp",
-      "bytes": 41658,
-      "sha256": "07d070b5b44d8917063200e19b8cf3dd583b36aa167f68596fab4b21bb9ccf85",
+      "bytes": 35600,
+      "sha256": "45bbf08567d921255ce403c4ae96670fe3faed1cefa051802d2a8d74d36fe577",
       "width": 512,
       "height": 512,
       "counts": {
@@ -1270,8 +1271,8 @@
     },
     "g-14-14438-6493": {
       "file": "g-14-14438-6493.webp",
-      "bytes": 44054,
-      "sha256": "8553fa131b9d747f30c65025a309c426128efa1aea692b278dc88ccee05a47f7",
+      "bytes": 43470,
+      "sha256": "11867960cc30295e557212848943f2c88be39eb28345e1bad5b7f695ac0d6db7",
       "width": 512,
       "height": 512,
       "counts": {
@@ -1285,8 +1286,8 @@
     },
     "g-14-14438-6494": {
       "file": "g-14-14438-6494.webp",
-      "bytes": 31120,
-      "sha256": "a143ac50b69bdfcb624cdcf27d09810778a24b7e757b616222752674be4d1b6c",
+      "bytes": 31054,
+      "sha256": "34b8d0c22989687ed05f101fa191d89a3acb3debbb0eca941bf8ce29379e60c3",
       "width": 512,
       "height": 512,
       "counts": {
@@ -1300,8 +1301,8 @@
     },
     "g-14-14438-6495": {
       "file": "g-14-14438-6495.webp",
-      "bytes": 89172,
-      "sha256": "c3b3349e97b7ee1a51f4ea2978d7526428e7fceafb0f7c79d04d474402840c7c",
+      "bytes": 88918,
+      "sha256": "93715d1cf71fb3f603349eedbd9c4206bd480f6219eccec8e3438462b114a3c1",
       "width": 512,
       "height": 512,
       "counts": {
@@ -1330,8 +1331,8 @@
     },
     "g-14-14438-6497": {
       "file": "g-14-14438-6497.webp",
-      "bytes": 29172,
-      "sha256": "bbd848a05fa319d56c04b7a3b5c19e4615c650c4550ce2a5e432ca4f383ea479",
+      "bytes": 26504,
+      "sha256": "af879ffb56e8ed32822be79d368389975e5e9de7ebb7d26ba36661e28beec115",
       "width": 512,
       "height": 512,
       "counts": {
@@ -1375,8 +1376,8 @@
     },
     "g-14-14439-6489": {
       "file": "g-14-14439-6489.webp",
-      "bytes": 28636,
-      "sha256": "dbbddbd2fa28056cc7bdd8965dd4aa9b0cbe37e895741e798484ec3e8cdfb58d",
+      "bytes": 28630,
+      "sha256": "5dc93b904744ef9e5f0520984fc86e83973afd136dfa6eeddb729ede5e55ed13",
       "width": 512,
       "height": 512,
       "counts": {
@@ -1435,8 +1436,8 @@
     },
     "g-14-14439-6493": {
       "file": "g-14-14439-6493.webp",
-      "bytes": 45252,
-      "sha256": "97dd00c44fddc0c34b4629b234d4efac4940e53cb341b5d61020e64e5e517a55",
+      "bytes": 45246,
+      "sha256": "153ebf14e4c68cf1d9624feb69dd36829bda3cdabb3ed6bf09ff961911cff011",
       "width": 512,
       "height": 512,
       "counts": {
@@ -1450,8 +1451,8 @@
     },
     "g-14-14439-6494": {
       "file": "g-14-14439-6494.webp",
-      "bytes": 74382,
-      "sha256": "e1043ad62a66c62b9c87e4df5c4f467b65f9a1fcef880bd8ca372364933480ae",
+      "bytes": 74554,
+      "sha256": "57c38369590a9be70ec184a814dfe89c7566b5d5dd70a9ee733045496074132d",
       "width": 512,
       "height": 512,
       "counts": {
@@ -1465,8 +1466,8 @@
     },
     "g-14-14439-6495": {
       "file": "g-14-14439-6495.webp",
-      "bytes": 49660,
-      "sha256": "fc9e25a051322d53447d140f02f21a472f96ef7eec5eaa4f123ca9dbf31d7e7c",
+      "bytes": 49646,
+      "sha256": "df4404eac553dd72d229b268a4c69dc3b5e6c0e30f4aa87bfb6da378d089c1ea",
       "width": 512,
       "height": 512,
       "counts": {
@@ -1480,8 +1481,8 @@
     },
     "g-14-14439-6496": {
       "file": "g-14-14439-6496.webp",
-      "bytes": 55732,
-      "sha256": "0b7111e421d100f988e48ac5fa50e8ae665dd3aba5d76fa876c46cd8f90d6aa5",
+      "bytes": 55706,
+      "sha256": "f880e7e4deb6938dbfa46fb088e4fb2cbb315dbd120adc1d585abdc991603efa",
       "width": 512,
       "height": 512,
       "counts": {
@@ -1495,8 +1496,8 @@
     },
     "g-14-14439-6497": {
       "file": "g-14-14439-6497.webp",
-      "bytes": 22924,
-      "sha256": "cfd6dad0533968328c7ca66d5c621da3804607ac324606e72ffe9a0343eaecb6",
+      "bytes": 21662,
+      "sha256": "65fc2dad1936dcb0874fded1b0184e455f5d2d71f5e71662020bec8160015142",
       "width": 512,
       "height": 512,
       "counts": {
@@ -1525,8 +1526,8 @@
     },
     "g-14-14440-6488": {
       "file": "g-14-14440-6488.webp",
-      "bytes": 58000,
-      "sha256": "bbea411cb1aefbb90648accb09b63f6d668266462a92ede797684a80cd63dac8",
+      "bytes": 57964,
+      "sha256": "d6ed1421fb1036a23b411ccfb768e2addbb959028f9dd0a76f1ae70505390254",
       "width": 512,
       "height": 512,
       "counts": {
@@ -1615,8 +1616,8 @@
     },
     "g-14-14440-6494": {
       "file": "g-14-14440-6494.webp",
-      "bytes": 73870,
-      "sha256": "cda78032a2a3f22764664b639bf29b2a1147418fa9f2bf933ff3cc3e3ffaaa07",
+      "bytes": 73658,
+      "sha256": "17c2e0aab405fe407c06258037c78236de69df38563bb7ffcb8fec64c0e6619c",
       "width": 512,
       "height": 512,
       "counts": {
@@ -1630,8 +1631,8 @@
     },
     "g-14-14440-6495": {
       "file": "g-14-14440-6495.webp",
-      "bytes": 21616,
-      "sha256": "7fcc549c52b6cb894b351f6157c6ffb7ad0230ac0aac601e76f088cdf1e92081",
+      "bytes": 21550,
+      "sha256": "7f47ce1dbf9462ba6ec081a18bf998ff6480db0ba235d6ecc207272b91ab9108",
       "width": 512,
       "height": 512,
       "counts": {
@@ -1645,8 +1646,8 @@
     },
     "g-14-14440-6496": {
       "file": "g-14-14440-6496.webp",
-      "bytes": 49446,
-      "sha256": "5e96daccb95a600655fd4f4f57bd713991dc42e6478814a103326329bfb08409",
+      "bytes": 49436,
+      "sha256": "04ea3771a9d9dfa30322f68e0daf336fec57f0e392f7e35997a0b4a6dd7ad2f4",
       "width": 512,
       "height": 512,
       "counts": {
@@ -1660,8 +1661,8 @@
     },
     "g-14-14440-6497": {
       "file": "g-14-14440-6497.webp",
-      "bytes": 62708,
-      "sha256": "252a85741afc7eaf7eec4cac62ed05ce48625c9eab8cf084cf89ecf9d283adbd",
+      "bytes": 61872,
+      "sha256": "8aaf553818ec0b497ea01fa92adff3837804a4f7de754ed9d263c1b87fa68f21",
       "width": 512,
       "height": 512,
       "counts": {
@@ -1705,8 +1706,8 @@
     },
     "g-14-14441-6489": {
       "file": "g-14-14441-6489.webp",
-      "bytes": 34298,
-      "sha256": "09de35661bd7ade70146d9f1192f64c9f2ec6325e6b1c5b0d3bfded8579cf77e",
+      "bytes": 34250,
+      "sha256": "4304a4438776cea9f0aec57bc0fb1d86beb791fc8528777fe2c2f101d33fbac8",
       "width": 512,
       "height": 512,
       "counts": {
@@ -1720,8 +1721,8 @@
     },
     "g-14-14441-6490": {
       "file": "g-14-14441-6490.webp",
-      "bytes": 45706,
-      "sha256": "d92ad4ae50d9f47da824813c87a5614b587c82d58752ec4078f6918c3a3f2710",
+      "bytes": 45392,
+      "sha256": "fea2285b6700657577680970ee41b482b18cfcb2b830dd8b0c677642bfbdc50c",
       "width": 512,
       "height": 512,
       "counts": {
@@ -1795,8 +1796,8 @@
     },
     "g-14-14441-6495": {
       "file": "g-14-14441-6495.webp",
-      "bytes": 26988,
-      "sha256": "de1fb8c1179741baf03f02d6315829a50751b3d46de59927402ab9af3512b9fb",
+      "bytes": 21254,
+      "sha256": "ce75a11a2d7ff1dafb7098150c5321bf834b5b6a4a99c89d385c93104f01f22d",
       "width": 512,
       "height": 512,
       "counts": {
@@ -1825,8 +1826,8 @@
     },
     "g-14-14441-6497": {
       "file": "g-14-14441-6497.webp",
-      "bytes": 106968,
-      "sha256": "d9999d3e5a4ac9be603ce41854f06b7a61d5c1953a0d552bafbec940d6bd233e",
+      "bytes": 105434,
+      "sha256": "4917d97e272ed2653ae004b5d310b94e6df7aebb560733e4bac4c23167dcc15e",
       "width": 512,
       "height": 512,
       "counts": {
@@ -1960,8 +1961,8 @@
     },
     "g-14-14442-6495": {
       "file": "g-14-14442-6495.webp",
-      "bytes": 32704,
-      "sha256": "25fb2281950b248b3187808d588d49b987b0b6652af2f7bba131f45645ce814f",
+      "bytes": 29782,
+      "sha256": "e9794c974272eba485e08c79096afbd4447c75ffd03c419ecbc043e71a3ffac7",
       "width": 512,
       "height": 512,
       "counts": {
@@ -1990,8 +1991,8 @@
     },
     "g-14-14442-6497": {
       "file": "g-14-14442-6497.webp",
-      "bytes": 67154,
-      "sha256": "454c9cb9698d0caaa3b95ec4022afbf58b08b0eae0e0818de49f3090c8abab46",
+      "bytes": 65210,
+      "sha256": "bf39d26ca8dd3bf3c193558b7940723cb035d41f710e6ebb915876ccbcceab89",
       "width": 512,
       "height": 512,
       "counts": {
@@ -2125,8 +2126,8 @@
     },
     "g-14-14443-6495": {
       "file": "g-14-14443-6495.webp",
-      "bytes": 40112,
-      "sha256": "e8d118d303bb67dfbbb0c10e33455218b7da9a00d22df6f54d43af3a29c255c7",
+      "bytes": 39022,
+      "sha256": "d7f0bf7711a326f85c42be2a646f9f0d6f3edb249ef4fa4bad3d13002fa823ea",
       "width": 512,
       "height": 512,
       "counts": {
@@ -2140,8 +2141,8 @@
     },
     "g-14-14443-6496": {
       "file": "g-14-14443-6496.webp",
-      "bytes": 26808,
-      "sha256": "8181406bdd8271b34fda6c446c71b98698b8a2a07837a8fa4510be8d529c065d",
+      "bytes": 24444,
+      "sha256": "f42dce05ed778c8cc276847a88594889df499894e9b981bd0b6cefb1a3f31998",
       "width": 512,
       "height": 512,
       "counts": {
@@ -2155,8 +2156,8 @@
     },
     "g-14-14443-6497": {
       "file": "g-14-14443-6497.webp",
-      "bytes": 52370,
-      "sha256": "0b895b0c4e3093ff82c035940b89382f4e925c90c629a2596b5b606dbe3c7cb6",
+      "bytes": 50062,
+      "sha256": "df2cd0bee6d6a679b94c34145dc6b95d29bff6f9690713aa3f88db685416e637",
       "width": 512,
       "height": 512,
       "counts": {
@@ -2305,8 +2306,8 @@
     },
     "g-14-14444-6496": {
       "file": "g-14-14444-6496.webp",
-      "bytes": 28470,
-      "sha256": "cfd6588476009276a8cfe62678371ffe2566fd20db69fa4a21fe4d2003ae98cc",
+      "bytes": 25542,
+      "sha256": "3352387ec9dd3f9f91599a199ca3b25880fa030120423c315b040d8583a85add",
       "width": 512,
       "height": 512,
       "counts": {
@@ -2320,8 +2321,8 @@
     },
     "g-14-14444-6497": {
       "file": "g-14-14444-6497.webp",
-      "bytes": 95236,
-      "sha256": "99d607cbea992ed1d7ecfaea0a38ebb273ba95a3ac8583246a9b7f36dbc3d24d",
+      "bytes": 93668,
+      "sha256": "995e726c5361e5dc1039f9e82f1bc495a77309232cff1af4a520aa73d614a556",
       "width": 512,
       "height": 512,
       "counts": {

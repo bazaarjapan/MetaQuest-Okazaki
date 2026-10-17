@@ -36,12 +36,13 @@ export function renderFieldSVG(tiles, view) {
   const parts=[`<svg xmlns="http://www.w3.org/2000/svg" width="${view.width}" height="${view.height}" viewBox="0 0 ${view.width} ${view.height}">`,
     `<defs><pattern ${pattern('grass',grassSize)} viewBox="0 0 32 32"><rect width="32" height="32" fill="${palette.grass}"/><path d="M0 0h16v16H0zM16 16h16v16H16z" fill="${palette.grassLight}"/><path d="M6 6h4v4H6zM24 2h3v3h-3zM2 24h4v4H2z" fill="${palette.grassDark}" opacity=".5"/></pattern><pattern ${pattern('water',grassSize*.75)} viewBox="0 0 32 24"><rect width="32" height="24" fill="${palette.water}"/><path d="M4 6h10M20 18h8" stroke="${palette.waterLight}" stroke-width="1.5"/></pattern></defs>`,
     `<rect width="100%" height="100%" fill="url(#grass)"/>`];
-  for(const e of layers.TpgphArea) if([7401,7402,7403].includes(e.p.vt_code)) parts.push(path(e.d,`fill="${e.p.vt_code===7402?'#c8c4ae':'#88aa6b'}" fill-rule="evenodd"`));
+  for(const e of layers.TpgphArea) if([7401,7402,7403].includes(e.p.vt_code)) parts.push(path(e.d,`fill="${({7401:'#88aa6b',7402:'#e9eff1',7403:'#d2c6a1'})[e.p.vt_code]}" fill-rule="evenodd"`));
   for(const e of layers.BldA) parts.push(path(e.d,`fill="${palette.paving}" fill-rule="evenodd"`));
   for(const e of layers.WA) parts.push(path(e.d,`fill="url(#water)" fill-rule="evenodd" stroke="${palette.shore}" stroke-width="${px(.8)}"`));
-  for(const e of layers.RvrCL) parts.push(line(e,palette.water,2));
+  // GSI feature-code table: 5302 is dry, 5322 is underground.
+  for(const e of layers.RvrCL) if(![5302,5322].includes(e.p.vt_code))parts.push(line(e,palette.water,2));
   // Curbs first, then all road surfaces: junctions have no crossing outline.
-  const roads=layers.RdCL.filter(e=>![2721,2722,2723,2724].includes(e.p.vt_code));
+  const roads=layers.RdCL.filter(e=>![2704,2714,2724,2734].includes(e.p.vt_code));
   for(const e of roads) parts.push(line(e,palette.curb,roadWidth(e.p)+1.2));
   for(const e of roads) parts.push(line(e,palette.road,roadWidth(e.p)));
   for(const e of roads) if(roadWidth(e.p)>=7) parts.push(line(e,palette.marking,.18,`stroke-dasharray="${px(4)} ${px(5)}"`));

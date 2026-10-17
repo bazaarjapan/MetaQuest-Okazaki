@@ -29,3 +29,12 @@ test('water holes use evenodd and source strings cannot enter SVG',()=>{
   const {svg}=renderFieldSVG([{z:14,x:1,y:1,tile:{layers:{WA:{length:1,extent:4096,feature:()=>feature}}}}],{zoom:14,x:1,y:1,unit:512,width:512,height:512,latitude:35});
   assert.match(svg,/fill-rule="evenodd"/);assert.doesNotMatch(svg,/<script>/);assert.ok(!svg.includes('NaN'));
 });
+
+test('GSI surface variants retain ordinary roads and bridges but exclude tunnels and underground/dry water',()=>{
+  const codes={RdCL:[2701,2703,2704,2711,2713,2714,2721,2723,2724,2731,2733,2734],RvrCL:[5301,5302,5321,5322,5331]};
+  const layers=Object.fromEntries(Object.entries(codes).map(([name,items])=>[name,{length:items.length,extent:4096,
+    feature:i=>({type:2,properties:{vt_code:items[i]},loadGeometry:()=>[[{x:items[i],y:1},{x:items[i],y:100}]]})}]));
+  const {svg}=renderFieldSVG([{z:14,x:1,y:1,tile:{layers}}],{zoom:14,x:1,y:1,unit:4096,width:4096,height:4096,latitude:35});
+  for(const code of [2701,2703,2711,2713,2721,2723,2731,2733,5301,5321,5331])assert.ok(svg.includes(`M${code.toFixed(2)},`),String(code));
+  for(const code of [2704,2714,2724,2734,5302,5322])assert.ok(!svg.includes(`M${code.toFixed(2)},`),String(code));
+});
