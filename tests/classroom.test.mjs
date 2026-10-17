@@ -130,7 +130,7 @@ test("teachers and students share one atomic display-name namespace",async t=>{
   assert.equal((await authenticateStudent(db,issued[winner],now,"test")).user.name,"Same Name");
   await updateAvatar(db,users[loser],{name:"同じ名前"}); // freed name may be reused
   await updateAvatar(db,users[winner],{name:"Alice"});
-  for (const name of ["Alice\u200d", "Alice\ufe0f", "Alice\u034f", "Alice\u{e0100}"]) {
+  for (const name of ["Alice\u200d", "Alice\ufe0f", "Alice\u034f", "Alice\u{e0100}","Alice\ufff9","Alice\u0600","Alice\u{13430}"]) {
     await rejects(()=>updateAvatar(db,users[loser],{name}),"name_taken");
   }
 });
@@ -157,7 +157,12 @@ test("migration canonical key matches writes and preserves display emoji",async 
   assert.ok(rows.some(r=>JSON.parse(r.avatar_json).name==="Alice\u200d"));
   const {avatarNameKey}=await import("../worker/avatar-name-key.mjs");
   // Exercise every range boundary, including astral selectors, in SQLite and JS.
-  for(const cp of [173,847,1564,4447,4448,6068,6069,6155,6159,8203,8207,8234,8238,8288,8303,12644,65024,65039,65279,65440,65520,65528,113824,113827,119155,119162,917504,921599]) {
+  const boundaries=[];let previous=false;
+  for(let cp=0;cp<=0x10ffff;cp++) {
+    const current=/[\p{Cf}\p{Default_Ignorable_Code_Point}]/u.test(String.fromCodePoint(cp));
+    if(current!==previous){if(cp>0)boundaries.push(cp-1);boundaries.push(cp);}previous=current;
+  }
+  for(const cp of boundaries) {
     sql.exec("DROP INDEX school_users_unique_avatar_name");
     const name=`A${String.fromCodePoint(cp)}B`;
     sql.prepare("UPDATE school_users SET avatar_json=? WHERE id=?").run(JSON.stringify({name,namePending:true}),issued[0].id);
