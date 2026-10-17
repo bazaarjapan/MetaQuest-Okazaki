@@ -331,6 +331,9 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
     // Auto lift near the ground makes Z a launch even when looking downward.
     if (boosting && groundAvailable && anchor.y < height + 2) displacement.y = Math.max(displacement.y, wingConfig.lift * deltaTime);
     if (wingFlight) {
+      // Streaming/DEM failure must not turn automatic glide into a fall below
+      // an unknown surface. Continue horizontally; resume descent once known.
+      if (!groundAvailable && displacement.y < 0) displacement.y = 0;
       verticalVelocity = 0; jumpQueued = false;
     } else if (flying) {
       const rise = validAxes ? -Math.max(-1, Math.min(1, axes.left[1])) : Number(keys.has("Space")) - Number(shift);

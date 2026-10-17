@@ -69,6 +69,13 @@ test("wing travel is bounded and frame-rate independent", () => {
   assert.ok(Number.isFinite(wingTravel(NaN,true,Infinity).distance));
 });
 
+test("unknown terrain holds glide altitude while preserving forward motion and explicit Space climb", () => {
+  const f=fixture({groundHeight:()=>null});f.enable();f.key("KeyZ");f.control.step(.1,{enabled:true});f.release("KeyZ");
+  const before=f.control.getState().anchor;for(let i=0;i<20;i++)f.control.step(.1,{enabled:true});
+  assert.equal(f.control.getState().anchor[1],before[1]);assert.ok(f.control.getState().anchor[2]<before[2]);
+  f.key("Space");f.control.step(.1,{enabled:true});assert.ok(f.control.getState().anchor[1]>before[1]);f.control.dispose();
+});
+
 test("Space climbs while gliding or boosting, including downward gaze; double Space never cancels wings", () => {
   const f=fixture(); f.enable(); f.doc.pointerLockElement=f.canvas;
   f.control.handleMouseMove({movementX:0,movementY:450});
