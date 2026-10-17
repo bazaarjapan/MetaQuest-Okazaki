@@ -14,6 +14,9 @@ body[data-panel-open=false] #control-panel { display:none; }
 body[data-panel-open=true] #control-panel { display:flex; }
 #panel-close { display:block; }
 #canvas-hint { display:none; }
+#rocket-hint { position:absolute; top:138px; left:16px; z-index:6; padding:6px 10px; max-width:calc(100% - 32px); color:white; background:#19302cdd; border-radius:5px; font-size:12px; pointer-events:none; }
+#rocket-hint[hidden] { display:none; }
+@media(max-width:700px) { #rocket-hint { display:none; } }
 .controller-hud-preview { display:none !important; }
 .map-bottom { pointer-events:none; bottom:auto; top:104px; }
 .map-bottom #status { font-size:10px; padding:3px 6px; background:#ffffffa8; }

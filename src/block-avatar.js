@@ -1,3 +1,4 @@
+import { validAvatarMotion } from "./avatar-motion.js";
 // Original, low-cost block-shaped avatar. No third-party character assets.
 export function avatarAppearance(identity) {
   // Only the server's opaque user ID seeds the look. No name, email, Google
@@ -24,7 +25,7 @@ export function createBlockAvatar(THREE, { color = 0x367fab, identity = null } =
     return materials.get(key);
   }
   function block(name, size, position, value, parent = group) {
-    const key = name.startsWith("trim-") ? "accent" : name === "hair-side" ? "hair" : name === "torso" ? "shirt" : name === "face" || name.endsWith("arm") ? "skin" : name.endsWith("leg") ? "trousers" : name;
+    const key = name.startsWith("trim-") || name.startsWith("wing-") ? "accent" : name.startsWith("rocket-") ? "trousers" : name.startsWith("flame-") ? "flame" : name === "hair-side" ? "hair" : name === "torso" ? "shirt" : name === "face" || name.endsWith("arm") ? "skin" : name.endsWith("leg") ? "trousers" : name;
     const mesh = new THREE.Mesh(geometry, material(value, key));
     mesh.name = name;
     mesh.scale.set(...size);
@@ -48,15 +49,32 @@ export function createBlockAvatar(THREE, { color = 0x367fab, identity = null } =
   hand.position.set(.4, .99, -.52); group.add(hand);
   let holding = false;
   function setHolding(value) {
+    if (holding === Boolean(value)) return;
     holding = Boolean(value);
     rightArm.rotation.x = holding ? Math.PI / 3 : 0;
-    rightArm.position.set(.4, holding ? 1.14 : 1.06, holding ? -.12 : 0);
+    rightArm.position.set(.4, holding ? .14 : .06, holding ? -.12 : 0);
   }
   const leftLeg = block("left-leg", [0.22, 0.76, 0.27], [-0.145, 0.38, 0], 0x33455d);
   const rightLeg = block("right-leg", [0.22, 0.76, 0.27], [0.145, 0.38, 0], 0x33455d);
   const hairSide = block("hair-side", [.12, .3, .45], [.19, .04, 0], 0x403631, head);
   const frontTrim = block("trim-front", [.56, .12, .016], [0, 1.08, -.158], 0xf5ba42);
   const backTrim = block("trim-back", [.56, .12, .016], [0, 1.08, .158], 0xf5ba42);
+  const wings = [-1, 1].map((sign, i) => {
+    const hinge = new THREE.Group(); hinge.position.set(sign * .18, 1.28, .24); group.add(hinge);
+    block(`wing-${i}`, [.5, .88, .08], [sign * .25, -.28, 0], 0xf5ba42, hinge);
+    return hinge;
+  });
+  const flames = [-1, 1].map((sign, i) => {
+    block(`rocket-${i}`, [.17, .48, .2], [sign * .17, 1.07, .4], 0x33455d);
+    const flame = block(`flame-${i}`, [.12, .48, .12], [sign * .17, .62, .4], 0xffa529);
+    flame.material.emissive.set(0xff6600); flame.visible = false; return flame;
+  });
+  // Tilt the body around its centre in flight, leaving the world-space feet and
+  // nickname label stable. The held-STL hand follows this same body transform.
+  const body = new THREE.Group(); body.name = "avatar-body"; body.position.y = 1;
+  for (const child of [...group.children]) { child.position.y -= 1; body.add(child); }
+  group.add(body);
+  let motion = "idle";
   let appearance = { skin: 0xeac198, hair: 0x403631, trousers: 0x33455d };
   function setIdentity(value) {
     if (disposed) return;
@@ -75,19 +93,29 @@ export function createBlockAvatar(THREE, { color = 0x367fab, identity = null } =
     }
   }
   setIdentity(identity);
-  // Derive all geometry from one cube, with only six simple materials.
+  // Eighteen cubes share one geometry and seven simple materials.
   torso.userData.avatarPart = true;
   group.visible = false;
   function update({ position = [0, 0, 0], yaw = 0, pitch = 0,
-    moving = false, time = 0, visible = true } = {}) {
+    moving = false, animation, time = 0, visible = true } = {}) {
     if (disposed) return;
     const coordinates = Array.isArray(position) ? position : [position.x, position.y, position.z];
     if (coordinates.length === 3 && coordinates.every(Number.isFinite)) group.position.fromArray(coordinates);
     if (Number.isFinite(yaw)) group.rotation.y = yaw;
     head.rotation.x = Number.isFinite(pitch) ? Math.max(-1.4, Math.min(1.4, pitch)) : 0;
-    const swing = moving && Number.isFinite(time) ? Math.sin(time * 9) * 0.35 : 0;
+    motion = validAvatarMotion(animation) ? animation : moving ? "walk" : "idle";
+    const airborne = motion === "glide" || motion === "boost";
+    const swing = ["walk", "run"].includes(motion) && Number.isFinite(time) ?
+      Math.sin(time * (motion === "run" ? 14 : 9)) * (motion === "run" ? .75 : .35) : 0;
+    body.rotation.x = airborne ? -1.05 : 0;
     leftLeg.rotation.x = rightArm.rotation.x = swing;
     rightLeg.rotation.x = leftArm.rotation.x = -swing;
+    leftArm.rotation.z = airborne ? -.35 : 0; rightArm.rotation.z = airborne ? .35 : 0;
+    wings.forEach((wing, i) => {
+      wing.rotation.z = (i ? 1 : -1) * (airborne ? .95 : -.22);
+      wing.rotation.y = (i ? 1 : -1) * (airborne ? -.18 : -.8);
+    });
+    for (const flame of flames) flame.visible = motion === "boost";
     if (holding) rightArm.rotation.x = Math.PI / 3;
     group.visible = Boolean(visible);
     group.updateMatrixWorld(true);
@@ -105,6 +133,7 @@ export function createBlockAvatar(THREE, { color = 0x367fab, identity = null } =
   }
   return { group, hand, update, setHolding, setColor, setIdentity, dispose,
     getState: () => ({ position: group.position.toArray(), yaw: group.rotation.y,
-      pitch: head.rotation.x, visible: group.visible, disposed, holding,
-      meshCount: 12, geometryCount: 1, materialCount: materials.size, appearance: { ...appearance } }) };
+      pitch: head.rotation.x, visible: group.visible, disposed, holding, animation: motion,
+      wingsOpen: motion === "glide" || motion === "boost", boosting: motion === "boost",
+      meshCount: 18, geometryCount: 1, materialCount: materials.size, appearance: { ...appearance } }) };
 }

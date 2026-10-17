@@ -7,14 +7,14 @@ test("original block avatar is a small asset-free group anchored at its feet", (
   const avatar = createBlockAvatar(THREE);
   const meshes = [];
   avatar.group.traverse((object) => { if (object.isMesh) meshes.push(object); });
-  assert.equal(meshes.length, 12);
+  assert.equal(meshes.length, 18);
   assert.equal(new Set(meshes.map((mesh) => mesh.geometry)).size, 1);
   assert.ok(meshes.every((mesh) => !mesh.material.map));
   assert.equal(avatar.getState().visible, false);
   const bounds = new THREE.Box3().setFromObject(avatar.group);
   assert.ok(Math.abs(bounds.min.y) < 1e-9);
   assert.ok(bounds.max.y > 1.8 && bounds.max.y < 2);
-  assert.equal(avatar.getState().materialCount, 6);
+  assert.equal(avatar.getState().materialCount, 7);
 });
 
 test("avatar pose handles independent head pitch and block-limb movement", () => {
@@ -55,7 +55,7 @@ test("avatar disposes shared resources exactly once and removes its own group", 
   for (const material of materials) material.addEventListener("dispose", () => materialDisposals++);
   avatar.dispose(); avatar.dispose(); avatar.update({ visible: true });
   assert.equal(geometryDisposals, 1);
-  assert.equal(materialDisposals, 6);
+  assert.equal(materialDisposals, 7);
   assert.equal(avatar.group.parent, null);
   assert.equal(avatar.getState().disposed, true);
   assert.equal(avatar.getState().visible, false);
@@ -69,7 +69,7 @@ test("opaque identity generates stable original appearance, without changing the
   assert.notDeepEqual(first.getState().appearance, other.getState().appearance);
   first.setIdentity("user-two"); assert.deepEqual(first.getState().appearance, other.getState().appearance);
   first.setColor("#112233"); assert.equal(first.group.getObjectByName("torso").material.color.getHexString(), "112233");
-  assert.equal(first.getState().materialCount, 6); first.dispose(); again.dispose(); other.dispose();
+  assert.equal(first.getState().materialCount, 7); first.dispose(); again.dispose(); other.dispose();
 });
 
 test("a shirt matching the old skin color never recolors face or arms", () => {
@@ -80,4 +80,23 @@ test("a shirt matching the old skin color never recolors face or arms", () => {
   assert.equal(face.material.color.getHex(), skin);
   assert.equal(avatar.group.getObjectByName("left-arm").material, face.material);
   assert.notEqual(avatar.group.getObjectByName("torso").material, face.material); avatar.dispose();
+});
+
+test("idle is exact, running has stronger gait, and original wings/rockets follow flight state", () => {
+  const avatar = createBlockAvatar(THREE), leg = avatar.group.getObjectByName("left-leg");
+  avatar.update({ animation: "walk", time: .1 }); const walk = Math.abs(leg.rotation.x);
+  const arm = avatar.group.getObjectByName("right-arm"), armSwing = arm.rotation.x;
+  avatar.setHolding(false); assert.equal(arm.rotation.x, armSwing);
+  avatar.update({ animation: "run", time: .1 }); assert.ok(Math.abs(leg.rotation.x) > walk);
+  avatar.setHolding(true);
+  avatar.update({ animation: "boost", time: .1 });
+  assert.equal(avatar.getState().wingsOpen, true); assert.equal(avatar.getState().boosting, true);
+  assert.equal(avatar.group.getObjectByName("flame-0").visible, true);
+  assert.equal(avatar.hand.parent, avatar.group.getObjectByName("avatar-body"));
+  assert.equal(avatar.group.getObjectByName("right-arm").rotation.x, Math.PI / 3);
+  avatar.update({ animation: "glide" }); assert.equal(avatar.getState().boosting, false);
+  avatar.setHolding(false); avatar.update({ animation: "idle", time: 500 });
+  assert.equal(leg.rotation.x, 0); assert.equal(avatar.group.getObjectByName("avatar-body").rotation.x, 0);
+  assert.equal(avatar.getState().wingsOpen, false); assert.equal(avatar.group.getObjectByName("flame-0").visible, false);
+  avatar.dispose();
 });

@@ -4,6 +4,7 @@ import { all, assetPublic, authorizeRoomSession, first, getAsset, sessionByHash,
 import { readAssetModel } from "./school-assets.mjs";
 import { loadCorePlacement } from "./placement-source.mjs";
 import { CLASSROOM_ID, managesWorld } from "./classroom-id.mjs";
+import { validAvatarMotion } from "../src/avatar-motion.js";
 
 const DEFAULT_POSE = Object.freeze({ position: [195, 74.4, 105], yaw: 0 });
 const livePoseKey = (userId) => `live-pose:${userId}`;
@@ -23,7 +24,9 @@ export function validatePose(value) {
   // Same geospatial world coordinates as the renderer; flight height is bounded separately.
   if (position[1] < -100 || position[1] > 1200 || !Number.isFinite(value.yaw) || Math.abs(value.yaw) > Math.PI * 100) fail(400, "invalid_pose");
   if (!Number.isSafeInteger(value.seq) || value.seq < 0) fail(400, "invalid_pose_sequence");
-  return { position, yaw: value.yaw, seq: value.seq };
+  if (value.animation !== undefined && !validAvatarMotion(value.animation)) fail(400, "invalid_pose_animation");
+  return { position, yaw: value.yaw, seq: value.seq,
+    ...(value.animation === undefined ? {} : { animation: value.animation }) };
 }
 export function validateTransform(value) {
   return {
@@ -159,7 +162,7 @@ export class SchoolRoom {
       [member.user_id, await this.identityPose(member.user_id, member.pose_json, active.get(member.user_id))])));
   }
   participants() {
-    return [...this.sessions.values()].map((attachment) => ({ ...attachment.avatar, position: [...attachment.pose.position], yaw: attachment.pose.yaw }));
+    return [...this.sessions.values()].map((attachment) => ({ ...attachment.avatar, ...attachment.pose, position: [...attachment.pose.position] }));
   }
   async snapshot(world, session) {
     const assets = await all(this.env.DB, "SELECT * FROM school_assets WHERE world_id=? AND status='ready' ORDER BY created_at,rowid", world.id);
@@ -251,7 +254,8 @@ export class SchoolRoom {
           // A successful broadcast must survive socket loss / logout / DO
           // eviction. Do not expose a pose whose durable write was rejected.
           await this.persistLivePose(attachment.userId, pose);
-          attachment.pose = { position: pose.position, yaw: pose.yaw };
+          attachment.pose = { position: pose.position, yaw: pose.yaw,
+            ...(pose.animation === undefined ? {} : { animation: pose.animation }) };
           attachment.poseRestoreCommit = this.poseRestoreCommit();
           attachment.lastSeq = pose.seq; attachment.lastPoseAt = this.now(); attachment.lastSeenAt = this.now();
           socket.serializeAttachment(attachment);

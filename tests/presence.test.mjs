@@ -66,7 +66,7 @@ test("other avatar smooths to latest eye pose; very large teleports snap rather 
 test("logout, leave, disconnect and world change remove old avatar geometry and unsubscribe once", () => {
   for (const next of [{ user: null }, { world: null }, { connection: "offline" }]) {
     const f = fixture(), actor = f.presence.group.children[0];
-    let disposed = 0; actor.children.find((child) => child.isMesh).geometry.addEventListener("dispose", () => disposed++);
+    let disposed = 0; actor.getObjectByName("torso").geometry.addEventListener("dispose", () => disposed++);
     f.set(next); assert.equal(f.presence.getState().count, 0); assert.equal(disposed, 1);
     assert.equal(f.presence.group.visible, false); f.presence.dispose(); f.presence.dispose();
     assert.equal(f.listeners.size, 0); assert.equal(f.scene.children.length, 0);
@@ -105,4 +105,16 @@ test("shared room nickname updates reuse one label and leaving releases its reso
   f.set({ connection: "connected", participants: [participant("other", { name: "復帰した名前" })] });
   assert.equal(f.presence.getState().actors[0].label.name, "復帰した名前");
   assert.equal(f.presence.getState().actors[0].label.count, 1); f.presence.dispose();
+});
+
+test("classmates see run and rocket motion; stale movement folds wings and stops without fresh positions", () => {
+  const f = fixture();
+  for (const animation of ["run", "glide", "boost", "idle"]) {
+    const old = f.presence.getState().actors[0].target;
+    f.set({participants:[participant("other", {position:[old[0]+1,21.65,3], animation})]});
+    f.presence.update(.05); assert.equal(f.presence.getState().actors[0].animation, animation);
+  }
+  f.set({participants:[participant("other", {position:[10,21.65,3],animation:"boost"})]});
+  for (let i=0;i<5;i++) f.presence.update(.1);
+  assert.equal(f.presence.getState().actors[0].animation,"idle"); f.presence.dispose();
 });

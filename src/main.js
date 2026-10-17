@@ -221,10 +221,17 @@ $("#control-mode").onchange = (event) => {
   try { if (!mobile) preferenceStorage?.setItem(controlPreferenceKey, event.target.value); } catch { /* Optional preference. */ }
   syncMovementHelp();
   $("#canvas-hint").textContent = event.target.value === "creative"
-    ? "自由移動ONでWASD · 3D画面をクリックして見回す · Escでマウス解除 · F5で視点切替" : "ドラッグで回転 · ホイールで拡大";
+    ? "WASD：移動 · Z長押し：ロケット · X：停止 · F5：視点 · Esc：メニュー" : "ドラッグで回転 · ホイールで拡大";
 };
 function syncAvatarViewButtons() {
   const current = creative?.getState();
+  const hint = $("#rocket-hint");
+  if (hint) hint.hidden = !state.ready || state.xr || current?.mode !== "creative";
+  if (hint && current?.mode === "creative") {
+    const text = current.wingFlight ? `${current.animation === "boost" ? "ロケット推進" : "滑空"} · ${Math.round(current.wingSpeed)}m/s · Space：上昇 · Z：加速 · X：停止` :
+      "Z長押し：ロケット · Space：上昇 · X：空中停止 · F5：視点";
+    if (hint.textContent !== text) hint.textContent = text;
+  }
   const label = current?.mode === "creative" ? { first: "一人称", back: "三人称・後ろ", front: "三人称・前" }[current.viewMode] : "一人称";
   for (const [id, text] of [["avatar-view", `視点：${label}`], ["mobile-avatar-view", label]]) {
     const button = $(`#${id}`); if (!button) continue;
@@ -1184,7 +1191,8 @@ renderer.setAnimationLoop((time, frame) => {
         (!state.xr || renderer.xr.getSession()?.visibilityState === "visible")) {
       const yaw = !state.xr && creative.getState().mode === "creative" ? creative.getState().yaw :
         new THREE.Euler().setFromQuaternion(camera.getWorldQuaternion(new THREE.Quaternion()), "YXZ").y;
-      schoolClient.sendPose({ position: userPosition().toArray(), yaw });
+      schoolClient.sendPose({ position: userPosition().toArray(), yaw,
+        animation: !state.xr && creative.getState().mode === "creative" ? creative.getState().animation : undefined });
     }
     presence.update(dt);
     const heldDraft = !state.xr && !xrEntering ? workshop.getHeldDraft() : null;
@@ -1273,7 +1281,7 @@ window.__okazaki = {
     panelVisible: panel.visible && vrFieldPanel.getState().expanded,
     vrPanel: vrFieldPanel.getState(),
     pointers: { left: controllerPointers.left.getState(), right: controllerPointers.right.getState() },
-    version: "1.8.2",
+    version: "1.9.0",
     vrReturn: { buttonVisible: vrReturnButton.getState().visible,
       holdProgress: vrReturnButton.getState().progress, exiting: xrExitPending,
       hasResume: hasVRResume, view: lastXRView ? {
