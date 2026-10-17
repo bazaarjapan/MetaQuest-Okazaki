@@ -9,6 +9,8 @@ import {
 import { createControllerHud } from "./controller-hud.js";
 import { qualityProfile, readQuality, saveQuality } from "./quality.js";
 import { createRegionStreamer } from "./region-stream.js";
+import {createNearField} from './near-field.js';
+import {createTerrainSampler} from './ground-sampler.js';
 import { clampToRegion, regionProfiles } from "./region-plan.js";
 import { drawRegionMap, mapToWorld } from "./region-map.js";
 import { createAdaptiveUi } from "./ui-layout.js";
@@ -18,7 +20,7 @@ import { createExitHold, updateExitHold, cancelExitHold } from "./xr-exit-hold.j
 import { captureView, captureXRView, alignRigToView, resolveXRExitView, resolveXREntryView } from "./vr-view.js";
 import { createSurfaceIndex } from "./placement.js";
 import { createWorkshop } from "./workshop.js";
-import { createCreativeControls, constrainCreativeFeet, readControlMode, controlPreferenceKey, initialPCMovement } from "./creative-controls.js";
+import { createCreativeControls, constrainCreativeFeet, readControlMode, controlPreferenceKey, initialPCMovement, sampleGroundFootprint } from "./creative-controls.js";
 import { createBlockAvatar } from "./block-avatar.js";
 import { createSchoolClient } from "./school-client.js";
 import { createSchoolUI } from "./school-ui.js";
@@ -137,8 +139,11 @@ const regionGroup = new THREE.Group();
 regionGroup.name = "streamed-okazaki-region";
 scene.add(regionGroup);
 const regionStreamer = createRegionStreamer(THREE, regionGroup,{fieldUniform,
+  terrainLimit:q=>fieldStyle==='game'?Math.min(q==='high'?16:9,8):(q==='high'?16:9),
+  terrainAnisotropy:()=>Math.min(quality.anisotropy,renderer.capabilities.getMaxAnisotropy()),
   terrainTexture:tile=>({url:fieldStyle==='game'&&fieldManifest?.region[tile.id]
     ? `/field/${fieldManifest.region[tile.id].file}`:`/region/${tile.texture}`})});
+const nearField=createNearField(THREE,{maxAnisotropy:renderer.capabilities.getMaxAnisotropy()});
 let regionManifest = null, regionUiTime = 0;
 const textures = new Map();
 let detail = null, terrainMesh = null, terrainFile = "Texture-001.png";
@@ -221,14 +226,11 @@ renderer.domElement.addEventListener("pointerdown", () => {
     }
   }
 });
-const terrainRay = new THREE.Raycaster();
-function terrainOnlySample(x, z) {
-  if (!terrainMesh) return null;
-  terrainRay.set(new THREE.Vector3(x, 2500, z), down);
-  return terrainRay.intersectObjects([terrainMesh, ...regionStreamer.getGroundMeshes()], false)[0]?.point.y ?? null;
-}
+const terrainOnlySample=createTerrainSampler(()=>[terrainMesh,...regionStreamer.getGroundMeshes()],
+  {getIndex:mesh=>mesh===terrainMesh?placementEnvironment?.terrain:null});
 creative = createCreativeControls(THREE, { camera, rig, domElement: renderer.domElement,
-  getControls: () => controls, avatar: ownAvatar, groundHeight: terrainOnlySample,
+  getControls: () => controls, avatar: ownAvatar, groundHeight: (x,z)=>sampleGroundFootprint(terrainOnlySample,x,z),
+  cameraGroundHeight:terrainOnlySample,
   cameraObstacles: () => [...city.children, ...regionStreamer.getMeshes()],
   onChange: () => syncAvatarViewButtons(),
   onFlightClick: (event) => { void hotbar.place(event); },
@@ -1254,7 +1256,7 @@ renderer.setAnimationLoop((time, frame) => {
     }
     else {
       const touch = touchControls.getState();
-      creative.step(dt, { enabled: activityAllowed && state.free, xr: false,
+      creative.step(dt, { enabled: activityAllowed && state.free, grounding: activityAllowed, xr: false,
         touchAxes: touch.enabled && touch.activePointers > 0 ? touchControls.getAxes() : null,
         blocked: !activityAllowed || Boolean(document.querySelector("dialog[open]")) || workshop.getState().picking ||
           adaptiveUi.getState().open });
@@ -1265,6 +1267,8 @@ renderer.setAnimationLoop((time, frame) => {
     }
     hotbar.update(time);
     regionStreamer.update(userPosition(), quality.id, time);
+    nearField.update({position:userPosition(),quality:quality.id,enabled:fieldStyle==='game'&&!state.qualityLoading,
+      manifest:fieldManifest,core:terrainMesh,terrain:regionStreamer.getGroundMeshes(),time});
     adoptSchoolPose();
     if (activityAllowed && schoolState.user && schoolState.world && schoolState.connection === "connected" &&
         restoredWorld === schoolState.world.id && !pendingXRView && !document.hidden &&
@@ -1365,7 +1369,7 @@ window.__okazaki = {
     panelVisible: panel.visible && vrFieldPanel.getState().expanded,
     vrPanel: vrFieldPanel.getState(),
     pointers: { left: controllerPointers.left.getState(), right: controllerPointers.right.getState() },
-    version: "1.10.0",
+    version: "1.10.1",
     vrReturn: { buttonVisible: vrReturnButton.getState().visible,
       holdProgress: vrReturnButton.getState().progress, exiting: xrExitPending,
       hasResume: hasVRResume, view: lastXRView ? {
@@ -1376,6 +1380,7 @@ window.__okazaki = {
     touch: touchControls.getState(),
     guide: { position: panel.position.toArray(), size: vrFieldPanel.getState().size },
     hud: controllerHud.getState(),
+    nearField:nearField.getState(),
     quality: { ...quality, terrainFile, shadows: renderer.shadowMap.enabled,
       terrainSize: terrainMesh?.material.map?.image
         ? [terrainMesh.material.map.image.width, terrainMesh.material.map.image.height] : null,

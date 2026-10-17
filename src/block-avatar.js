@@ -149,6 +149,8 @@ export function createBlockAvatar(THREE, { color = 0x367fab, identity = null } =
     body.rotation.x = airborne ? -1.05 : 0;
     leftLeg.rotation.x = rightArm.rotation.x = swing;
     rightLeg.rotation.x = leftArm.rotation.x = -swing;
+    // Rotating a box around its centre can dip a corner below the foot plane.
+    for(const leg of [leftLeg,rightLeg])leg.position.y=-.62+Math.max(0,.38*Math.abs(Math.cos(leg.rotation.x))+.135*Math.abs(Math.sin(leg.rotation.x))-.38);
     leftArm.rotation.z = airborne ? -.35 : 0; rightArm.rotation.z = airborne ? .35 : 0;
     wings.forEach(({hinge, inner, sign}) => {
       hinge.rotation.z = airborne ? sign * .65 : 0;

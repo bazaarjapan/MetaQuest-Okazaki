@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as THREE from "three";
-import { createCreativeControls, creativeConfig, constrainCreativeFeet, readControlMode, controlPreferenceKey } from "../src/creative-controls.js";
+import { createCreativeControls, creativeConfig, constrainCreativeFeet, readControlMode, controlPreferenceKey, sampleGroundFootprint } from "../src/creative-controls.js";
 import { createBlockAvatar } from "../src/block-avatar.js";
 import { clampPosition, viewpoints } from "../src/motion.js";
 import { clampToRegion } from "../src/region-plan.js";
@@ -41,6 +41,32 @@ function fixture(options = {}) {
 function close(actual, expected, tolerance = 1e-8) {
   assert.ok(Math.abs(actual - expected) < tolerance, `${actual} != ${expected}`);
 }
+
+test('creative Shift descent cannot penetrate known terrain',()=>{
+  const f=fixture({groundHeight:()=>30});f.enable();f.key('ShiftLeft');
+  for(let i=0;i<40;i++)f.control.step(.1,{enabled:true});
+  close(f.control.getState().anchor[1],30);assert.equal(f.control.getState().flying,true);f.control.dispose();
+});
+test('loaded DEM corrects feet while paused, but never while login-locked or in XR',()=>{
+  let floor=null;const f=fixture({groundHeight:()=>floor});f.enable();floor=40;
+  f.control.step(.1,{enabled:false});close(f.control.getState().anchor[1],30);
+  f.control.step(.1,{enabled:false,grounding:true});close(f.control.getState().anchor[1],40);
+  assert.equal(f.control.getState().enabled,false);assert.equal(f.control.getState().moving,false);
+  floor=50;f.control.step(.1,{enabled:false,grounding:true,xr:true});close(f.control.getState().anchor[1],40);f.control.dispose();
+});
+test('ground is resampled at constrained XZ, not at the discarded proposed position',()=>{
+  const f=fixture({groundHeight:(x)=>x<5?60:30,constrainPosition:feet=>{feet.x=0;return feet;}});
+  f.enable();f.key('KeyW');f.control.step(.1,{enabled:true});close(f.control.getState().anchor[1],60);f.control.dispose();
+});
+test('footprint supports slope corners and does not fabricate missing ground',()=>{
+  close(sampleGroundFootprint((x,z)=>x+z,10,20),30.585);
+  assert.equal(sampleGroundFootprint(()=>null,0,0),null);
+  close(sampleGroundFootprint((x,z)=>x===0&&z===0?4:null,0,0),4.025);
+});
+test('unchanged proposed XZ reuses the first ground sample',()=>{
+  let calls=0;const f=fixture({groundHeight:()=>{calls++;return 30;}});f.enable();calls=0;
+  f.control.step(.1,{enabled:true});assert.equal(calls,1);f.control.dispose();
+});
 
 test("Z launches, held Z boosts, release glides, X brakes and input loss never resumes flight", () => {
   const f=fixture(); f.enable(); const start=f.control.getState().anchor;

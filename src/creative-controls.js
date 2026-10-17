@@ -5,6 +5,12 @@ export const creativeConfig = Object.freeze({ eyeHeight: 1.65, walkSpeed: 4.3,
   doubleSpaceMs: 350, doubleMoveMs: 350, thirdPersonDistance: 5, gravity: 20, jumpSpeed: 6 });
 export const creativeViews = Object.freeze(["first", "back", "front"]);
 export const controlPreferenceKey = "okazaki-control-mode-v2";
+// Support the whole pair of feet on a slope, not just the point between them.
+export function sampleGroundFootprint(sample,x,z,radius=.28) {
+  const heights=[[0,0],[-radius,-radius],[radius,-radius],[-radius,radius],[radius,radius]]
+    .map(([dx,dz])=>sample(x+dx,z+dz)).filter(value=>typeof value==='number'&&Number.isFinite(value));
+  return heights.length?Math.max(...heights)+.025:null;
+}
 export function readControlMode(storage) {
   try { const value = storage?.getItem(controlPreferenceKey); if (["creative", "drone"].includes(value)) return value; } catch { /* Optional preference. */ }
   return "creative";
@@ -45,7 +51,7 @@ function validView(view) {
 // teleport/XR return. Player feet are independent of the third-person camera.
 export function createCreativeControls(THREE, { camera, rig = camera?.parent,
   domElement, getControls = () => null, avatar = null, constrainPosition = null,
-  groundHeight = () => null, cameraObstacles = () => [], documentTarget = globalThis.document,
+  groundHeight = () => null, cameraGroundHeight = groundHeight, cameraObstacles = () => [], documentTarget = globalThis.document,
   windowTarget = globalThis.window, initialView = "back", now = () => globalThis.performance?.now?.() ?? Date.now(),
   onChange = () => {}, onFlightClick = () => {}, getPointerContext = () => null,
   onPointerActivate = () => {} } = {}) {
@@ -134,7 +140,7 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
       // Looking upwards near ground must not put the rear camera underneath
       // the real terrain. Unknown terrain remains unknown, never a fake plane.
       let cameraGround;
-      try { cameraGround = groundHeight(position.x, position.z); } catch { cameraGround = null; }
+      try { cameraGround = cameraGroundHeight(position.x, position.z); } catch { cameraGround = null; }
       if (typeof cameraGround === "number" && Number.isFinite(cameraGround)) {
         position.y = Math.max(position.y, cameraGround + 0.25);
       }
@@ -349,6 +355,12 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
     xr = Boolean(options.xr);
     if (!active()) {
       if (previousActive || keys.size || xr || blocked) clearInput({ release: true });
+      // DEM may arrive after a teleport or while the menu is open. An upward
+      // safety correction is not input and must not resume walking or flight.
+      if(options.grounding&&mode==='creative'&&!xr&&!suspendedXR) {
+        let floor;try{floor=groundHeight(anchor.x,anchor.z);}catch{}
+        if(Number.isFinite(floor)&&typeof floor==='number'&&anchor.y<floor){anchor.y=floor;verticalVelocity=0;renderView();}
+      }
       if (mode === "creative" && viewMode !== "first" && !xr && !suspendedXR) {
         const meshes = cameraObstacles() ?? [];
         // Streaming can change the view even while movement is OFF. Refresh
@@ -390,7 +402,8 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
         (fastClimb ? creativeConfig.fastClimbSpeed : creativeConfig.flySpeed) * deltaTime);
     }
     let height;
-    try { height = groundHeight(anchor.x + displacement.x, anchor.z + displacement.z); } catch { height = null; }
+    const proposedX=anchor.x+displacement.x,proposedZ=anchor.z+displacement.z;
+    try { height = groundHeight(proposedX,proposedZ); } catch { height = null; }
     groundAvailable = typeof height === "number" && Number.isFinite(height);
     // Auto lift near the ground makes Z a launch even when looking downward.
     if (boosting && groundAvailable && anchor.y < height + 2) displacement.y = Math.max(displacement.y, wingConfig.lift * deltaTime);
@@ -431,6 +444,11 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
         if (![anchor.x, anchor.y, anchor.z].every(Number.isFinite)) anchor.copy(previous);
       } catch { anchor.copy(previous); }
     }
+    // Re-sample AFTER XZ bounds, and apply the floor to creative flight too.
+    // Previously Shift could put flying feet underneath a known surface.
+    let finalFloor=height;
+    if(anchor.x!==proposedX||anchor.z!==proposedZ)try{finalFloor=groundHeight(anchor.x,anchor.z);}catch{finalFloor=null;}
+    if(typeof finalFloor==='number'&&Number.isFinite(finalFloor)&&anchor.y<finalFloor){anchor.y=finalFloor;verticalVelocity=0;}
     moving = anchor.distanceToSquared(previousAnchor) > 1e-12;
     animation = !moving ? "idle" : wingFlight ? (boosting ? "boost" : "glide") :
       Math.hypot(anchor.x - previousAnchor.x, anchor.z - previousAnchor.z) > 1e-6 ? (sprint ? "run" : "walk") : "idle";
