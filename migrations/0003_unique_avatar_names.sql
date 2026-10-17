@@ -6,6 +6,7 @@
 -- SQLite has no NFC function. Historical non-NFC display names are gated as
 -- namePending by publicAvatar before authorization, then NFC-normalized by
 -- updateAvatar on confirmation. They cannot enter a room with an alias key.
+-- publicAvatar also gates stored keys differing after invisible removal + NFC.
 WITH RECURSIVE chars(id,rest,key) AS (
   SELECT id,json_extract(avatar_json,'$.name'),'' FROM school_users
   UNION ALL

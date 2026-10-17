@@ -1,4 +1,5 @@
 import { avatarNickname } from "../src/avatar-label.js";
+import { avatarNameKey } from "./avatar-name-key.mjs";
 export const LIMITS = Object.freeze({
   participants: 31, classroomParticipants: 34, students: 30, stlBytes: 6 * 1024 * 1024,
   assetTriangles: 20000, userAssets: 10, userAssetBytes: 25 * 1024 * 1024,
@@ -99,7 +100,8 @@ export function publicAvatar(user) {
   const avatar = JSON.parse(user.avatar_json);
   // A saved name that the renderer would sanitize/fallback is not a usable
   // unique display name. Legacy accounts can repair it without changing ID.
-  if (avatarNickname(avatar.name) !== avatar.name || avatar.name.normalize('NFC') !== avatar.name) avatar.namePending = true;
+  if (avatarNickname(avatar.name) !== avatar.name || avatar.name.normalize('NFC') !== avatar.name ||
+      (avatar.nameKey !== undefined && avatar.nameKey !== avatarNameKey(avatar.name))) avatar.namePending = true;
   delete avatar.nameKey;
   return { ...avatar, id: user.id, role: user.role };
 }

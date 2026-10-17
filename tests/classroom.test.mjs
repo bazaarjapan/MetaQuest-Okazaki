@@ -144,14 +144,16 @@ test("canonical Japanese spellings collide and legacy non-NFC names require conf
   await rejects(()=>updateAvatar(db,users[1],{name:'が'}),'name_taken');
   // Historical non-normalized spellings retain identity/display bytes but
   // cannot appear in a room until reconfirmed through the NFC write path.
-  sql.exec('DROP INDEX school_users_unique_avatar_name');
-  sql.prepare('UPDATE school_users SET avatar_json=? WHERE id=?').run(JSON.stringify({name:'か\u3099',color:'#abcdef'}),users[1].id);
-  sql.exec(migrations[2]);
-  const legacy=await first(db,'SELECT * FROM school_users WHERE id=?',users[1].id);
-  await rejects(()=>enterClassroom(db,legacy,now),'name_required');
-  await rejects(()=>updateAvatar(db,legacy,{name:'か\u3099'}),'name_taken');
-  await updateAvatar(db,legacy,{name:'別の名前'});
-  assert.equal((await first(db,'SELECT * FROM school_users WHERE id=?',legacy.id)).id,legacy.id);
+  for(const legacyName of ['か\u3099','か\u200d\u3099']) {
+    sql.exec('DROP INDEX school_users_unique_avatar_name');
+    sql.prepare('UPDATE school_users SET avatar_json=? WHERE id=?').run(JSON.stringify({name:legacyName,color:'#abcdef'}),users[1].id);
+    sql.exec(migrations[2]);
+    const legacy=await first(db,'SELECT * FROM school_users WHERE id=?',users[1].id);
+    await rejects(()=>enterClassroom(db,legacy,now),'name_required');
+    await rejects(()=>updateAvatar(db,legacy,{name:legacyName}),'name_taken');
+    await updateAvatar(db,legacy,{name:'別の名前'});
+    assert.equal((await first(db,'SELECT * FROM school_users WHERE id=?',legacy.id)).id,legacy.id);
+  }
 });
 
 test("pending names cannot mutate legacy multi-world membership either",async t=>{
