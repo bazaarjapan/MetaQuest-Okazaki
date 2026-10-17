@@ -1,7 +1,38 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {buildingColorBytes,readFieldStyle,gameTerrainFile} from '../src/field-style.js';
+import {readFile} from 'node:fs/promises';
+import * as THREE from 'three';
+import {buildingColorBytes,readFieldStyle,gameTerrainFile,isCoreBuildingPart,createFieldBuildingMaterial,decorateBuildingGeometry} from '../src/field-style.js';
 import {mapPoint,roadWidth,renderFieldSVG} from '../scripts/lib/field-map.mjs';
+
+test('all four actual station building material groups are styled, never the terrain',async()=>{
+  const manifest=JSON.parse(await readFile(new URL('../public/city/manifest.json',import.meta.url),'utf8'));
+  assert.deepEqual(manifest.parts.filter(isCoreBuildingPart).map(p=>p.name),['Mesh-000','Mesh-001','Mesh-002','Mesh-003']);
+  const main=await readFile(new URL('../src/main.js',import.meta.url),'utf8');
+  assert.match(main,/const gameBuilding = isCoreBuildingPart\(p\)/);
+});
+test('small, black and photo-textured actual meshes gain colors without changing model arrays',async()=>{
+  const root=new URL('../public/city/',import.meta.url),manifest=JSON.parse(await readFile(new URL('manifest.json',root),'utf8'));
+  for(const p of manifest.parts.filter(isCoreBuildingPart)){
+    const b=await readFile(new URL(p.file,root)),buffer=b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength),g=new THREE.BufferGeometry();
+    g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(buffer,0,p.vertices*3),3));
+    g.setIndex(new THREE.BufferAttribute(new Uint32Array(buffer,p.vertices*32,p.indices),1));
+    const before=Buffer.from(buffer).toString('base64');decorateBuildingGeometry(THREE,g);
+    assert.equal(g.attributes.fieldColor.count,p.vertices,p.name);
+    assert.ok(g.attributes.fieldColor.array.every(c=>c>0),p.name);
+    assert.equal(Buffer.from(buffer).toString('base64'),before,p.name);g.dispose();
+  }
+});
+test('shared shader bypasses original photos in game mode and retains photo/black source material',()=>{
+  const map=new THREE.Texture(),uniform={value:1},material=createFieldBuildingMaterial(THREE,uniform,{map,color:0});
+  const shader={uniforms:{},vertexShader:THREE.ShaderLib.standard.vertexShader,fragmentShader:THREE.ShaderLib.standard.fragmentShader};
+  material.onBeforeCompile(shader);
+  assert.match(shader.fragmentShader,/if\(fieldGame<\.5\)\{\s*#include <map_fragment>\s*\}/);
+  assert.match(shader.fragmentShader,/if\(fieldGame>\.5\)/);
+  assert.equal(shader.uniforms.fieldGame,uniform);assert.equal(material.map,map);assert.equal(material.color.getHex(),0);
+  uniform.value=0;assert.equal(shader.uniforms.fieldGame.value,0);assert.equal(material.map,map);
+  assert.equal(material.userData.fieldBuilding,true);assert.equal(material.customProgramCacheKey(),'okazaki-field-building-v2');material.dispose();map.dispose();
+});
 test('game atlas respects every quality profile with legacy manifest fallback',()=>{
   const manifest={core:{file:'station.webp'},profiles:{performance:{file:'station-performance.webp'},balanced:{file:'station-balanced.webp'},high:{file:'station.webp'}}};
   for(const id of ['performance','balanced','high'])assert.equal(gameTerrainFile(manifest,id),'../field/'+manifest.profiles[id].file);

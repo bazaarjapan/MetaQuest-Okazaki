@@ -25,7 +25,7 @@ import { createBlockAvatar } from "./block-avatar.js";
 import { createSchoolClient } from "./school-client.js";
 import { createSchoolUI } from "./school-ui.js";
 import { createActivityGate } from "./activity-gate.js";
-import { readFieldStyle,FIELD_STYLE_KEY,createFieldBuildingMaterial,decorateBuildingGeometry,gameTerrainFile } from "./field-style.js";
+import { readFieldStyle,FIELD_STYLE_KEY,createFieldBuildingMaterial,decorateBuildingGeometry,gameTerrainFile,isCoreBuildingPart } from "./field-style.js";
 import { createHotbar } from "./hotbar.js";
 import { createHeldSTL } from "./held-stl.js";
 import { createSchoolPresence } from "./school-presence.js";
@@ -421,7 +421,7 @@ async function loadCity() {
     const color = map
       ? new THREE.Color(1, 1, 1)
       : new THREE.Color(...p.color).multiplyScalar(0.84);
-    const gameBuilding = !map && p.vertices>30000;
+    const gameBuilding = isCoreBuildingPart(p);
     if(gameBuilding)decorateBuildingGeometry(THREE,geometry);
     const materialOptions={color,map,roughness:1,metalness:0};
     const mesh = new THREE.Mesh(
@@ -1348,7 +1348,10 @@ renderer.domElement.addEventListener("webglcontextlost", (e) => {
 window.__okazaki = {
   getState: () => ({
     field: {style:fieldStyle,available:Boolean(fieldManifest),coreFile:fieldManifest?.core.file,
-      regionTiles:fieldManifest?Object.keys(fieldManifest.region).length:0},
+      regionTiles:fieldManifest?Object.keys(fieldManifest.region).length:0,
+      buildingGame:fieldUniform.value>.5,
+      coreParts:city.children.map(mesh=>({name:mesh.name,gameBuilding:Boolean(mesh.material.userData.fieldBuilding),
+        colorVertices:mesh.geometry.attributes.fieldColor?.count??0,textured:Boolean(mesh.material.map)}))},
     ...state,
     school: schoolClient.getState(),
     activityAllowed,
@@ -1369,7 +1372,7 @@ window.__okazaki = {
     panelVisible: panel.visible && vrFieldPanel.getState().expanded,
     vrPanel: vrFieldPanel.getState(),
     pointers: { left: controllerPointers.left.getState(), right: controllerPointers.right.getState() },
-    version: "1.10.1",
+    version: "1.10.2",
     vrReturn: { buttonVisible: vrReturnButton.getState().visible,
       holdProgress: vrReturnButton.getState().progress, exiting: xrExitPending,
       hasResume: hasVRResume, view: lastXRView ? {

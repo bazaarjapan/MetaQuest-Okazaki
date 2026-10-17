@@ -1,4 +1,9 @@
 export const FIELD_STYLE_KEY = 'okazaki-field-style-v1';
+// The station export consists of building material groups plus one terrain
+// atlas. A material group is not a building-size or texture-presence test.
+export function isCoreBuildingPart(part) {
+  return part.texture !== 'Texture-001.png';
+}
 export function gameTerrainFile(manifest,quality) {
   return '../field/'+(manifest.profiles?.[quality]?.file??manifest.core.file);
 }
@@ -31,12 +36,18 @@ export function decorateBuildingGeometry(THREE,geometry) {
 }
 export function createFieldBuildingMaterial(THREE,uniform,options={}) {
   const material=new THREE.MeshStandardMaterial({roughness:1,metalness:0,...options});
+  material.userData??={};material.userData.fieldBuilding=true;
   material.onBeforeCompile=shader=>{
     shader.uniforms.fieldGame=uniform;
     shader.vertexShader='attribute vec3 fieldColor; varying vec3 vFieldColor; varying vec3 vFieldPosition; varying vec3 vFieldNormal;\n'+shader.vertexShader;
     shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',`#include <begin_vertex>
       vFieldColor=fieldColor;vFieldPosition=(modelMatrix*vec4(position,1.0)).xyz;vFieldNormal=normalize(mat3(modelMatrix)*normal);`);
     shader.fragmentShader='uniform float fieldGame; varying vec3 vFieldColor; varying vec3 vFieldPosition; varying vec3 vFieldNormal;\n'+shader.fragmentShader;
+    // Keep the original map bound for photo mode, but do not sample or multiply
+    // it into a game-style facade. The uniform switches both modes atomically.
+    shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>',`if(fieldGame<.5){
+      #include <map_fragment>
+    }`);
     shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
       if(fieldGame>.5){
         vec3 paint=pow(vFieldColor,vec3(2.2));
@@ -52,6 +63,6 @@ export function createFieldBuildingMaterial(THREE,uniform,options={}) {
         diffuseColor.rgb=paint;
       }`);
   };
-  material.customProgramCacheKey=()=> 'okazaki-field-building-v1';
+  material.customProgramCacheKey=()=> 'okazaki-field-building-v2';
   return material;
 }
