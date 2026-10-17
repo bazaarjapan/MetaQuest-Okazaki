@@ -14,6 +14,8 @@
   const mode = document.querySelector("#control-mode"), canvas = document.querySelector("#viewport > canvas");
   check(state().ready && !state().ui.mobile, "PC-loaded");
   check(state().creative.mode === "creative", "fresh-PC-default-is-creative");
+  check(state().creative.viewMode === "back" && state().avatar.visible, "fresh-PC-rear-view-with-local-avatar");
+  key("F5"); key("F5");
   document.querySelector("#tab-observe").click();
   const initial = [...state().camera];
   mode.value = "creative"; mode.dispatchEvent(new Event("change", {bubbles:true}));
@@ -46,8 +48,8 @@
   const beforeView = [...state().creative.anchor];
   key("F5");
   await until(() => state().creative.viewMode === "back" &&
-    state().avatar.visible === Boolean(state().school.user), "F5-avatar-render-rAF");
-  check(state().creative.viewMode === "back" && state().avatar.visible === Boolean(state().school.user), "F5-behind-camera-avatar-for-logged-in-user");
+    state().avatar.visible, "F5-avatar-render-rAF");
+  check(state().creative.viewMode === "back" && state().avatar.visible, "F5-behind-camera-local-avatar");
   check(distance(state().creative.anchor, beforeView) < 1e-6 && distance(state().camera, state().creative.eye) > 4.9, "camera-not-player-anchor");
   key("F5"); await wait(50);
   check(state().creative.viewMode === "front", "F5-front-camera");

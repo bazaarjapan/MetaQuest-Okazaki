@@ -99,6 +99,8 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
     if (draftMesh) draftMesh.visible = true;
     const result = workshop.moveSelected(hit.point.toArray());
     if (draftMesh) {
+      // Full-size translucent ghost is distinct from the solid hand-held copy.
+      draftMesh.material.opacity = .22;
       const box = new THREE.Box3().setFromObject(draftMesh), positions = footprint.geometry.attributes.position;
       // Conform the shadow's grid to the real terrain; no fabricated zero floor.
       const down = new THREE.Raycaster(); down.ray.direction.set(0,-1,0); down.far = 2500;

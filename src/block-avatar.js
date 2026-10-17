@@ -44,6 +44,14 @@ export function createBlockAvatar(THREE, { color = 0x367fab, identity = null } =
   }
   const leftArm = block("left-arm", [0.2, 0.66, 0.25], [-0.4, 1.06, 0], 0xeac198);
   const rightArm = block("right-arm", [0.2, 0.66, 0.25], [0.4, 1.06, 0], 0xeac198);
+  const hand = new THREE.Group(); hand.name = "held-stl-hand";
+  hand.position.set(.4, .99, -.52); group.add(hand);
+  let holding = false;
+  function setHolding(value) {
+    holding = Boolean(value);
+    rightArm.rotation.x = holding ? Math.PI / 3 : 0;
+    rightArm.position.set(.4, holding ? 1.14 : 1.06, holding ? -.12 : 0);
+  }
   const leftLeg = block("left-leg", [0.22, 0.76, 0.27], [-0.145, 0.38, 0], 0x33455d);
   const rightLeg = block("right-leg", [0.22, 0.76, 0.27], [0.145, 0.38, 0], 0x33455d);
   const hairSide = block("hair-side", [.12, .3, .45], [.19, .04, 0], 0x403631, head);
@@ -80,6 +88,7 @@ export function createBlockAvatar(THREE, { color = 0x367fab, identity = null } =
     const swing = moving && Number.isFinite(time) ? Math.sin(time * 9) * 0.35 : 0;
     leftLeg.rotation.x = rightArm.rotation.x = swing;
     rightLeg.rotation.x = leftArm.rotation.x = -swing;
+    if (holding) rightArm.rotation.x = Math.PI / 3;
     group.visible = Boolean(visible);
     group.updateMatrixWorld(true);
   }
@@ -94,8 +103,8 @@ export function createBlockAvatar(THREE, { color = 0x367fab, identity = null } =
   function setColor(value) {
     if (!disposed && (typeof value === "number" || /^#[0-9a-f]{6}$/i.test(value))) torso.material.color.set(value);
   }
-  return { group, update, setColor, setIdentity, dispose,
+  return { group, hand, update, setHolding, setColor, setIdentity, dispose,
     getState: () => ({ position: group.position.toArray(), yaw: group.rotation.y,
-      pitch: head.rotation.x, visible: group.visible, disposed,
+      pitch: head.rotation.x, visible: group.visible, disposed, holding,
       meshCount: 12, geometryCount: 1, materialCount: materials.size, appearance: { ...appearance } }) };
 }

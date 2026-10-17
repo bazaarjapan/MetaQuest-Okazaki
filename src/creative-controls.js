@@ -44,7 +44,7 @@ function validView(view) {
 export function createCreativeControls(THREE, { camera, rig = camera?.parent,
   domElement, getControls = () => null, avatar = null, constrainPosition = null,
   groundHeight = () => null, cameraObstacles = () => [], documentTarget = globalThis.document,
-  windowTarget = globalThis.window, now = () => globalThis.performance?.now?.() ?? Date.now(),
+  windowTarget = globalThis.window, initialView = "back", now = () => globalThis.performance?.now?.() ?? Date.now(),
   onChange = () => {} } = {}) {
   if (!camera?.isCamera) throw new TypeError("Creative controls require a Three.js camera");
   const anchor = new THREE.Vector3();
@@ -97,13 +97,13 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
     camera.up.set(0, 1, 0);
     camera.updateMatrixWorld(true);
   }
-  function adopt(view) {
+  function adopt(view, nextView = "first") {
     if (!validView(view)) throw new TypeError("A finite camera view is required");
     const rotation = new THREE.Euler().setFromQuaternion(
       new THREE.Quaternion().fromArray(view.quaternion).normalize(), "YXZ");
     yaw = rotation.y; pitch = rotation.x; roll = rotation.z;
     anchor.fromArray(view.position); anchor.y -= creativeConfig.eyeHeight;
-    viewMode = "first";
+    viewMode = creativeViews.includes(nextView) ? nextView : "back";
   }
   function headOrientation() {
     return orientation.setFromEuler(new THREE.Euler(pitch, yaw, roll, "YXZ"));
@@ -152,7 +152,7 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
   }
   function syncFromCamera() {
     if (disposed || xr || suspendedXR) return;
-    adopt(worldView()); clearInput();
+    adopt(worldView(), viewMode); clearInput();
     if (mode === "creative") { getControls() && (getControls().enabled = false); renderView(); }
     updateAvatar(); notify();
   }
@@ -162,7 +162,7 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
     if (xr || suspendedXR) throw new Error("Control mode cannot change during XR");
     clearInput({ release: true });
     if (value === "creative") {
-      adopt(worldView()); flying = true;
+      adopt(worldView(), initialView); flying = true;
       mode = value;
       const controls = getControls();
       if (controls) controls.enabled = false;

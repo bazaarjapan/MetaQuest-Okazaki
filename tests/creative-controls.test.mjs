@@ -26,7 +26,7 @@ function fixture(options = {}) {
   const avatar = createBlockAvatar(THREE);
   const control = createCreativeControls(THREE, { camera, rig, domElement: canvas,
     getControls: () => orbit, avatar, documentTarget: doc, windowTarget: win,
-    now: () => time, ...options });
+    now: () => time, initialView: "first", ...options });
   const key = (code, extra = {}) => {
     const event = { code, repeat: false, prevented: false, preventDefault() { this.prevented = true; }, ...extra };
     control.handleKeyDown(event); return event;
@@ -40,6 +40,25 @@ function fixture(options = {}) {
 function close(actual, expected, tolerance = 1e-8) {
   assert.ok(Math.abs(actual - expected) < tolerance, `${actual} != ${expected}`);
 }
+
+test("fresh creative controls default rear third person without shifting player; pose adoption retains choice", () => {
+  const f = fixture({ initialView: undefined }); f.enable();
+  assert.equal(f.control.getState().viewMode, "back");
+  assert.equal(f.avatar.getState().visible, true);
+  assert.deepEqual(f.control.getState().anchor, [10,30,20]);
+  close(f.control.getState().cameraDistance,5);
+  // A server pose supplies eye coordinates, not the detached camera position.
+  f.camera.position.set(20,41.65,30); f.control.syncFromCamera();
+  assert.equal(f.control.getState().viewMode,"back");
+  assert.deepEqual(f.control.getState().anchor,[20,40,30]);
+  f.key("F5"); assert.equal(f.control.getState().viewMode,"front");
+  f.key("F5"); assert.equal(f.control.getState().viewMode,"first");
+  f.key("F5"); assert.equal(f.control.getState().viewMode,"back");
+  const eye = f.control.captureForXR(); assert.equal(f.avatar.getState().visible,false);
+  f.control.restoreAfterXR(eye);
+  assert.equal(f.control.getState().viewMode,"first");
+  assert.deepEqual(f.control.getState().eye,eye.position);
+});
 
 test("PC preference defaults creative, remembers deliberate choices and never inherits old drone default", () => {
   assert.equal(readControlMode(), "creative");

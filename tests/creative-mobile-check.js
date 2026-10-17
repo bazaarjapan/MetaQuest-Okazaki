@@ -5,6 +5,8 @@
   const distance = (a,b) => Math.hypot(...a.map((v,i) => v-b[i]));
   const key = (code,type='keydown') => window.dispatchEvent(new KeyboardEvent(type,{code,bubbles:true,cancelable:true}));
   check(state().ready && state().ui.mobile, 'compact-creative-layout-ready');
+  check(state().creative.mode === 'creative' && state().creative.viewMode === 'back' && state().avatar.visible,
+    'fresh-mobile-rear-view-with-local-avatar');
   document.querySelector('#mobile-avatar-view').click(); await wait(100);
   if (!state().free) document.querySelector('#mobile-flight').click(); await wait(100);
   document.querySelector('#viewport > canvas').focus();

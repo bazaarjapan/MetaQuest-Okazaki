@@ -430,6 +430,9 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
   onState(schoolClient?.getState() ?? {}); renderList();
   return { group, open, importFiles, useAsset, selectObject, cycleOwnAsset, moveSelected, adjustSelected,
     commitSelected, removeSelected, cancelDraft, retryAssets,
+    // Rendering-only handle: avoid cloning the full classroom every frame.
+    // Editing an existing placement is not holding a new inventory item.
+    getHeldDraft: () => draft && !draft.baseId && canChange(draft) ? draft.mesh : null,
     getState: () => {
       const objects = [...remote.values()].map((item) => draft?.id === item.id ? publicObject(draft) : publicObject(item));
       if (draft && !remote.has(draft.id)) objects.push(publicObject(draft));
