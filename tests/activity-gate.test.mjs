@@ -24,3 +24,14 @@ test("gate blocks world inputs but leaves login and name form operable, and relo
   gate.update({user:null});assert.equal(locks,1,"reset once per lock transition");
   gate.destroy();assert.equal(listeners.size,0);
 });
+
+test("model or WebGL failure has an operable retry without unlocking world controls",()=>{
+  let click,retries=0;
+  const button={addEventListener:(_,fn)=>{click=fn;},removeEventListener(){}},message={};
+  const gate=createActivityGate({documentTarget:{querySelector:()=>({querySelector:s=>s==="p"?message:button}),querySelectorAll:()=>[]},
+    windowTarget:{addEventListener(){},removeEventListener(){}},onOpen(){throw Error("must not open uninitialized account UI");},onRetry(){retries++;}});
+  gate.setError("通信を確認してください。");
+  assert.equal(gate.update(connected),false);
+  assert.match(message.textContent,/通信/);assert.match(button.textContent,/再読み込み/);
+  click();assert.equal(retries,1);
+});

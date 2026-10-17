@@ -344,6 +344,7 @@ new ResizeObserver(resize).observe(viewport);
 resize();
 function fail(error) {
   state.error = error.message;
+  activityGate.setError(error.message);
   $("#loading").hidden = false;
   $("#loading h2").textContent = "街を読み込めませんでした";
   $("#load-message").textContent = error.message;
