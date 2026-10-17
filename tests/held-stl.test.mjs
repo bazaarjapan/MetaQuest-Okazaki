@@ -50,6 +50,24 @@ test("arm hides outside first person, on XR/hidden/clear, and disposes only its 
   assert.equal(arm.parent,null);assert.equal(arm.visible,false);
 });
 
+test("a rotated asymmetric STL rests on the palm using actual vertices, not rotated box corners",()=>{
+  const f=fixture();
+  // Slanted wedge: unlike a cube, most AABB corners are not part of the mesh.
+  const geometry=new THREE.BufferGeometry();
+  geometry.setAttribute("position",new THREE.Float32BufferAttribute([
+    0,0,0, 4,0,0, 0,1,0, 0,0,0, 0,1,0, 1,0,3,
+    0,0,0, 1,0,3, 4,0,0, 4,0,0, 1,0,3, 0,1,0
+  ],3));
+  f.draft.geometry=geometry;
+  for(const angles of [[.4,.8,1.3],[-.9,.2,2],[0,0,Math.PI/4]]) {
+    f.draft.rotation.set(...angles);f.held.update({draft:f.draft,canEdit:true,firstPerson:true});
+    const model=f.camera.getObjectByName("held-stl-model"),palm=f.camera.getObjectByName("first-person-palm");
+    const actual=new THREE.Box3().setFromObject(model,true),support=new THREE.Box3().setFromObject(palm,true);
+    assert.ok(Math.abs(actual.min.y-support.max.y)<1e-7,"asymmetric model must not float above palm");
+    assert.ok(actual.getCenter(new THREE.Vector3()).distanceTo(model.parent.parent.position)<1e-7);
+  }
+});
+
 test("portrait and landscape palms remain in view and selected models remain supported after resize",()=>{
   const f=fixture();f.camera.fov=55;
   for(const aspect of [16/9,390/844,.25]) for(const holding of [false,true]) {

@@ -83,13 +83,21 @@ export function createHeldSTL({ avatar, camera }) {
       if (!geometry.boundingBox) geometry.computeBoundingBox();
       const box = geometry.boundingBox, center = box.getCenter(new THREE.Vector3());
       // Fit even tilted or very large source units into a small hand-sized model.
-      const centered = box.clone().translate(center.clone().negate());
-      const rotated = centered.applyMatrix4(new THREE.Matrix4().makeRotationFromEuler(draft.rotation));
+      // Rotating the source AABB overestimates asymmetric/diagonal geometry.
+      // Measure actual vertices only when the selected rotation/size changes.
+      const rotated = new THREE.Box3(), vertex = new THREE.Vector3();
+      const rotation = new THREE.Matrix4().makeRotationFromEuler(draft.rotation);
+      const positions = geometry.getAttribute("position");
+      for (let i=0; i<positions.count; i++) {
+        vertex.fromBufferAttribute(positions,i).sub(center).applyMatrix4(rotation);
+        rotated.expandByPoint(vertex);
+      }
       const extent = Math.max(...rotated.getSize(new THREE.Vector3()).toArray(), .000001);
       const factor = size / extent;
       heldHeight = rotated.getSize(new THREE.Vector3()).y * factor;
       mesh.position.copy(center).multiplyScalar(-1); mesh.scale.setScalar(1);
       pivot.scale.setScalar(factor); pivot.rotation.copy(draft.rotation);
+      pivot.position.copy(rotated.getCenter(new THREE.Vector3())).multiplyScalar(-factor);
     }
     if (firstPerson && !useHand) updateArm(halfWidth,halfHeight,true);
     avatar.setHolding(useHand); root.visible = true; root.updateWorldMatrix(true,true);
