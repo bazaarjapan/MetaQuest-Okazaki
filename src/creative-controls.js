@@ -257,7 +257,8 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
       pitch - Math.max(-1000, Math.min(1000, y)) * creativeConfig.mouseSensitivity));
     roll = 0; renderView();
   }
-  function stopMouseDrag() {
+  function stopMouseDrag({preserveClick=false} = {}) {
+    if (!preserveClick) suppressPointerClick=false;
     const pointerId = mouseDrag?.id; mouseDrag = null;
     if (pointerId !== undefined) {
       try { domElement?.releasePointerCapture?.(pointerId); } catch { /* Already released. */ }
@@ -299,7 +300,7 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
       Math.hypot(event.clientX-mouseDrag.startX,event.clientY-mouseDrag.startY) <= 5 &&
       active() && !locked() && !inputBlocked(event) &&
       mouseDrag.intent==="place" && context?.mode==="place" && context.token===mouseDrag.token;
-    stopMouseDrag();
+    stopMouseDrag({preserveClick:true});
     if (click) onFlightClick(event);
   }
   const canTouchLook = (event) => !disposed && mode === "creative" && !enabled &&
@@ -471,7 +472,7 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
   listen(domElement, "pointermove", flightMouseMove);
   listen(windowTarget, "pointerup", flightMouseUp);
   listen(domElement, "pointercancel", stopMouseDrag);
-  listen(domElement, "lostpointercapture", () => { mouseDrag = null; });
+  listen(domElement, "lostpointercapture", () => { if(mouseDrag) stopMouseDrag(); });
   listen(domElement, "pointerdown", touchDown);
   listen(domElement, "pointermove", touchMove);
   for (const type of ["pointerup", "pointercancel", "lostpointercapture"]) {

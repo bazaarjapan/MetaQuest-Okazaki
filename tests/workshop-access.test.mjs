@@ -161,6 +161,18 @@ test("other owners render but every mutation and import reuse remains own-only",
   assert.equal(await f.workshop.commitSelected(), false); assert.equal(await f.workshop.removeSelected(), false);
   assert.equal(await f.workshop.cycleOwnAsset(), false); assert.equal(f.calls.edits, 0);
 });
+
+test("scale multiplication clamps rounding overshoot but still rejects genuinely excessive transforms",async t=>{
+  const f=await fixture(t);await f.workshop.importFiles([f.file()]);
+  f.registry.get('object-scale').value='98.1';f.registry.get('object-scale').dispatch('change');
+  f.workshop.adjustSelected({scaleFactor:100/98.1});
+  assert.deepEqual(f.workshop.getState().current.scale,[100,100,100]);
+  assert.ok(!f.workshop.getState().message.includes('値が範囲外'));
+  assert.equal(f.workshop.adjustSelected({scaleFactor:2}).valid,false);
+  assert.deepEqual(f.workshop.getState().current.scale,[100,100,100]);
+  f.workshop.adjustSelected({scaleFactor:1e-8});
+  assert.deepEqual(f.workshop.getState().current.scale,[1e-6,1e-6,1e-6]);
+});
 test("preview preserves committed mesh; cancel and remote restore keep latest state", async (t) => {
   const f = await fixture(t); await f.workshop.importFiles([f.file()]); await f.workshop.commitSelected(); await f.settle();
   const id = f.workshop.getState().selected, committed = f.workshop.group.children[0];

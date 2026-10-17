@@ -185,6 +185,7 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
   }, {passive:false,capture:true});
   const forgetPointer=()=>{queuedWheel=null;pointerKnown=false;footprint.visible=false;if(canvas.style)canvas.style.cursor="";};
   window.addEventListener("blur",forgetPointer);
+  document.addEventListener("visibilitychange",()=>{if(document.hidden)forgetPointer();});
   canvas.addEventListener("pointercancel",forgetPointer);
   canvas.addEventListener("pointerleave", () => {
     if (!locked()) forgetPointer();

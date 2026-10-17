@@ -147,6 +147,17 @@ test("held STL flight defers a click for placement but never places a drag or ca
   down();f.win.emit("blur");up();assert.equal(placements,1);f.control.dispose();
 });
 
+test("cancelled placement gestures never swallow a subsequent ordinary click",()=>{
+  for(const cancel of ['pointercancel','lostpointercapture','released-buttons']) {
+    let context={mode:'place',token:'draft'};
+    const f=fixture({getPointerContext:()=>context});f.enable();
+    f.canvas.emit('pointerdown',{pointerType:'mouse',button:0,pointerId:7,clientX:100,clientY:100});
+    if(cancel==='released-buttons') f.canvas.emit('pointermove',{pointerId:7,buttons:0,clientX:110,clientY:100});
+    else f.canvas.emit(cancel);
+    context=null;f.canvas.emit('click');assert.equal(f.doc.pointerLockElement,f.canvas);f.control.dispose();
+  }
+});
+
 test("Space climbs while gliding or boosting, including downward gaze; double Space never cancels wings", () => {
   const f=fixture(); f.enable(); f.doc.pointerLockElement=f.canvas;
   f.control.handleMouseMove({movementX:0,movementY:450});

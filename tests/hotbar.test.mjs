@@ -32,7 +32,7 @@ function harness() {
     getBoundingClientRect() { return {left:0,top:0,width:800,height:600}; }
   }
   const canvas=new Node(); canvas.parentElement=new Node();
-  const document={createElement:()=>new Node(),querySelector:()=>null,pointerLockElement:null};
+  const document=Object.assign(new Node(),{createElement:()=>new Node(),querySelector:()=>null,pointerLockElement:null});
   const window=new Node();
   let xr=false, xrPending=false, picking=false, calls=0, now=0, removals=0, commits=0, current=null, canEdit=true, ground=[], obstacles=[], menuOpen=false, looking=false, adjustments=0, moves=0;
   const object={id:"object",assetId:"asset",editable:true,committed:true};
@@ -100,6 +100,8 @@ test("trackpad bursts perform one combined scale and position validation per fra
   assert.ok(Math.abs(h.workshop.getState().current.scale[0]-1.1)<1e-12);
   assert.deepEqual([...h.workshop.getState().current.position],[0,0,0]);
   h.canvas.events.wheel(wheel);h.window.events.blur();h.hotbar.update(32);assert.equal(h.adjustments,1);
+  h.canvas.events.wheel(wheel);h.document.hidden=true;h.document.events.visibilitychange();h.document.hidden=false;
+  h.hotbar.update(40);assert.equal(h.adjustments,1);
   h.canvas.events.wheel(wheel);h.workshop.getState().current.id='different-draft';h.hotbar.update(48);assert.equal(h.adjustments,1);
 });
 

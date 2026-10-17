@@ -348,7 +348,13 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
     }
     if (scaleFactor !== undefined) {
       if (!Number.isFinite(scaleFactor) || scaleFactor <= 0) return { valid: false };
-      for (let index = 0; index < 3; index++) scale[index] *= scaleFactor;
+      for (let index = 0; index < 3; index++) {
+        const value=scale[index]*scaleFactor, tolerance=4*Number.EPSILON;
+        // Clamp only floating-point overshoot of the documented bounds. Real
+        // out-of-range edits still fail validation rather than distorting shape.
+        scale[index]=value>100 && value<=100*(1+tolerance) ? 100 :
+          value<1e-6 && value>=1e-6*(1-tolerance) ? 1e-6 : value;
+      }
     }
     return previewDraft({ rotation, scale, position });
   }
