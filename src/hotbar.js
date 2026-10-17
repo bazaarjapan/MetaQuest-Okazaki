@@ -119,7 +119,7 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
     return result.valid;
   }
   async function place(event) {
-    if (!aiming || pending || !preview(event)) return;
+    if (blocked() || !currentState().canEdit || !aiming || pending || !preview(event)) return;
     pending = true; hold = null;
     try { if (await workshop.commitSelected()) { aiming = false; footprint.visible = false; } report(currentState().message); }
     finally { pending = false; render(); }
@@ -179,5 +179,5 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
     if (!aiming && !pending && !hold) footprint.visible=false;
   }
   report("1〜0 / 枠をクリック：STLを選択 · 左クリック：置く · 右長押し：回収 · Esc：メニュー");
-  return { update, getState:()=>({active,aiming,pending,footprintVisible:footprint.visible,hold:hold?.id??null}) };
+  return { update, place, getState:()=>({active,aiming,pending,footprintVisible:footprint.visible,hold:hold?.id??null}) };
 }

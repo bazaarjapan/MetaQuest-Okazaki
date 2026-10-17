@@ -50,6 +50,7 @@
           </button>
         </div>
         <div id="canvas-hint">ドラッグで回転 · ホイールで拡大</div>
+        <div id="rocket-hint" hidden>Z長押し：ロケット · X：停止</div>
       </section>
       <aside id="control-panel" aria-label="街の操作パネル">
         <div class="panel-heading">
@@ -72,7 +73,7 @@
             <label><input id="free-move" type="checkbox" disabled aria-describedby="creative-help move-help" /><span>自由移動 <strong id="free-move-state" class="movement-state">OFF</strong><small><span class="desktop-copy">PCは初期ON・キーを離すと停止</span><span class="mobile-copy">指を離すと停止・Questはモード2</span></small></span></label>
             <p id="move-help" hidden><span class="desktop-copy">WASD：前後左右 / R・F：上下 / Q・E：旋回。</span><span class="mobile-copy">左：上下・旋回 / 右：前後・左右。指を離すと停止。</span></p>
           </div>
-          <p id="creative-help" hidden>WASD：移動 / Space：上昇 / Shift：下降 / F5：視点切替。3D画面をクリックして見回す・Escでマウス解除。高速移動などは「使い方」へ。</p>
+          <p id="creative-help" hidden>WASD：移動 / Space：上昇 / Shift：下降 / F5：視点。Z長押し：ロケット離陸・加速、離すと滑空 / X：空中停止。画面クリックで見回す・Escで停止。</p>
           <p class="movement-note">最初は三人称・後方視点。見学中は仮アバター、ログイン後は自分のアバターで探索できます。選んだ未配置STLは手元に表示します。視点ボタンで一人称・三人称を切替。スマホは左：上下・旋回／右：前後・左右。QuestのVRは一人称です。VR入退場・地点切替・ダイアログ操作では移動OFF。</p>
         </div>
         <p class="panel-caption">JR岡崎駅から、街のつながりを観察。</p>
@@ -168,7 +169,7 @@
           rel="noopener"
           >国土地理院</a
         >　写真加工・広域標高はライブ取得</span
-      ><span>MVP 1.8.2 · 生徒はIDログイン · 先生はGoogle · 共通ワールド</span>
+      ><span>MVP 1.9.0 · 生徒はIDログイン · 先生はGoogle · 共通ワールド</span>
     </footer>
     <dialog id="workshop-dialog" aria-labelledby="workshop-title">
       <button id="workshop-close" class="dialog-close">閉じる ×</button>
@@ -201,7 +202,7 @@
       <h2>好きな場所から、街を見よう。</h2>
       <h3>PC・タブレット</h3>
       <p>
-        PCはクリエイティブ風・自由移動ONで始まります。「見学」タブで操作モードと自由移動を切り替えます。WASDで前後左右、Spaceで上昇、Shiftで下降。3D画面をクリックするとマウスで見回せ、Escで解除します。同じW/A/S/Dを350ms以内に二度押しして保持、またはCtrlで1.5倍速。Space二度押しで飛行/歩行、F5で一人称→後方→前方です。マウスは自動で固定しません。保存済みのモード選択は次回も使います。従来のドローンを選ぶと、ドラッグで回転・ホイールで拡大、WASD・R/F上下・Q/E旋回を使えます。モード・地点の切替、ダイアログ、画面から離れたとき、VR入退場では移動OFFになります。壁衝突は未実装です。
+        PCはクリエイティブ風・自由移動ONで始まります。「見学」タブで操作モードと自由移動を切り替えます。WASDで前後左右、Spaceで上昇、Shiftで下降。3D画面をクリックするとマウスで見回せ、Escで解除します。同じW/A/S/Dを350ms以内に二度押しして保持、またはCtrlで1.5倍速。Space二度押しで飛行/歩行、F5で一人称→後方→前方です。翼とロケットは標準装備・燃料無制限。Z長押しで離陸・加速（最高80m/s）、離すと滑空し、マウスで方向を変えます。マウス固定が使えないブラウザーでは、飛行中に3D画面を左ドラッグすると左右旋回・上下の向きを変えられます。方向転換のドラッグではSTLを設置しません。Xで空中停止して通常の自由移動に戻ります。滑空中に下を向いて地面へ降りると歩行に戻ります。飛行中もSpace長押しで上昇できます（Zと同時押し可能）。飛行中のSpace二度押しでは歩行に切り替わりません。WASD・Shiftの通常移動はXで停止してから使ってください。マウスは自動で固定しません。保存済みのモード選択は次回も使います。従来のドローンを選ぶと、ドラッグで回転・ホイールで拡大、WASD・R/F上下・Q/E旋回を使えます。モード・地点の切替、ダイアログ、画面から離れたとき、VR入退場では移動OFFになります。ロケットはPC専用で、VRは従来のモード2です。壁衝突は未実装です。
       </p>
       <p>PCの新しい操作：Escで右メニュー、3D画面クリックで閉じて移動を再開。下の10枠または1〜9・0でSTLを選び、緑の底面を確認して左クリックで配置します。自分の作品をねらって右クリック0.7秒長押しで回収できます。詳しい手順は先生向けガイドを確認してください。</p>
       <h3>スマホ</h3>

@@ -7,14 +7,14 @@ test("original block avatar is a small asset-free group anchored at its feet", (
   const avatar = createBlockAvatar(THREE);
   const meshes = [];
   avatar.group.traverse((object) => { if (object.isMesh) meshes.push(object); });
-  assert.equal(meshes.length, 12);
-  assert.equal(new Set(meshes.map((mesh) => mesh.geometry)).size, 1);
+  assert.equal(meshes.length, 20);
+  assert.equal(new Set(meshes.map((mesh) => mesh.geometry)).size, 3);
   assert.ok(meshes.every((mesh) => !mesh.material.map));
   assert.equal(avatar.getState().visible, false);
   const bounds = new THREE.Box3().setFromObject(avatar.group);
   assert.ok(Math.abs(bounds.min.y) < 1e-9);
   assert.ok(bounds.max.y > 1.8 && bounds.max.y < 2);
-  assert.equal(avatar.getState().materialCount, 6);
+  assert.equal(avatar.getState().materialCount, 10);
 });
 
 test("avatar pose handles independent head pitch and block-limb movement", () => {
@@ -48,14 +48,19 @@ test("avatar disposes shared resources exactly once and removes its own group", 
   const avatar = createBlockAvatar(THREE), scene = new THREE.Scene();
   scene.add(avatar.group);
   let geometryDisposals = 0, materialDisposals = 0;
+  let allGeometryDisposals = 0;
+  const allGeometries = new Set();
+  avatar.group.traverse(object => { if(object.geometry) allGeometries.add(object.geometry); });
+  for(const entry of allGeometries) entry.addEventListener("dispose",()=>allGeometryDisposals++);
   const geometry = avatar.group.getObjectByName("torso").geometry;
   geometry.addEventListener("dispose", () => geometryDisposals++);
   const materials = new Set();
-  avatar.group.traverse((object) => { if (object.isMesh) materials.add(object.material); });
+  avatar.group.traverse((object) => { if (object.material) materials.add(object.material); });
   for (const material of materials) material.addEventListener("dispose", () => materialDisposals++);
   avatar.dispose(); avatar.dispose(); avatar.update({ visible: true });
   assert.equal(geometryDisposals, 1);
-  assert.equal(materialDisposals, 6);
+  assert.equal(allGeometryDisposals, 4);
+  assert.equal(materialDisposals, 10);
   assert.equal(avatar.group.parent, null);
   assert.equal(avatar.getState().disposed, true);
   assert.equal(avatar.getState().visible, false);
@@ -69,7 +74,7 @@ test("opaque identity generates stable original appearance, without changing the
   assert.notDeepEqual(first.getState().appearance, other.getState().appearance);
   first.setIdentity("user-two"); assert.deepEqual(first.getState().appearance, other.getState().appearance);
   first.setColor("#112233"); assert.equal(first.group.getObjectByName("torso").material.color.getHexString(), "112233");
-  assert.equal(first.getState().materialCount, 6); first.dispose(); again.dispose(); other.dispose();
+  assert.equal(first.getState().materialCount, 10); first.dispose(); again.dispose(); other.dispose();
 });
 
 test("a shirt matching the old skin color never recolors face or arms", () => {
@@ -80,4 +85,57 @@ test("a shirt matching the old skin color never recolors face or arms", () => {
   assert.equal(face.material.color.getHex(), skin);
   assert.equal(avatar.group.getObjectByName("left-arm").material, face.material);
   assert.notEqual(avatar.group.getObjectByName("torso").material, face.material); avatar.dispose();
+});
+
+test("idle is exact, running has stronger gait, and original wings/rockets follow flight state", () => {
+  const avatar = createBlockAvatar(THREE), leg = avatar.group.getObjectByName("left-leg");
+  avatar.update({ animation: "walk", time: .1 }); const walk = Math.abs(leg.rotation.x);
+  const arm = avatar.group.getObjectByName("right-arm"), armSwing = arm.rotation.x;
+  avatar.setHolding(false); assert.equal(arm.rotation.x, armSwing);
+  avatar.update({ animation: "run", time: .1 }); assert.ok(Math.abs(leg.rotation.x) > walk);
+  avatar.setHolding(true);
+  avatar.update({ animation: "boost", time: .1 });
+  assert.equal(avatar.getState().wingsOpen, true); assert.equal(avatar.getState().boosting, true);
+  assert.equal(avatar.group.getObjectByName("flame-0").visible, true);
+  assert.equal(avatar.group.getObjectByName("wing-inner-0").visible, true);
+  assert.equal(avatar.group.getObjectByName("wing-membrane-0").material.transparent, true);
+  for(const i of [0,1]) {
+    const inner=avatar.group.getObjectByName(`wing-inner-${i}`);
+    const tip=new THREE.Vector3(1.34,-.36,0).applyMatrix4(inner.matrix).sub(inner.position);
+    assert.ok(tip.y<0,"wing tips sweep towards tail, not head");
+    assert.ok(i ? tip.x>0 : tip.x<0,"wings open outwards on both sides");
+  }
+  assert.equal(avatar.hand.parent, avatar.group.getObjectByName("avatar-body"));
+  assert.equal(avatar.group.getObjectByName("right-arm").rotation.x, Math.PI / 3);
+  avatar.update({ animation: "glide" }); assert.equal(avatar.getState().boosting, false);
+  avatar.setHolding(false); avatar.update({ animation: "idle", time: 500 });
+  assert.equal(leg.rotation.x, 0); assert.equal(avatar.group.getObjectByName("avatar-body").rotation.x, 0);
+  assert.equal(avatar.getState().wingsOpen, false); assert.equal(avatar.group.getObjectByName("flame-0").visible, false);
+  assert.equal(avatar.group.getObjectByName("wing-inner-0").visible, false);
+  avatar.dispose();
+});
+
+test("reference hindwing keeps its leading edge above its fan-shaped trailing edge on both sides",()=>{
+  const avatar=createBlockAvatar(THREE);avatar.update({animation:"glide",time:0});
+  for(const i of [0,1]) {
+    const membrane=avatar.group.getObjectByName(`wing-membrane-${i}`);
+    const vertices=membrane.geometry.attributes.position;
+    let minY=0,maxY=-Infinity,maxX=0;
+    for(let n=0;n<vertices.count;n++) {minY=Math.min(minY,vertices.getY(n));maxY=Math.max(maxY,vertices.getY(n));maxX=Math.max(maxX,vertices.getX(n));}
+    assert.ok(maxY<=.00001&&minY<-.6&&maxX>1.3,"all of the broad fan trails below the root");
+    assert.equal(membrane.parent.rotation.z,0,"only left/right reflection, no upside-down rotation");
+  }
+  avatar.dispose();
+});
+
+test("stowed shield elytra meet at a straight central seam and hug the back",()=>{
+  const avatar=createBlockAvatar(THREE);avatar.update({animation:"idle"});
+  const left=avatar.group.getObjectByName("wing-shell-0"),right=avatar.group.getObjectByName("wing-shell-1");
+  const a=new THREE.Box3().setFromObject(left),b=new THREE.Box3().setFromObject(right);
+  assert.ok(a.max.x<0&&b.min.x>0);assert.ok(b.min.x-a.max.x<.01,"central seam <1cm");
+  assert.ok(a.min.z>=.15&&a.max.z<.25,"thin cover sits immediately behind torso");
+  assert.ok(b.min.z>=.15&&b.max.z<.25);
+  assert.ok(a.min.x>-.35&&b.max.x<.35,"stowed covers fit body width");
+  avatar.update({animation:"boost"});assert.ok(Math.abs(left.parent.rotation.z)>.5);
+  avatar.update({animation:"idle"});assert.equal(left.parent.rotation.z,0);avatar.dispose();
 });

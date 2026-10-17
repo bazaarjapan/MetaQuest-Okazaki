@@ -5,6 +5,7 @@ import { createCreativeControls, creativeConfig, constrainCreativeFeet, readCont
 import { createBlockAvatar } from "../src/block-avatar.js";
 import { clampPosition, viewpoints } from "../src/motion.js";
 import { clampToRegion } from "../src/region-plan.js";
+import { wingTravel } from "../src/avatar-motion.js";
 
 function emitter(extra = {}) {
   const handlers = new Map();
@@ -40,6 +41,107 @@ function fixture(options = {}) {
 function close(actual, expected, tolerance = 1e-8) {
   assert.ok(Math.abs(actual - expected) < tolerance, `${actual} != ${expected}`);
 }
+
+test("Z launches, held Z boosts, release glides, X brakes and input loss never resumes flight", () => {
+  const f=fixture(); f.enable(); const start=f.control.getState().anchor;
+  f.key("KeyZ"); f.control.step(.1,{enabled:true});
+  assert.equal(f.control.getState().animation,"boost");
+  assert.ok(f.control.getState().anchor[2]<start[2]);
+  assert.ok(f.control.getState().wingSpeed>12);
+  f.release("KeyZ"); f.control.step(.1,{enabled:true});
+  assert.equal(f.control.getState().animation,"glide");
+  f.key("KeyX"); const stop=f.control.getState().anchor; f.control.step(.1,{enabled:true});
+  assert.deepEqual(f.control.getState().anchor,stop); assert.equal(f.control.getState().animation,"idle");
+  for(const interrupt of [()=>f.win.emit("blur"),()=>f.control.step(.1,{enabled:false}),
+    ()=>f.control.step(.1,{enabled:true,blocked:true}),()=>f.control.captureForXR()]) {
+    f.key("KeyZ"); f.control.step(.1,{enabled:true}); interrupt();
+    const stopped=f.control.getState(); assert.equal(stopped.wingFlight,false); assert.equal(stopped.wingSpeed,0);
+    f.control.step(.1,{enabled:true}); assert.deepEqual(f.control.getState().anchor,stopped.anchor);
+  }
+  f.control.dispose();
+});
+
+test("wing travel is bounded and frame-rate independent", () => {
+  const results=[30,60,90].map(fps=>{ let speed=12,distance=0;
+    for(let i=0;i<fps*3;i++){const r=wingTravel(speed,true,1/fps);speed=r.speed;distance+=r.distance;}
+    assert.ok(speed<=80 && speed>79); return distance; });
+  close(results[0],results[1]);close(results[1],results[2]);
+  assert.ok(Number.isFinite(wingTravel(NaN,true,Infinity).distance));
+});
+
+test("unknown terrain holds glide altitude while preserving forward motion and explicit Space climb", () => {
+  const f=fixture({groundHeight:()=>null});f.enable();f.key("KeyZ");f.control.step(.1,{enabled:true});f.release("KeyZ");
+  const before=f.control.getState().anchor;for(let i=0;i<20;i++)f.control.step(.1,{enabled:true});
+  assert.equal(f.control.getState().anchor[1],before[1]);assert.ok(f.control.getState().anchor[2]<before[2]);
+  f.key("Space");f.control.step(.1,{enabled:true});assert.ok(f.control.getState().anchor[1]>before[1]);f.control.dispose();
+});
+
+test("unlocked flight mouse drag steers yaw/pitch without placing STL or retrying failed pointer lock", () => {
+  const f=fixture(); f.enable();f.key("KeyZ");f.control.step(.1,{enabled:true});
+  let prevented=false,consumed=false;
+  f.canvas.emit("pointerdown",{pointerType:"mouse",button:0,pointerId:9,clientX:100,clientY:100,
+    preventDefault(){prevented=true;},stopImmediatePropagation(){consumed=true;}});
+  assert.equal(prevented,true);assert.equal(consumed,true);assert.equal(f.control.getState().mouseSteering,true);
+  f.canvas.emit("pointermove",{pointerId:9,buttons:1,clientX:200,clientY:50});
+  close(f.control.getState().yaw,-.2);close(f.control.getState().pitch,.1);
+  f.win.emit("pointerup",{pointerId:9,button:0,clientX:200,clientY:50});const yaw=f.control.getState().yaw;
+  f.canvas.emit("pointermove",{pointerId:9,buttons:0,clientX:300,clientY:50});
+  close(f.control.getState().yaw,yaw);
+  f.canvas.emit("click");assert.equal(f.doc.pointerLockElement,null);
+  assert.equal(f.control.getState().wingFlight,true);f.control.dispose();
+});
+
+test("fallback mouse steering is inactive outside flight and clears on blur/modal/XR", () => {
+  const f=fixture();f.enable();
+  const down=()=>f.canvas.emit("pointerdown",{pointerType:"mouse",button:0,pointerId:1,clientX:10,clientY:10});
+  down();assert.equal(f.control.getState().mouseSteering,false);
+  f.key("KeyZ");down();assert.equal(f.control.getState().mouseSteering,true);
+  f.win.emit("blur");assert.equal(f.control.getState().mouseSteering,false);
+  f.key("KeyZ");f.control.step(.1,{enabled:true});down();f.control.step(.1,{enabled:true,blocked:true});
+  assert.equal(f.control.getState().mouseSteering,false);
+  f.control.step(.1,{enabled:true});f.key("KeyZ");down();f.control.captureForXR();
+  assert.equal(f.control.getState().mouseSteering,false);f.control.dispose();
+});
+
+test("flight fallback defers a click for placement but never places a drag or cancelled gesture", () => {
+  let placements=0; const f=fixture({onFlightClick:()=>placements++});f.enable();f.key("KeyZ");
+  const down=()=>f.canvas.emit("pointerdown",{pointerType:"mouse",button:0,pointerId:7,clientX:100,clientY:100});
+  const up=(x=102)=>f.win.emit("pointerup",{pointerId:7,button:0,clientX:x,clientY:100});
+  down();assert.equal(placements,0);
+  f.canvas.emit("pointermove",{pointerId:7,buttons:1,clientX:102,clientY:100});
+  close(f.control.getState().yaw,0);up();assert.equal(placements,1);
+  down();f.canvas.emit("pointermove",{pointerId:7,buttons:1,clientX:130,clientY:100});up(130);
+  assert.equal(placements,1);
+  down();f.canvas.emit("pointercancel");up();assert.equal(placements,1);
+  down();f.win.emit("blur");up();assert.equal(placements,1);f.control.dispose();
+});
+
+test("Space climbs while gliding or boosting, including downward gaze; double Space never cancels wings", () => {
+  const f=fixture(); f.enable(); f.doc.pointerLockElement=f.canvas;
+  f.control.handleMouseMove({movementX:0,movementY:450});
+  f.key("KeyZ");f.control.step(.1,{enabled:true});f.release("KeyZ");
+  const before=f.control.getState().anchor[1]; f.key("Space");f.control.step(.1,{enabled:true});
+  assert.ok(f.control.getState().anchor[1]>=before+1.19);
+  assert.equal(f.control.getState().animation,"glide");
+  f.release("Space");f.advance(80);f.key("Space");
+  assert.equal(f.control.getState().wingFlight,true); assert.equal(f.control.getState().flying,true);
+  f.key("KeyZ");const boosting=f.control.getState().anchor[1]; f.control.step(.1,{enabled:true});
+  assert.ok(f.control.getState().anchor[1]>=boosting+1.19);assert.equal(f.control.getState().animation,"boost");
+  f.key("KeyX");const stopped=f.control.getState().anchor;f.control.step(.1,{enabled:true});
+  assert.deepEqual(f.control.getState().anchor,stopped); f.control.dispose();
+});
+
+test("ground launch, landing and exact stationary/walk/run animation", () => {
+  const f=fixture({groundHeight:()=>30}); f.enable();
+  f.key("KeyZ"); f.control.step(.1,{enabled:true}); assert.ok(f.control.getState().anchor[1]>30);
+  f.release("KeyZ"); for(let i=0;i<10;i++)f.control.step(.1,{enabled:true});
+  assert.equal(f.control.getState().wingFlight,false); assert.equal(f.control.getState().flying,false);
+  close(f.control.getState().anchor[1],30); assert.equal(f.control.getState().animation,"idle");
+  f.key("KeyW");f.control.step(.1,{enabled:true});assert.equal(f.control.getState().animation,"walk");
+  f.key("ControlLeft");f.control.step(.1,{enabled:true});assert.equal(f.control.getState().animation,"run");
+  f.key("KeyS");f.control.step(.1,{enabled:true});assert.equal(f.control.getState().animation,"idle");
+  f.control.dispose();
+});
 
 test("rear/front to drone round trips preserve the player eye, heading and anchor", () => {
   for (const initialView of ["back", "front"]) {

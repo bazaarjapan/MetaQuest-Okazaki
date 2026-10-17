@@ -228,6 +228,14 @@ test("pose sends are finite, bounded <=8Hz; heartbeat is exactly20s and clears o
   h.client.leaveWorld(); assert.equal(h.intervals.size, 0); assert.equal(h.client.sendPose({ position: [1, 2, 3], yaw: 0 }), false); h.client.destroy();
 });
 
+test("client carries only allowed transient avatar motion on authenticated pose packets", async () => {
+  const h=harness(); await h.join();
+  assert.equal(h.client.sendPose({position:[1,40,2],yaw:0,animation:"boost"}),true);
+  assert.equal(h.sockets[0].sent.at(-1).animation,"boost");h.advance(125);
+  assert.equal(h.client.sendPose({position:[1,40,2],yaw:0,animation:{bad:true}}),false);
+  h.client.destroy();
+});
+
 test("pose epoch follows only an adopted full WS state, not an earlier HTTP checkpoint", async () => {
   const h = harness(); await h.join(); const ws = h.sockets[0];
   assert.equal(h.client.sendPose({ position: [1, 2, 3], yaw: 0 }), true);

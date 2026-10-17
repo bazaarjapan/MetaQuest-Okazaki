@@ -103,6 +103,19 @@ function assertPose(actual, expected) {
   assert.deepEqual(actual.position, expected.position); assert.equal(actual.yaw, expected.yaw);
 }
 
+test("validated flight animation broadcasts but does not persist or restart after reconnect", async t => {
+  const f = await fixture(t), first = (await f.connect()).socket;
+  await f.pose(first, {...currentPose, animation:"boost"});
+  assert.equal(first.messages.at(-1).participant.animation,"boost");
+  assert.equal(f.room().participants()[0].animation,"boost");
+  assert.equal(f.live().pose.animation,undefined);
+  f.advance(); await f.pose(first,{...laterPose,animation:"<script>"},1);
+  assert.equal(first.messages.at(-1).error,"invalid_pose_animation");
+  assert.deepEqual(f.live().pose,currentPose);
+  const replacement=(await f.connect()).socket;
+  assert.equal(poseOf(replacement).animation,undefined);
+});
+
 test("unsaved live pose survives duplicate identity replacement and transient socket loss", async (t) => {
   const f = await fixture(t), first = (await f.connect()).socket;
   await f.pose(first, currentPose);

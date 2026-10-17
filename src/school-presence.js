@@ -1,6 +1,7 @@
 import { avatarNickname, createAvatarLabel } from "./avatar-label.js";
 import { createBlockAvatar } from "./block-avatar.js";
 import { creativeConfig } from "./creative-controls.js";
+import { validAvatarMotion } from "./avatar-motion.js";
 
 export const presenceLimits = Object.freeze({ remoteParticipants: 33, labelWidth: 256,
   labelHeight: 64, labelCharacters: 20, teleportDistance: 25, smoothing: 12 });
@@ -37,12 +38,13 @@ export function remoteParticipants(state) {
     if (!feet) continue;
     found.add(value.id);
     result.push({ id: value.id, name: presenceLabel(value.name), color: presenceColor(value.color),
-      role: value.role === "teacher" ? "teacher" : "student", feet, yaw: value.yaw });
+      role: value.role === "teacher" ? "teacher" : "student", feet, yaw: value.yaw,
+      animation: validAvatarMotion(value.animation) ? value.animation : null });
   }
   return result;
 }
 
-// Thirty original twelve-cube avatars; no imported character or texture assets.
+// Original block avatars with low-poly beetle wings; no imported textures/assets.
 // Identity changes clear the old room before any new room can be rendered.
 export function createSchoolPresence(THREE, { scene, client,
   documentTarget = globalThis.document } = {}) {
@@ -82,12 +84,13 @@ export function createSchoolPresence(THREE, { scene, client,
       }
       const position = new THREE.Vector3(...participant.feet);
       if (actor.target.distanceToSquared(position) > 0.0001) actor.motionTime = time;
+      actor.animation = participant.animation;
       if (actor.position.distanceTo(position) > presenceLimits.teleportDistance) {
         actor.position.copy(position); actor.yaw = participant.yaw;
       }
       actor.target.copy(position); actor.targetYaw = participant.yaw;
       if (actor.name !== participant.name) { actor.name = participant.name; actor.label.setName(participant.name); }
-      actor.avatar.update({ position: actor.position, yaw: actor.yaw, time, visible: true });
+      actor.avatar.update({ position: actor.position, yaw: actor.yaw, animation: actor.animation ?? "idle", time, visible: true });
     }
     group.visible = Boolean(context);
   }
@@ -104,13 +107,13 @@ export function createSchoolPresence(THREE, { scene, client,
         actor.position.lerp(actor.target, alpha);
         actor.yaw = interpolateYaw(actor.yaw, actor.targetYaw, alpha);
         actor.avatar.update({ position: actor.position, yaw: actor.yaw,
-          moving: time - actor.motionTime < 0.3, time, visible: true });
+          animation: time - actor.motionTime < .3 ? actor.animation ?? "walk" : "idle", time, visible: true });
       }
     },
     getState: () => ({ visible: group.visible, count: actors.size, disposed,
       actors: [...actors.values()].map((actor) => ({ id: actor.id, name: actor.name,
         color: actor.color, position: actor.position.toArray(), target: actor.target.toArray(),
-        yaw: actor.yaw, meshes: actor.avatar.getState().meshCount, label: actor.label.getState(), appearance: actor.avatar.getState().appearance })) }),
+        yaw: actor.yaw, animation: actor.avatar.getState().animation, meshes: actor.avatar.getState().meshCount, label: actor.label.getState(), appearance: actor.avatar.getState().appearance })) }),
     dispose() {
       if (disposed) return;
       disposed = true; unsubscribe?.(); clear(); group.removeFromParent(); group.visible = false;

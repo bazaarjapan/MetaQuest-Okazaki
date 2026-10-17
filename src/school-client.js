@@ -451,10 +451,11 @@ export function createSchoolClient(options = {}) {
       throw error;
     }
   }
-  function sendPose({ position, yaw }) {
+  function sendPose({ position, yaw, animation }) {
     if (!state.user || !state.world || state.connection !== "connected" || !socket || socket.readyState !== 1 || now() - lastPoseAt < 125) return false;
     if (!Array.isArray(position) || position.length !== 3 || !position.every((n) => Number.isFinite(n) && Math.abs(n) <= 25000) || position[1] < -100 || position[1] > 1200 || !Number.isFinite(yaw) || Math.abs(yaw) > Math.PI * 100) return false;
-    try { socket.send(JSON.stringify({ type: "pose", position: [...position], yaw, seq: poseSeq++, restoreCommit: state.restoreCommit })); lastPoseAt = now(); return true; }
+    if (animation !== undefined && !["idle", "walk", "run", "glide", "boost"].includes(animation)) return false;
+    try { socket.send(JSON.stringify({ type: "pose", position: [...position], yaw, animation, seq: poseSeq++, restoreCommit: state.restoreCommit })); lastPoseAt = now(); return true; }
     catch { return false; }
   }
   function subscribe(listener) { listeners.add(listener); listener(readonlySnapshot({ ...state }), "state"); return () => listeners.delete(listener); }

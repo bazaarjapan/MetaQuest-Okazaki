@@ -1,3 +1,4 @@
+import { validAvatarMotion } from "./avatar-motion.js";
 // Original, low-cost block-shaped avatar. No third-party character assets.
 export function avatarAppearance(identity) {
   // Only the server's opaque user ID seeds the look. No name, email, Google
@@ -16,6 +17,7 @@ export function createBlockAvatar(THREE, { color = 0x367fab, identity = null } =
   const group = new THREE.Group();
   group.name = "school-block-avatar";
   const geometry = new THREE.BoxGeometry(1, 1, 1);
+  const geometries = new Set([geometry]);
   const materials = new Map();
   let disposed = false;
   function material(value, key) {
@@ -24,7 +26,7 @@ export function createBlockAvatar(THREE, { color = 0x367fab, identity = null } =
     return materials.get(key);
   }
   function block(name, size, position, value, parent = group) {
-    const key = name.startsWith("trim-") ? "accent" : name === "hair-side" ? "hair" : name === "torso" ? "shirt" : name === "face" || name.endsWith("arm") ? "skin" : name.endsWith("leg") ? "trousers" : name;
+    const key = name.startsWith("trim-") || name.startsWith("wing-") ? "accent" : name.startsWith("rocket-") ? "trousers" : name.startsWith("flame-") ? "flame" : name === "hair-side" ? "hair" : name === "torso" ? "shirt" : name === "face" || name.endsWith("arm") ? "skin" : name.endsWith("leg") ? "trousers" : name;
     const mesh = new THREE.Mesh(geometry, material(value, key));
     mesh.name = name;
     mesh.scale.set(...size);
@@ -48,15 +50,70 @@ export function createBlockAvatar(THREE, { color = 0x367fab, identity = null } =
   hand.position.set(.4, .99, -.52); group.add(hand);
   let holding = false;
   function setHolding(value) {
+    if (holding === Boolean(value)) return;
     holding = Boolean(value);
     rightArm.rotation.x = holding ? Math.PI / 3 : 0;
-    rightArm.position.set(.4, holding ? 1.14 : 1.06, holding ? -.12 : 0);
+    rightArm.position.set(.4, holding ? .14 : .06, holding ? -.12 : 0);
   }
   const leftLeg = block("left-leg", [0.22, 0.76, 0.27], [-0.145, 0.38, 0], 0x33455d);
   const rightLeg = block("right-leg", [0.22, 0.76, 0.27], [0.145, 0.38, 0], 0x33455d);
   const hairSide = block("hair-side", [.12, .3, .45], [.19, .04, 0], 0x403631, head);
   const frontTrim = block("trim-front", [.56, .12, .016], [0, 1.08, -.158], 0xf5ba42);
   const backTrim = block("trim-back", [.56, .12, .016], [0, 1.08, .158], 0xf5ba42);
+  // Original beetle-like elytra: rounded hard covers over thin, veined hindwings.
+  // All avatars reuse these few geometries within the avatar, with no image assets.
+  // User's shield outline: straight centre seam and top, curved outer edge
+  // tapering to the bottom. Mirror the same thin shell for the other side.
+  const shellOutline = new THREE.Shape(); shellOutline.moveTo(0,0);
+  shellOutline.lineTo(.29,0);
+  shellOutline.bezierCurveTo(.32,-.2,.33,-.47,.23,-.61);
+  shellOutline.bezierCurveTo(.17,-.71,.07,-.78,0,-.83);
+  shellOutline.lineTo(0,0);
+  const shellGeometry = new THREE.ExtrudeGeometry(shellOutline, {depth:.055,steps:1,
+    bevelEnabled:true,bevelThickness:.012,bevelSize:.01,bevelSegments:2,curveSegments:8});
+  geometries.add(shellGeometry);
+  const shellMaterial = material(0x285b45, "wing-shell");
+  shellMaterial.roughness = .3; shellMaterial.metalness = .25;
+  const shape = new THREE.Shape(); shape.moveTo(0, 0);
+  // Draw the OPEN right hindwing directly: a firm upper leading edge,
+  // broad/scalloped lower trailing edge, and veins fanning out from the root.
+  // Mirroring X alone preserves the reference's top/bottom on BOTH sides.
+  shape.bezierCurveTo(.38, -.01, .95, -.07, 1.34, -.36);
+  shape.bezierCurveTo(1.18, -.31, 1.13, -.43, 1.10, -.50);
+  shape.bezierCurveTo(.91, -.44, .91, -.61, .76, -.62);
+  shape.bezierCurveTo(.57, -.53, .46, -.66, .31, -.55);
+  shape.bezierCurveTo(.13, -.40, .04, -.21, 0, 0);
+  const membraneGeometry = new THREE.ShapeGeometry(shape, 8); geometries.add(membraneGeometry);
+  const membraneMaterial = material(0xe7c992, "wing-membrane");
+  membraneMaterial.side = THREE.DoubleSide; membraneMaterial.transparent = true;
+  membraneMaterial.opacity = .58; membraneMaterial.depthWrite = false;
+  const veinPoints = [[0,0,.008],[1.30,-.35,.008], [0,0,.008],[1.08,-.48,.008],
+    [0,0,.008],[.76,-.60,.008], [0,0,.008],[.33,-.53,.008],
+    [.35,-.12,.008],[.75,-.27,.008], [.75,-.27,.008],[1.08,-.48,.008]];
+  const veinGeometry = new THREE.BufferGeometry().setFromPoints(veinPoints.map(p => new THREE.Vector3(...p)));
+  geometries.add(veinGeometry);
+  const veinMaterial = new THREE.LineBasicMaterial({color:0x8f764c}); materials.set("wing-veins",veinMaterial);
+  const wings = [-1, 1].map((sign, i) => {
+    const hinge = new THREE.Group(); hinge.position.set(sign * .012, 1.38, .18); group.add(hinge);
+    const shell = new THREE.Mesh(shellGeometry, shellMaterial); shell.name = `wing-shell-${i}`;
+    shell.scale.x = sign; hinge.add(shell);
+    const inner = new THREE.Group(); inner.name = `wing-inner-${i}`;
+    inner.position.set(sign * .15, 1.27, .23); inner.scale.x = sign; group.add(inner);
+    const membrane = new THREE.Mesh(membraneGeometry, membraneMaterial); membrane.name = `wing-membrane-${i}`;
+    inner.add(membrane, new THREE.LineSegments(veinGeometry, veinMaterial)); inner.visible = false;
+    return { hinge, inner, sign };
+  });
+  const flames = [-1, 1].map((sign, i) => {
+    block(`rocket-${i}`, [.15, .48, .06], [sign * .14, 1.07, .19], 0x33455d);
+    const flame = block(`flame-${i}`, [.12, .48, .12], [sign * .14, .62, .19], 0xffa529);
+    flame.material.emissive.set(0xff6600); flame.visible = false; return flame;
+  });
+  // Tilt the body around its centre in flight, leaving the world-space feet and
+  // nickname label stable. The held-STL hand follows this same body transform.
+  const body = new THREE.Group(); body.name = "avatar-body"; body.position.y = 1;
+  for (const child of [...group.children]) { child.position.y -= 1; body.add(child); }
+  group.add(body);
+  let motion = "idle";
   let appearance = { skin: 0xeac198, hair: 0x403631, trousers: 0x33455d };
   function setIdentity(value) {
     if (disposed) return;
@@ -75,19 +132,34 @@ export function createBlockAvatar(THREE, { color = 0x367fab, identity = null } =
     }
   }
   setIdentity(identity);
-  // Derive all geometry from one cube, with only six simple materials.
+  // Body/rockets share a cube; shell, membrane and veins each share one geometry.
   torso.userData.avatarPart = true;
   group.visible = false;
   function update({ position = [0, 0, 0], yaw = 0, pitch = 0,
-    moving = false, time = 0, visible = true } = {}) {
+    moving = false, animation, time = 0, visible = true } = {}) {
     if (disposed) return;
     const coordinates = Array.isArray(position) ? position : [position.x, position.y, position.z];
     if (coordinates.length === 3 && coordinates.every(Number.isFinite)) group.position.fromArray(coordinates);
     if (Number.isFinite(yaw)) group.rotation.y = yaw;
     head.rotation.x = Number.isFinite(pitch) ? Math.max(-1.4, Math.min(1.4, pitch)) : 0;
-    const swing = moving && Number.isFinite(time) ? Math.sin(time * 9) * 0.35 : 0;
+    motion = validAvatarMotion(animation) ? animation : moving ? "walk" : "idle";
+    const airborne = motion === "glide" || motion === "boost";
+    const swing = ["walk", "run"].includes(motion) && Number.isFinite(time) ?
+      Math.sin(time * (motion === "run" ? 14 : 9)) * (motion === "run" ? .75 : .35) : 0;
+    body.rotation.x = airborne ? -1.05 : 0;
     leftLeg.rotation.x = rightArm.rotation.x = swing;
     rightLeg.rotation.x = leftArm.rotation.x = -swing;
+    leftArm.rotation.z = airborne ? -.35 : 0; rightArm.rotation.z = airborne ? .35 : 0;
+    wings.forEach(({hinge, inner, sign}) => {
+      hinge.rotation.z = airborne ? sign * .65 : 0;
+      hinge.rotation.y = airborne ? sign * -.4 : 0;
+      inner.visible = airborne;
+      // The fan outline already opens outwards and aft; no 90-degree rotation
+      // that would invert the leading/trailing edges from the supplied photo.
+      inner.rotation.z = 0;
+      inner.rotation.y = sign * (Number.isFinite(time) ? Math.sin(time * 22) * .08 : 0);
+    });
+    for (const flame of flames) flame.visible = motion === "boost";
     if (holding) rightArm.rotation.x = Math.PI / 3;
     group.visible = Boolean(visible);
     group.updateMatrixWorld(true);
@@ -96,7 +168,7 @@ export function createBlockAvatar(THREE, { color = 0x367fab, identity = null } =
     if (disposed) return;
     disposed = true;
     group.removeFromParent();
-    geometry.dispose();
+    for (const entry of geometries) entry.dispose();
     for (const entry of materials.values()) entry.dispose();
     group.visible = false;
   }
@@ -105,6 +177,7 @@ export function createBlockAvatar(THREE, { color = 0x367fab, identity = null } =
   }
   return { group, hand, update, setHolding, setColor, setIdentity, dispose,
     getState: () => ({ position: group.position.toArray(), yaw: group.rotation.y,
-      pitch: head.rotation.x, visible: group.visible, disposed, holding,
-      meshCount: 12, geometryCount: 1, materialCount: materials.size, appearance: { ...appearance } }) };
+      pitch: head.rotation.x, visible: group.visible, disposed, holding, animation: motion,
+      wingsOpen: motion === "glide" || motion === "boost", boosting: motion === "boost",
+      meshCount: 20, lineCount: 2, geometryCount: geometries.size, materialCount: materials.size, appearance: { ...appearance } }) };
 }

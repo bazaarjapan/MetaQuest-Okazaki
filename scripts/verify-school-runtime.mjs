@@ -240,12 +240,14 @@ try {
     let deliveries = 0, largestBytes = 0;
     for (let round = 1; round <= 5; round++) {
       const marks = classroom.map(({ probe }) => probe.messages.length);
-      classroom.forEach(({ probe }, index) => probe.send({ type: "pose", position: [index * 2 + round, 40, round * 2], yaw: round / 10, seq: round, restoreCommit: poseRestoreCommit }));
+      const animation = ["idle", "walk", "run", "glide", "boost"][round - 1];
+      classroom.forEach(({ probe }, index) => probe.send({ type: "pose", position: [index * 2 + round, 40, round * 2], yaw: round / 10, animation, seq: round, restoreCommit: poseRestoreCommit }));
       await Promise.all(classroom.map(({ probe }, index) => probe.wait((packet) => packet.type === "pose" && packet.participant.id === students.at(-1).id && packet.participant.position[2] === round * 2, "pose fan-out", marks[index])));
       // Wait for every sender at every endpoint; arrival order is not assumed.
       await Promise.all(classroom.flatMap(({ probe }, index) => [teacher, ...students].map((person) => probe.wait((packet) => packet.type === "pose" && packet.participant.id === person.id && packet.participant.position[2] === round * 2, "each pose delivery", marks[index]))));
       for (const { probe } of classroom) for (const packet of probe.messages.filter((entry) => entry.type === "pose" && entry.participant.position[2] === round * 2)) {
         assert.equal("participants" in packet, false); assert.equal("objects" in packet, false);
+        assert.equal(packet.participant.animation, animation);
         largestBytes = Math.max(largestBytes, Buffer.byteLength(JSON.stringify(packet))); deliveries++;
       }
       await delay(120);
