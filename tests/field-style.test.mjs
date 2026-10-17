@@ -1,7 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {buildingColorBytes,readFieldStyle} from '../src/field-style.js';
+import {buildingColorBytes,readFieldStyle,gameTerrainFile} from '../src/field-style.js';
 import {mapPoint,roadWidth,renderFieldSVG} from '../scripts/lib/field-map.mjs';
+test('game atlas respects every quality profile with legacy manifest fallback',()=>{
+  const manifest={core:{file:'station.webp'},profiles:{performance:{file:'station-performance.webp'},balanced:{file:'station-balanced.webp'},high:{file:'station.webp'}}};
+  for(const id of ['performance','balanced','high'])assert.equal(gameTerrainFile(manifest,id),'../field/'+manifest.profiles[id].file);
+  assert.equal(gameTerrainFile({core:manifest.core},'performance'),'../field/station.webp');
+});
 test('game field defaults without writable storage; photo choice persists',()=>{
   assert.equal(readFieldStyle(), 'game');assert.equal(readFieldStyle({getItem(){throw Error();}}),'game');
   assert.equal(readFieldStyle({getItem:()=> 'photo'}),'photo');

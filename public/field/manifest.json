@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-10-17T09:15:29.728Z",
+  "generatedAt": "2026-10-17T12:51:34.571Z",
   "source": "国土地理院最適化ベクトルタイル",
   "sourceUrl": "https://cyberjapandata.gsi.go.jp/xyz/optimal_bvmap-v1/optimal_bvmap-v1.pmtiles",
   "attributionUrl": "https://github.com/gsi-cyberjapan/optimal_bvmap",
@@ -21,6 +21,37 @@
       "RailCL": 33,
       "BldA": 64,
       "TpgphArea": 0
+    }
+  },
+  "profiles": {
+    "high": {
+      "file": "station.webp",
+      "bytes": 688908,
+      "sha256": "9ed9c5289b97bae31fe0a92d58f48a35c6dc486edf2388db428505e454b78935",
+      "width": 3072,
+      "height": 2048,
+      "counts": {
+        "WA": 68,
+        "RvrCL": 307,
+        "RdCL": 3648,
+        "RailCL": 33,
+        "BldA": 64,
+        "TpgphArea": 0
+      }
+    },
+    "performance": {
+      "file": "station-performance.webp",
+      "width": 768,
+      "height": 512,
+      "bytes": 137364,
+      "sha256": "265784b78ff826824f418b6479eeb996e7aab29fc117cc7d11d35230e0bef29f"
+    },
+    "balanced": {
+      "file": "station-balanced.webp",
+      "width": 1536,
+      "height": 1024,
+      "bytes": 308290,
+      "sha256": "002f3a22b881692afef2fb8d11c8c9f72c2452b0344448c6bb06e2801949d386"
     }
   },
   "region": {

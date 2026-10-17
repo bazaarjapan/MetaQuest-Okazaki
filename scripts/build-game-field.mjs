@@ -46,6 +46,13 @@ const detail=JSON.parse(await fs.readFile(path.join(root,'public/city/detail.jso
 const atlas=detail.originalAtlas;
 if(atlas.zoom!==16||atlas.xMin!==57735||atlas.yMin!==25974||!detail.uvValidation.webAtlasExactPixelEquality)throw Error('Core georeference must be verified');
 const core=await render({zoom:16,x:atlas.xMin,y:atlas.yMin,unit:1024,width:3072,height:2048,latitude:34.926},'station.webp');
+const profiles={high:{...core}};
+for(const [id,width,height] of [['performance',768,512],['balanced',1536,1024]]) {
+  const file=`station-${id}.webp`;
+  const bytes=await sharp(path.join(output,core.file)).resize(width,height).webp({lossless:true}).toBuffer();
+  await fs.writeFile(path.join(output,file),bytes);
+  profiles[id]={file,width,height,bytes:bytes.length,sha256:hash(bytes)};
+}
 const terrain=JSON.parse(await fs.readFile(path.join(root,'public/region/terrain.json'),'utf8'));
 const region={};let cursor=0;
 await Promise.all(Array.from({length:3},async()=>{while(cursor<terrain.tiles.length){
@@ -60,6 +67,6 @@ const manifest={version:1,generatedAt:new Date().toISOString(),source:'国土地
   featureCodeUrl:'https://maps.gsi.go.jp/help/pdf/vector/optbv_featurecodes.pdf',
   processing:'道路中心線と幅員・鉄道中心線・水域・河川中心線をゲーム風に描画。幅員不明時は幅員区分の代表値。色・草模様・道路標示・枕木は装飾。トンネル・地下水路・枯れ川は非表示。橋の高さは再現しない。',
   geography:'既存PLATEAU地形と同じ北向きMercator UV。元の地形・建築形状・写真は保持。',
-  core,region:Object.fromEntries(Object.entries(region).sort(([a],[b])=>a.localeCompare(b))),sourceTiles:sourceRecords.sort((a,b)=>a.x-b.x||a.y-b.y)};
+  core,profiles,region:Object.fromEntries(Object.entries(region).sort(([a],[b])=>a.localeCompare(b))),sourceTiles:sourceRecords.sort((a,b)=>a.x-b.x||a.y-b.y)};
 await fs.writeFile(path.join(output,'manifest.json'),JSON.stringify(manifest,null,2)+'\n');
 console.log(JSON.stringify({generated:true,coreBytes:core.bytes,regionTiles:Object.keys(region).length,sourceTiles:sourceRecords.length,regionBytes:Object.values(region).reduce((sum,tile)=>sum+tile.bytes,0)}));

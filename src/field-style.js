@@ -1,4 +1,7 @@
 export const FIELD_STYLE_KEY = 'okazaki-field-style-v1';
+export function gameTerrainFile(manifest,quality) {
+  return '../field/'+(manifest.profiles?.[quality]?.file??manifest.core.file);
+}
 export function readFieldStyle(storage) {
   try { return storage?.getItem(FIELD_STYLE_KEY)==='photo'?'photo':'game'; } catch { return 'game'; }
 }

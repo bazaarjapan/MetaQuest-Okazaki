@@ -23,7 +23,7 @@ import { createBlockAvatar } from "./block-avatar.js";
 import { createSchoolClient } from "./school-client.js";
 import { createSchoolUI } from "./school-ui.js";
 import { createActivityGate } from "./activity-gate.js";
-import { readFieldStyle,FIELD_STYLE_KEY,createFieldBuildingMaterial,decorateBuildingGeometry } from "./field-style.js";
+import { readFieldStyle,FIELD_STYLE_KEY,createFieldBuildingMaterial,decorateBuildingGeometry,gameTerrainFile } from "./field-style.js";
 import { createHotbar } from "./hotbar.js";
 import { createHeldSTL } from "./held-stl.js";
 import { createSchoolPresence } from "./school-presence.js";
@@ -582,7 +582,7 @@ $("#region-go").onclick = () => {
   if (tile) visitRegionPoint((tile.bounds[0] + tile.bounds[2]) / 2, (tile.bounds[1] + tile.bounds[3]) / 2);
 };
 function terrainVariant(id,style=fieldStyle) {
-  if(style==='game'&&fieldManifest)return '../field/'+fieldManifest.core.file;
+  if(style==='game'&&fieldManifest)return gameTerrainFile(fieldManifest,id);
   const variant = id === "high" ? "high" : id === "balanced" ? "standard" : null;
   return detail?.profiles?.[variant]?.file ?? "Texture-001.png";
 }
