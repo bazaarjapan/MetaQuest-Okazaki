@@ -118,6 +118,8 @@ export function createVRFieldPanel(THREE, { camera, controllerHud, vrWorkshop,
     c.strokeStyle = "#83cfbf"; c.lineWidth = 3; c.stroke();
     c.textAlign = "left"; c.fillStyle = "white"; c.font = "bold 38px sans-serif";
     c.fillText("岡崎まち フィールドノート", 40, 58, 1184);
+    c.font='20px sans-serif';c.textAlign='right';c.fillStyle='#b4cdd3';
+    c.fillText('出典：PLATEAU・国土地理院（加工）',1224,60,600);
 
     const drawButton = (entry, selected = false) => {
       const active = entry.enabled !== false;

@@ -23,7 +23,7 @@ export const qualityProfiles = Object.freeze({
   high: Object.freeze({
     id: "high",
     label: "高精細",
-    hint: "輪郭と斜め方向の写真をくっきり表示。重い場合は標準へ戻してください。",
+    hint: "輪郭と地面の模様をくっきり表示。重い場合は標準へ戻してください。",
     xrScale: 1.2,
     foveation: 0.3,
     dpr: 2,

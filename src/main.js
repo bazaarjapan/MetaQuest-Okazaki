@@ -651,7 +651,7 @@ $("#quality-select").onchange = async (event) => {
   $("#quality-select").disabled = true;
   $('#field-style').disabled=true;
   $("#enter-vr").disabled = true;
-  $("#quality-note").textContent = "画質と空中写真を切り替え中…";
+  $("#quality-note").textContent = "画質を切り替え中…";
   try {
     if (terrainMesh) {
       const nextFile = terrainVariant(quality.id);
