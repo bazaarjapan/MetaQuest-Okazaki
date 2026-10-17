@@ -84,7 +84,7 @@ test("unlocked flight mouse drag steers yaw/pitch without placing STL or retryin
   assert.equal(prevented,true);assert.equal(consumed,true);assert.equal(f.control.getState().mouseSteering,true);
   f.canvas.emit("pointermove",{pointerId:9,buttons:1,clientX:200,clientY:50});
   close(f.control.getState().yaw,-.2);close(f.control.getState().pitch,.1);
-  f.win.emit("pointerup");const yaw=f.control.getState().yaw;
+  f.win.emit("pointerup",{pointerId:9,button:0,clientX:200,clientY:50});const yaw=f.control.getState().yaw;
   f.canvas.emit("pointermove",{pointerId:9,buttons:0,clientX:300,clientY:50});
   close(f.control.getState().yaw,yaw);
   f.canvas.emit("click");assert.equal(f.doc.pointerLockElement,null);
@@ -101,6 +101,19 @@ test("fallback mouse steering is inactive outside flight and clears on blur/moda
   assert.equal(f.control.getState().mouseSteering,false);
   f.control.step(.1,{enabled:true});f.key("KeyZ");down();f.control.captureForXR();
   assert.equal(f.control.getState().mouseSteering,false);f.control.dispose();
+});
+
+test("flight fallback defers a click for placement but never places a drag or cancelled gesture", () => {
+  let placements=0; const f=fixture({onFlightClick:()=>placements++});f.enable();f.key("KeyZ");
+  const down=()=>f.canvas.emit("pointerdown",{pointerType:"mouse",button:0,pointerId:7,clientX:100,clientY:100});
+  const up=(x=102)=>f.win.emit("pointerup",{pointerId:7,button:0,clientX:x,clientY:100});
+  down();assert.equal(placements,0);
+  f.canvas.emit("pointermove",{pointerId:7,buttons:1,clientX:102,clientY:100});
+  close(f.control.getState().yaw,0);up();assert.equal(placements,1);
+  down();f.canvas.emit("pointermove",{pointerId:7,buttons:1,clientX:130,clientY:100});up(130);
+  assert.equal(placements,1);
+  down();f.canvas.emit("pointercancel");up();assert.equal(placements,1);
+  down();f.win.emit("blur");up();assert.equal(placements,1);f.control.dispose();
 });
 
 test("Space climbs while gliding or boosting, including downward gaze; double Space never cancels wings", () => {

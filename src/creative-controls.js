@@ -46,7 +46,7 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
   domElement, getControls = () => null, avatar = null, constrainPosition = null,
   groundHeight = () => null, cameraObstacles = () => [], documentTarget = globalThis.document,
   windowTarget = globalThis.window, initialView = "back", now = () => globalThis.performance?.now?.() ?? Date.now(),
-  onChange = () => {} } = {}) {
+  onChange = () => {}, onFlightClick = () => {} } = {}) {
   if (!camera?.isCamera) throw new TypeError("Creative controls require a Three.js camera");
   const anchor = new THREE.Vector3();
   const orientation = new THREE.Quaternion();
@@ -257,7 +257,7 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
   function flightMouseDown(event) {
     if (event.pointerType !== "mouse" || event.button !== 0 || !active() || !wingFlight || locked() || inputBlocked(event)) return;
     if (![event.clientX,event.clientY].every(Number.isFinite)) return;
-    mouseDrag = {id:event.pointerId,x:event.clientX,y:event.clientY}; suppressPointerClick = true;
+    mouseDrag = {id:event.pointerId,x:event.clientX,y:event.clientY,startX:event.clientX,startY:event.clientY,dragged:false}; suppressPointerClick = true;
     try { domElement.setPointerCapture?.(event.pointerId); } catch { /* Window-up fallback below. */ }
     // In capture phase: a steering gesture must not also place the held STL.
     event.preventDefault?.(); event.stopImmediatePropagation?.();
@@ -266,8 +266,21 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
     if (!mouseDrag || event.pointerId !== mouseDrag.id) return;
     if (!active() || !wingFlight || locked() || inputBlocked(event) || (event.buttons & 1) === 0) { stopMouseDrag(); return; }
     if (![event.clientX,event.clientY].every(Number.isFinite)) return;
+    if (!mouseDrag.dragged) {
+      if (Math.hypot(event.clientX-mouseDrag.startX,event.clientY-mouseDrag.startY) <= 5) return;
+      mouseDrag.dragged = true;
+    }
     rotateMouse(event.clientX-mouseDrag.x,event.clientY-mouseDrag.y);
     mouseDrag.x=event.clientX; mouseDrag.y=event.clientY; event.preventDefault?.();
+  }
+  function flightMouseUp(event) {
+    if (!mouseDrag || event.pointerId !== mouseDrag.id) return;
+    const click = !mouseDrag.dragged && event.button === 0 &&
+      [event.clientX,event.clientY].every(Number.isFinite) &&
+      Math.hypot(event.clientX-mouseDrag.startX,event.clientY-mouseDrag.startY) <= 5 &&
+      active() && wingFlight && !locked() && !inputBlocked(event);
+    stopMouseDrag();
+    if (click) onFlightClick(event);
   }
   const canTouchLook = (event) => !disposed && mode === "creative" && !enabled &&
     !xr && !suspendedXR && !documentTarget?.hidden && !inputBlocked(event);
@@ -433,7 +446,7 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
   listen(documentTarget, "mousemove", handleMouseMove);
   listen(domElement, "pointerdown", flightMouseDown, true);
   listen(domElement, "pointermove", flightMouseMove);
-  listen(windowTarget, "pointerup", stopMouseDrag);
+  listen(windowTarget, "pointerup", flightMouseUp);
   listen(domElement, "pointercancel", stopMouseDrag);
   listen(domElement, "lostpointercapture", () => { mouseDrag = null; });
   listen(domElement, "pointerdown", touchDown);

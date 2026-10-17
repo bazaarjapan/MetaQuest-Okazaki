@@ -212,6 +212,7 @@ creative = createCreativeControls(THREE, { camera, rig, domElement: renderer.dom
   getControls: () => controls, avatar: ownAvatar, groundHeight: terrainOnlySample,
   cameraObstacles: () => [...city.children, ...regionStreamer.getMeshes()],
   onChange: () => syncAvatarViewButtons(),
+  onFlightClick: (event) => { void hotbar.place(event); },
   constrainPosition: (feet) => constrainCreativeFeet(feet, constrainPosition) });
 $("#control-mode").onchange = (event) => {
   if (state.xr || xrEntering || creative.getState().suspendedXR) { event.target.value = creative.getState().mode; return; }

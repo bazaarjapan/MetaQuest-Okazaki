@@ -20,7 +20,7 @@
   const heading=s().creative.yaw, pitch=s().creative.pitch;
   canvas.dispatchEvent(new PointerEvent("pointerdown",{pointerType:"mouse",button:0,buttons:1,pointerId:77,clientX:300,clientY:300,bubbles:true,cancelable:true}));
   canvas.dispatchEvent(new PointerEvent("pointermove",{pointerType:"mouse",buttons:1,pointerId:77,clientX:380,clientY:260,bubbles:true}));
-  window.dispatchEvent(new PointerEvent("pointerup",{pointerId:77,bubbles:true}));
+  window.dispatchEvent(new PointerEvent("pointerup",{pointerId:77,button:0,clientX:380,clientY:260,bubbles:true}));
   check(s().creative.yaw<heading&&s().creative.pitch>pitch,"unlocked-flight-mouse-steers");
   canvas.dispatchEvent(new MouseEvent("click",{bubbles:true}));
   check(s().creative.wingFlight,"steering-click-does-not-cancel-flight");
