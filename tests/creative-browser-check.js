@@ -23,7 +23,8 @@
   check(state().creative.mode === "creative" && !state().free, "mode-change-stops-movement");
   check(distance(state().creative.eye, initial) < 1e-6, "mode-change-keeps-original-view-position");
   if (!state().free) document.querySelector("#free-move").click(); canvas.focus();
-  await until(() => state().free && state().creative.enabled, "creative-enabled-rAF");
+  document.querySelector("#panel-close").click(); canvas.focus();
+  await until(() => state().free && state().creative.enabled && !state().creative.blocked, "creative-enabled-rAF");
   check(state().free && state().creative.enabled, "creative-enabled-without-start-reset");
   const anchor = [...state().creative.anchor];
   key("KeyW");
