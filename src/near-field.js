@@ -7,6 +7,9 @@ export function clipTerrainUV(positions,normals,uv,indices,rect=[0,0,1,1]) {
   const [u0,v0,u1,v1]=rect;
   if(!(u1>u0&&v1>v0))throw Error('Invalid detail UV rectangle');
   for(let n=0;n<indices.length;n+=3) {
+    const ia=indices[n]*2,ib=indices[n+1]*2,ic=indices[n+2]*2;
+    if(Math.max(uv[ia],uv[ib],uv[ic])<u0||Math.min(uv[ia],uv[ib],uv[ic])>u1||
+      Math.max(uv[ia+1],uv[ib+1],uv[ic+1])<v0||Math.min(uv[ia+1],uv[ib+1],uv[ic+1])>v1)continue;
     let polygon=Array.from(indices.slice(n,n+3),i=>[...positions.slice(i*3,i*3+3),...normals.slice(i*3,i*3+3),...uv.slice(i*2,i*2+2)]);
     for(const [axis,value,sign] of [[6,u0,1],[6,u1,-1],[7,v0,1],[7,v1,-1]]) {
       const input=polygon;polygon=[];
@@ -34,7 +37,10 @@ export function chooseNearField(candidates,position,quality='high',current=null)
   const distance=c=>Math.hypot(Math.max(c.bounds[0]-x,0,x-c.bounds[2]),Math.max(c.heightRange[0]-y,0,y-c.heightRange[1]),Math.max(c.bounds[1]-z,0,z-c.bounds[3]));
   const radius=quality==='high'?450:250;
   const list=candidates.filter(c=>c.positions.length&&distance(c)<=radius).sort((a,b)=>{
-    const score=c=>distance(c)+Math.hypot((c.bounds[0]+c.bounds[2])/2-x,(c.bounds[1]+c.bounds[3])/2-z)*.01;
+    // Height ranges of a whole regional tile may include distant hills. They
+    // only gate altitude; they must not outrank the actual nearby core patch.
+    const score=c=>Math.hypot(Math.max(c.bounds[0]-x,0,x-c.bounds[2]),Math.max(c.bounds[1]-z,0,z-c.bounds[3]))+
+      Math.hypot((c.bounds[0]+c.bounds[2])/2-x,(c.bounds[1]+c.bounds[3])/2-z)*.01;
     return score(a)-score(b)||a.id.localeCompare(b.id);
   });
   const best=list[0];

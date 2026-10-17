@@ -32,6 +32,11 @@ test('far and performance disable detail; core patch and spatial seam selection 
 test('near GPU reservation plus eight far textures stays below the existing regional32MiB cap',()=>{
   assert.ok(textureMemoryBytes(2048,2048)+8*textureMemoryBytes(512,512)<=32*1024*1024);
 });
+test('distant hills in a regional height range do not steal the core near patch',()=>{
+  const core={id:'core',positions:[1],bounds:[0,0,10,10],heightRange:[10,10]};
+  const region={id:'region',positions:[1],bounds:[-100,-100,1900,1900],heightRange:[0,200]};
+  assert.equal(chooseNearField([region,core],[5,74,5]).id,'core');
+});
 test('real Three geometry overlay loads, downsamples balanced, swaps and disposes without touching ground',async()=>{
   const old=globalThis.createImageBitmap,bitmaps=[];
   globalThis.createImageBitmap=async(blob,options)=>{const b={width:options.resizeWidth,height:options.resizeHeight,closed:false,close(){this.closed=true;}};bitmaps.push(b);return b;};
