@@ -4,7 +4,7 @@
   const assert = (ok, name, detail) => { results.push({ok:Boolean(ok),name,detail}); if(!ok) throw new Error(name+': '+JSON.stringify(detail)); };
   const visible = el => Boolean(el && el.getBoundingClientRect().width && getComputedStyle(el).visibility !== 'hidden');
   const inside = el => { const r=el.getBoundingClientRect(); return r.left>=0 && r.top>=0 && r.right<=innerWidth+1 && r.bottom<=innerHeight+1; };
-  assert(s().ready && !s().ui.mobile && s().version==='1.10.0','compact-desktop-ready');
+  assert(s().ready && !s().ui.mobile && s().version==='1.10.1','compact-desktop-ready');
   assert(!s().ui.open && !visible(document.querySelector('#control-panel')),'right-menu-initially-closed');
   assert(document.querySelectorAll('#stl-hotbar button').length===10 && inside(document.querySelector('#stl-hotbar')),
     'ten-hotbar-slots-inside-screen');

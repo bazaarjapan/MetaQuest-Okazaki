@@ -3,6 +3,15 @@ import assert from "node:assert/strict";
 import * as THREE from "three";
 import { createBlockAvatar } from "../src/block-avatar.js";
 
+test('animated leg corners never cross the foot plane',()=>{
+  const avatar=createBlockAvatar(THREE);
+  for(const animation of ['idle','walk','run'])for(let i=0;i<50;i++){
+    avatar.update({animation,time:i*.017,position:[0,20,0]});
+    for(const name of ['left-leg','right-leg'])assert.ok(new THREE.Box3().setFromObject(avatar.group.getObjectByName(name)).min.y>=20-1e-8);
+  }
+  avatar.dispose();
+});
+
 test("original block avatar is a small asset-free group anchored at its feet", () => {
   const avatar = createBlockAvatar(THREE);
   const meshes = [];

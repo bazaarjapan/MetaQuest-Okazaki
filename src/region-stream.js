@@ -62,6 +62,8 @@ export function createRegionStreamer(THREE, parentGroup, {
   heightLoader = applyLiveTerrainHeight,
   fieldUniform = {value:0},
   terrainTexture = tile => ({url:`/region/${tile.texture}`}),
+  terrainLimit = quality => quality === 'high' ? 16 : 9,
+  terrainAnisotropy = () => 2,
 } = {}) {
   const ownedBitmaps = new WeakMap();
   // Modern Quest/desktop browsers use real cancellable HTTP. The fallback is
@@ -276,13 +278,13 @@ export function createRegionStreamer(THREE, parentGroup, {
           throw new Error("Region terrain texture exceeds decoded memory budget");
         learnedTextureBytes.set(tile.id, decodedBytes);
         map.colorSpace = THREE.SRGBColorSpace;
-        map.anisotropy = 2;
+        map.anisotropy = terrainAnisotropy(qualityId);
         map.wrapS = map.wrapT = THREE.ClampToEdgeWrapping;
       }
       if (!live(task)) return;
       const current = totals();
       const profile = regionProfiles[qualityId];
-      const terrainMax = qualityId === "high" ? 16 : 9;
+      const terrainMax = terrainLimit(qualityId);
       const poolSize = tile.type === "building" ? current.buildings : current.terrain;
       const poolTriangles = tile.type === "building" ? current.buildingTriangles : current.terrainTriangles;
       const poolLimit = tile.type === "building" ? profile.maxResident : terrainMax;
@@ -376,7 +378,7 @@ export function createRegionStreamer(THREE, parentGroup, {
     const nearbyTerrain = planRegionTiles(all.filter((tile) => tile.type === "terrain"), point, qualityId);
     const terrain = [];
     let textureBudget = 0;
-    const terrainMax = qualityId === "high" ? 16 : 9;
+    const terrainMax = terrainLimit(qualityId);
     for (const id of nearbyTerrain) {
       if (terrain.length >= terrainMax) break;
       const tile = tiles.get(id);
@@ -395,6 +397,7 @@ export function createRegionStreamer(THREE, parentGroup, {
     wanted = new Set(priority);
     for (const [id, task] of loading) if (!wanted.has(id)) task.controller.abort();
     for (const id of [...resident.keys()]) if (!wanted.has(id)) remove(id);
+    for(const entry of resident.values())if(entry.type==='terrain'&&entry.mesh.material.map)entry.mesh.material.map.anisotropy=terrainAnisotropy(qualityId);
     queue = [...wanted].filter((id) => !resident.has(id) && !loading.has(id));
     pump();
   }
@@ -405,7 +408,7 @@ export function createRegionStreamer(THREE, parentGroup, {
       requested, totalAvailable: tiles.size, loadedIds: [...resident.keys()],
       loadingIds: [...loading.keys()], wantedIds: [...wanted], lastError, qualityId,
       bounds: bounds ? [...bounds] : null,
-      limits: { ...regionProfiles[qualityId], terrainResident: qualityId === "high" ? 16 : 9,
+      limits: { ...regionProfiles[qualityId], terrainResident: terrainLimit(qualityId),
         terrainTextureBytes: MAX_TERRAIN_TEXTURE_BYTES, concurrency: MAX_CONCURRENT },
     };
   }
