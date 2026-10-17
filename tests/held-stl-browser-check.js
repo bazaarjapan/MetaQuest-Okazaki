@@ -21,7 +21,9 @@
   await until(()=>!state().creative.blocked);
   key("F5"); await wait(100);check(state().creative.viewMode==="front"&&state().heldSTL.visible,"front-view-keeps-model");
   key("F5"); await wait(100);check(state().creative.viewMode==="first"&&state().heldSTL.visible&&!state().avatar.holding,"first-person-has-hand-corner-model");
+  check(state().heldSTL.armVisible&&state().heldSTL.armHolding,"first-person-arm-supports-selected-STL");
   key("F5"); await wait(100);check(state().heldSTL.parent==="held-stl-hand","rear-view-restores-hand-parent");
+  check(!state().heldSTL.armVisible,"rear-view-has-no-duplicate-first-person-arm");
   click("open-workshop");click("object-cancel");await until(()=>!state().heldSTL.visible);
   check(!state().avatar.holding,"cancel-clears-held-model-and-arm-pose");
   click("object-reuse");await until(()=>state().heldSTL.visible);click("workshop-close");

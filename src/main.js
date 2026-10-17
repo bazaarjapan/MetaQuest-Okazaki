@@ -1190,6 +1190,7 @@ renderer.setAnimationLoop((time, frame) => {
     const heldDraft = !state.xr && !xrEntering ? workshop.getHeldDraft() : null;
     heldSTL.update({ draft: heldDraft, canEdit: Boolean(heldDraft),
       xr: state.xr || xrEntering, hidden: document.hidden,
+      firstPerson: creative.getState().mode === "creative" && creative.getState().viewMode === "first",
       thirdPerson: creative.getState().mode === "creative" && creative.getState().viewMode !== "first" });
     syncAvatarViewButtons();
     if ((state.free || state.current === "region") && time > nextGroundCheck) {
@@ -1272,7 +1273,7 @@ window.__okazaki = {
     panelVisible: panel.visible && vrFieldPanel.getState().expanded,
     vrPanel: vrFieldPanel.getState(),
     pointers: { left: controllerPointers.left.getState(), right: controllerPointers.right.getState() },
-    version: "1.8.1",
+    version: "1.8.2",
     vrReturn: { buttonVisible: vrReturnButton.getState().visible,
       holdProgress: vrReturnButton.getState().progress, exiting: xrExitPending,
       hasResume: hasVRResume, view: lastXRView ? {

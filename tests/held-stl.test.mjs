@@ -14,6 +14,71 @@ function fixture() {
   const held=createHeldSTL({avatar,camera});
   return {avatar,camera,scene,draft,held};
 }
+
+test("first-person arm is visible empty, matches avatar colors and supports rotated held STL",()=>{
+  const f=fixture(); f.held.update({firstPerson:true});
+  assert.equal(f.held.getState().armVisible,true); assert.equal(f.held.getState().visible,false);
+  const forearm=f.camera.getObjectByName("first-person-forearm"), sleeve=f.camera.getObjectByName("first-person-sleeve");
+  f.avatar.setIdentity("different-student"); f.avatar.setColor("#ff2244");
+  f.draft.rotation.set(.4,.8,.3);
+  f.held.update({draft:f.draft,canEdit:true,firstPerson:true});
+  assert.equal(f.held.getState().armHolding,true);
+  assert.equal(forearm.material.color.getHex(),f.avatar.getState().appearance.skin);
+  assert.equal(sleeve.material.color.getHex(),0xff2244);
+  const model=f.camera.getObjectByName("held-stl-model"),palm=f.camera.getObjectByName("first-person-palm");
+  const modelBox=new THREE.Box3().setFromObject(model),palmBox=new THREE.Box3().setFromObject(palm);
+  assert.ok(Math.abs(modelBox.min.y-palmBox.max.y)<1e-7,"palm touches model bottom");
+  assert.equal(model.material.depthTest,false); assert.equal(forearm.material.depthWrite,false);
+  assert.ok(model.renderOrder>forearm.renderOrder);
+  f.held.update({firstPerson:true});
+  assert.equal(f.held.getState().armVisible,true); assert.equal(f.held.getState().armHolding,false);
+});
+
+test("arm hides outside first person, on XR/hidden/clear, and disposes only its own resources once",()=>{
+  const f=fixture(), arm=f.camera.getObjectByName("first-person-arm"),part=arm.children[0];
+  let geometries=0,materials=0,sourceDisposed=0;
+  part.geometry.addEventListener("dispose",()=>geometries++);
+  part.material.addEventListener("dispose",()=>materials++);
+  f.draft.geometry.addEventListener("dispose",()=>sourceDisposed++);
+  for(const change of [{firstPerson:false},{xr:true},{hidden:true}]) {
+    f.held.update({firstPerson:true});assert.equal(arm.visible,true);
+    f.held.update({firstPerson:true,...change});assert.equal(arm.visible,false);
+  }
+  f.held.update({firstPerson:true});f.held.clear();assert.equal(arm.visible,false);
+  f.held.dispose();f.held.dispose();f.held.update({firstPerson:true});
+  assert.equal(geometries,1);assert.equal(materials,1);assert.equal(sourceDisposed,0);
+  assert.equal(arm.parent,null);assert.equal(arm.visible,false);
+});
+
+test("a rotated asymmetric STL rests on the palm using actual vertices, not rotated box corners",()=>{
+  const f=fixture();
+  // Slanted wedge: unlike a cube, most AABB corners are not part of the mesh.
+  const geometry=new THREE.BufferGeometry();
+  geometry.setAttribute("position",new THREE.Float32BufferAttribute([
+    0,0,0, 4,0,0, 0,1,0, 0,0,0, 0,1,0, 1,0,3,
+    0,0,0, 1,0,3, 4,0,0, 4,0,0, 1,0,3, 0,1,0
+  ],3));
+  f.draft.geometry=geometry;
+  for(const angles of [[.4,.8,1.3],[-.9,.2,2],[0,0,Math.PI/4]]) {
+    f.draft.rotation.set(...angles);f.held.update({draft:f.draft,canEdit:true,firstPerson:true});
+    const model=f.camera.getObjectByName("held-stl-model"),palm=f.camera.getObjectByName("first-person-palm");
+    const actual=new THREE.Box3().setFromObject(model,true),support=new THREE.Box3().setFromObject(palm,true);
+    assert.ok(Math.abs(actual.min.y-support.max.y)<1e-7,"asymmetric model must not float above palm");
+    assert.ok(actual.getCenter(new THREE.Vector3()).distanceTo(model.parent.parent.position)<1e-7);
+  }
+});
+
+test("portrait and landscape palms remain in view and selected models remain supported after resize",()=>{
+  const f=fixture();f.camera.fov=55;
+  for(const aspect of [16/9,390/844,.25]) for(const holding of [false,true]) {
+    f.camera.aspect=aspect;f.camera.updateProjectionMatrix();
+    f.held.update({firstPerson:true,draft:holding?f.draft:null,canEdit:holding});
+    const palm=f.camera.getObjectByName("first-person-palm");
+    const center=palm.getWorldPosition(new THREE.Vector3()).project(f.camera);
+    assert.ok(center.x>0&&center.x<1&&center.y<0&&center.y>-1);
+    assert.equal(f.held.getState().armHolding,holding);
+  }
+});
 test("hand copy is normalized, follows avatar, and leaves source transforms/material/geometry unchanged",()=>{
   const f=fixture(), original=f.draft.geometry.attributes.position.array.slice();
   const before=f.draft.matrix.clone();
