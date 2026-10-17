@@ -229,7 +229,7 @@ function syncAvatarViewButtons() {
   const hint = $("#rocket-hint");
   if (hint) hint.hidden = !state.ready || state.xr || current?.mode !== "creative";
   if (hint && current?.mode === "creative") {
-    const text = current.wingFlight ? `${current.animation === "boost" ? "ロケット推進" : "滑空"} · ${Math.round(current.wingSpeed)}m/s · ${current.pointerLocked ? "マウス" : "左ドラッグ"}：方向 · Space：上昇 · Z：加速 · X：停止` :
+    const text = current.wingFlight ? `${current.animation === "boost" ? "ロケット推進" : "滑空"} · ${Math.round(current.wingSpeed)}m/s · ${current.pointerLocked ? "マウス" : "左ドラッグ"}：方向 · ${current.fastClimb ? "高速上昇 36m/s" : "Space：上昇 / 2回＋保持：高速上昇"} · Z：加速 · X：停止` :
       "Z長押し：ロケット · Space：上昇 · X：空中停止 · F5：視点";
     if (hint.textContent !== text) hint.textContent = text;
   }
@@ -1282,7 +1282,7 @@ window.__okazaki = {
     panelVisible: panel.visible && vrFieldPanel.getState().expanded,
     vrPanel: vrFieldPanel.getState(),
     pointers: { left: controllerPointers.left.getState(), right: controllerPointers.right.getState() },
-    version: "1.9.0",
+    version: "1.9.1",
     vrReturn: { buttonVisible: vrReturnButton.getState().visible,
       holdProgress: vrReturnButton.getState().progress, exiting: xrExitPending,
       hasResume: hasVRResume, view: lastXRView ? {

@@ -1,6 +1,7 @@
 import { wingConfig, wingTravel } from "./avatar-motion.js";
 export const creativeConfig = Object.freeze({ eyeHeight: 1.65, walkSpeed: 4.3,
   flySpeed: 12, sprintMultiplier: 1.5, mouseSensitivity: 0.002,
+  fastClimbSpeed: 36,
   doubleSpaceMs: 350, doubleMoveMs: 350, thirdPersonDistance: 5, gravity: 20, jumpSpeed: 6 });
 export const creativeViews = Object.freeze(["first", "back", "front"]);
 export const controlPreferenceKey = "okazaki-control-mode-v2";
@@ -62,7 +63,7 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
   let mode = "drone", viewMode = "first", yaw = 0, pitch = 0, roll = 0;
   let enabled = false, blocked = false, xr = false, suspendedXR = false;
   let flying = true, verticalVelocity = 0, jumpQueued = false;
-  let wingFlight = false, wingSpeed = 0, animation = "idle";
+  let wingFlight = false, wingSpeed = 0, fastClimb = false, animation = "idle";
   let lastSpace = -Infinity, elapsed = 0, moving = false, groundAvailable = false;
   let disposed = false, pointerError = null;
   const listeners = [];
@@ -87,7 +88,7 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
     keys.clear(); lastSpace = -Infinity; jumpQueued = false;
     lastMovementTap.clear(); fastMovementKeys.clear();
     verticalVelocity = 0; moving = false;
-    wingFlight = false; wingSpeed = 0; animation = "idle";
+    wingFlight = false; wingSpeed = 0; fastClimb = false; animation = "idle";
     if (release) releasePointer();
   }
   function worldView() {
@@ -208,7 +209,7 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
     keys.add(event.code);
     if (event.code === "KeyX") { clearInput(); flying = true; notify(); return; }
     if (event.code === "KeyZ") {
-      if (!wingFlight) wingSpeed = wingConfig.launchSpeed;
+      if (!wingFlight) { wingSpeed = wingConfig.launchSpeed; lastSpace = -Infinity; fastClimb = false; }
       wingFlight = true; flying = true; verticalVelocity = 0; jumpQueued = false; notify();
     }
     if (["KeyW", "KeyA", "KeyS", "KeyD"].includes(event.code)) {
@@ -217,10 +218,14 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
       lastMovementTap.set(event.code, Number.isFinite(time) ? time : -Infinity);
     }
     if (event.code === "Space") {
-      // Wing flight uses Space solely as climb; double tapping must not fold
-      // the wings or unexpectedly switch to gravity-driven walking.
-      if (wingFlight) { lastSpace = -Infinity; return; }
       const time = now();
+      // A released/re-pressed Space boosts climb only while wing flight is active.
+      // Keep the normal flight/walk toggle outside wing flight unchanged.
+      if (wingFlight) {
+        fastClimb = Number.isFinite(time) && time >= lastSpace && time - lastSpace <= creativeConfig.doubleSpaceMs;
+        lastSpace = fastClimb || !Number.isFinite(time) ? -Infinity : time;
+        notify(); return;
+      }
       if (Number.isFinite(time) && time >= lastSpace && time - lastSpace <= creativeConfig.doubleSpaceMs) {
         wingFlight = false; wingSpeed = 0;
         flying = !flying; verticalVelocity = 0; jumpQueued = false; lastSpace = -Infinity;
@@ -236,7 +241,10 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
     viewMode = creativeViews[(creativeViews.indexOf(viewMode) + 1) % creativeViews.length];
     renderView(); notify(); return true;
   }
-  function handleKeyUp(event) { keys.delete(event.code); fastMovementKeys.delete(event.code); }
+  function handleKeyUp(event) {
+    keys.delete(event.code); fastMovementKeys.delete(event.code);
+    if (event.code === "Space") { fastClimb = false; }
+  }
   function handleMouseMove(event) {
     if (!active() || !locked() || inputBlocked(event)) return;
     rotateMouse(Number(event.movementX), Number(event.movementY));
@@ -364,7 +372,8 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
       displacement.copy(forward).multiplyScalar(Math.cos(flightPitch) * travel.distance);
       displacement.y = Math.sin(flightPitch) * travel.distance +
         (boosting ? wingConfig.lift : -wingConfig.sink) * deltaTime;
-      if (keys.has("Space")) displacement.y = Math.max(displacement.y, creativeConfig.flySpeed * deltaTime);
+      if (keys.has("Space")) displacement.y = Math.max(displacement.y,
+        (fastClimb ? creativeConfig.fastClimbSpeed : creativeConfig.flySpeed) * deltaTime);
     }
     let height;
     try { height = groundHeight(anchor.x + displacement.x, anchor.z + displacement.z); } catch { height = null; }
@@ -394,6 +403,7 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
     anchor.add(displacement);
     if (wingFlight && groundAvailable && anchor.y <= height) {
       anchor.y = height; wingFlight = false; wingSpeed = 0; flying = false; keys.delete("KeyZ");
+      fastClimb = false; lastSpace = -Infinity;
     }
     if (!flying && groundAvailable && anchor.y < height) { anchor.y = height; verticalVelocity = 0; }
     // A stationary flying view may be outside currently loaded region bounds
@@ -428,7 +438,7 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
   }
   function getState() {
     return { mode, viewMode, anchor: anchor.toArray(), eye: eyePosition().toArray(),
-      yaw, pitch, flying, wingFlight, wingSpeed, animation, enabled, blocked, xr, suspendedXR, moving,
+      yaw, pitch, flying, wingFlight, wingSpeed, fastClimb, animation, enabled, blocked, xr, suspendedXR, moving,
       pointerLocked: locked(), mouseSteering: Boolean(mouseDrag), pointerError, groundAvailable, pressedKeys: [...keys],
       sprinting: keys.has("ControlLeft") || keys.has("ControlRight") || fastMovementKeys.size > 0, cameraDistance, disposed };
   }

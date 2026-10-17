@@ -26,9 +26,13 @@
   check(s().creative.wingFlight,"steering-click-does-not-cancel-flight");
   const boostHeight=s().creative.anchor[1];key("Space");
   await until(()=>s().creative.anchor[1]>boostHeight+.1);check(s().avatar.boosting,"Space-climbs-during-boost");key("Space","keyup");
+  key("Space");check(s().creative.fastClimb,"double-Space-fast-climb-during-boost");
+  await until(()=>document.querySelector("#rocket-hint").textContent.includes("高速上昇"));
+  key("Space","keyup");check(!s().creative.fastClimb,"Space-release-clears-fast-climb");
   key("KeyZ","keyup");await until(()=>s().avatar.animation==="glide");check(!s().avatar.boosting&&s().avatar.wingsOpen,"release-glides-without-flame");
   const glideHeight=s().creative.anchor[1];key("Space");
   await until(()=>s().creative.anchor[1]>glideHeight+.1);check(s().creative.wingFlight,"Space-climbs-during-glide");key("Space","keyup");
+  key("Space");check(s().creative.fastClimb,"double-Space-fast-climb-during-glide");
   key("KeyX");key("KeyX","keyup");await until(()=>s().avatar.animation==="idle");
   const stopped=JSON.stringify(s().creative.anchor);await wait(150);
   check(JSON.stringify(s().creative.anchor)===stopped&&!s().creative.wingFlight,"X-stops-flight");
