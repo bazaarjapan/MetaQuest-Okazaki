@@ -30,9 +30,11 @@ export function renderFieldSVG(tiles, view) {
     }
   }
   const path=(d,attributes)=>`<path d="${d}" ${attributes}/>`;
-  const line=(entry,color,width,extra='')=>path(entry.d,`fill="none" stroke="${color}" stroke-width="${px(width).toFixed(3)}" stroke-linecap="round" stroke-linejoin="round" ${extra}`);
+  const line=(entry,color,width,extra='',cap='round')=>path(entry.d,`fill="none" stroke="${color}" stroke-width="${px(width).toFixed(3)}" stroke-linecap="${cap}" stroke-linejoin="round" ${extra}`);
+  const grassSize=view.unit*2**(view.zoom-14)/128;
+  const pattern=(id,height)=>`id="${id}" width="${grassSize}" height="${height}" x="${-(view.x*view.unit%grassSize)}" y="${-(view.y*view.unit%height)}" patternUnits="userSpaceOnUse"`;
   const parts=[`<svg xmlns="http://www.w3.org/2000/svg" width="${view.width}" height="${view.height}" viewBox="0 0 ${view.width} ${view.height}">`,
-    `<defs><pattern id="grass" width="32" height="32" patternUnits="userSpaceOnUse"><rect width="32" height="32" fill="${palette.grass}"/><path d="M0 0h16v16H0zM16 16h16v16H16z" fill="${palette.grassLight}"/><path d="M6 6h4v4H6zM24 2h3v3h-3zM2 24h4v4H2z" fill="${palette.grassDark}" opacity=".5"/></pattern><pattern id="water" width="32" height="24" patternUnits="userSpaceOnUse"><rect width="32" height="24" fill="${palette.water}"/><path d="M4 6h10M20 18h8" stroke="${palette.waterLight}" stroke-width="1.5"/></pattern></defs>`,
+    `<defs><pattern ${pattern('grass',grassSize)} viewBox="0 0 32 32"><rect width="32" height="32" fill="${palette.grass}"/><path d="M0 0h16v16H0zM16 16h16v16H16z" fill="${palette.grassLight}"/><path d="M6 6h4v4H6zM24 2h3v3h-3zM2 24h4v4H2z" fill="${palette.grassDark}" opacity=".5"/></pattern><pattern ${pattern('water',grassSize*.75)} viewBox="0 0 32 24"><rect width="32" height="24" fill="${palette.water}"/><path d="M4 6h10M20 18h8" stroke="${palette.waterLight}" stroke-width="1.5"/></pattern></defs>`,
     `<rect width="100%" height="100%" fill="url(#grass)"/>`];
   for(const e of layers.TpgphArea) if([7401,7402,7403].includes(e.p.vt_code)) parts.push(path(e.d,`fill="${e.p.vt_code===7402?'#c8c4ae':'#88aa6b'}" fill-rule="evenodd"`));
   for(const e of layers.BldA) parts.push(path(e.d,`fill="${palette.paving}" fill-rule="evenodd"`));
@@ -46,7 +48,7 @@ export function renderFieldSVG(tiles, view) {
   for(const e of layers.RailCL) {
     if(['トンネル','地下','雪覆い'].includes(e.p.vt_railstate))continue;
     parts.push(line(e,palette.ballast,5),line(e,palette.rail,2.3),line(e,palette.ballast,1.55),
-      line(e,palette.sleepers,3.2,`stroke-dasharray="${px(.5)} ${px(2)}"`));
+      line(e,palette.sleepers,3.2,`stroke-dasharray="${px(.5)} ${px(2)}"`,'butt'));
   }
   parts.push('</svg>');
   return {svg:parts.join(''),counts:Object.fromEntries(Object.entries(layers).map(([key,features])=>[key,features.length]))};
