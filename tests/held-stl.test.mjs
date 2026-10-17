@@ -7,6 +7,7 @@ import { createBlockAvatar } from "../src/block-avatar.js";
 function fixture() {
   const avatar=createBlockAvatar(THREE), camera=new THREE.PerspectiveCamera(), scene=new THREE.Scene();
   scene.add(avatar.group,camera);
+  avatar.update({visible:true}); camera.name="test-camera";
   const draft=new THREE.Mesh(new THREE.BoxGeometry(1000,2000,500),new THREE.MeshStandardMaterial({transparent:true,opacity:.8}));
   draft.geometry.translate(100,1000,50);
   draft.userData={isDraft:true,creationId:"local-draft"}; scene.add(draft);
@@ -23,6 +24,7 @@ test("hand copy is normalized, follows avatar, and leaves source transforms/mate
   const copy=f.avatar.hand.getObjectByName("held-stl-model");
   assert.equal(copy.geometry,f.draft.geometry); assert.notEqual(copy.material,f.draft.material);
   assert.equal(copy.material.transparent,false); assert.equal(f.draft.material.opacity,.8);
+  assert.equal(copy.material.side,THREE.DoubleSide);
   assert.deepEqual(f.draft.geometry.attributes.position.array,original); assert.deepEqual(f.draft.matrix,before);
   const size=new THREE.Box3().setFromObject(copy).getSize(new THREE.Vector3());
   assert.ok(Math.abs(Math.max(...size.toArray())-.65)<1e-6);
@@ -57,4 +59,26 @@ test("committed meshes cannot become held items and disposed view cannot revive"
   f.held.update({draft:f.draft,canEdit:true}); assert.equal(f.held.getState().visible,false);
   f.held.dispose(); f.draft.userData.isDraft=true;
   f.held.update({draft:f.draft,canEdit:true}); assert.equal(f.held.getState().visible,false);
+});
+
+test("clipped third-person avatar falls back to camera and returns to hand when clear",()=>{
+  const f=fixture(); f.held.update({draft:f.draft,canEdit:true,thirdPerson:true});
+  f.avatar.group.visible=false;
+  f.held.update({draft:f.draft,canEdit:true,thirdPerson:true});
+  assert.equal(f.held.getState().visible,true); assert.equal(f.held.getState().parent,"test-camera");
+  assert.equal(f.avatar.getState().holding,false);
+  f.avatar.group.visible=true;f.held.update({draft:f.draft,canEdit:true,thirdPerson:true});
+  assert.equal(f.held.getState().parent,"held-stl-hand");assert.equal(f.avatar.getState().holding,true);
+});
+
+test("all held-model bounds remain inside landscape and portrait frustums after resize",()=>{
+  for(const aspect of [16/9,390/844,.25]) for(const rotation of [[0,0,0],[.3,.7,1.1]]) {
+    const f=fixture();f.camera.fov=55;f.camera.aspect=aspect;f.camera.updateProjectionMatrix();
+    f.draft.rotation.set(...rotation);f.held.update({draft:f.draft,canEdit:true});
+    const mesh=f.camera.getObjectByName("held-stl-model"),box=new THREE.Box3().setFromObject(mesh);
+    for(const x of [box.min.x,box.max.x])for(const y of [box.min.y,box.max.y])for(const z of [box.min.z,box.max.z]) {
+      const ndc=new THREE.Vector3(x,y,z).project(f.camera);
+      assert.ok(Math.abs(ndc.x)<1&&Math.abs(ndc.y)<1&&ndc.z>-1&&ndc.z<1,`aspect ${aspect}: ${ndc.toArray()}`);
+    }
+  }
 });

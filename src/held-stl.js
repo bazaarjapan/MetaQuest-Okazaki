@@ -18,13 +18,19 @@ export function createHeldSTL({ avatar, camera }) {
     if (source !== draft) {
       clear(); source = draft;
       mesh = new THREE.Mesh(draft.geometry, new THREE.MeshStandardMaterial({
-        color: "#e8bb74", roughness: .8, metalness: 0 }));
+        color: "#e8bb74", roughness: .8, metalness: 0, side: THREE.DoubleSide }));
       mesh.name = "held-stl-model"; pivot.add(mesh);
     }
-    const parent = thirdPerson ? avatar.hand : camera;
+    // Camera collision may hide the body even in a front/rear view. Keep the
+    // inventory indicator visible by using the same camera-mounted fallback.
+    const useHand = thirdPerson && avatar.group.visible;
+    const parent = useHand ? avatar.hand : camera;
     if (root.parent !== parent) parent.add(root);
-    root.position.set(...(thirdPerson ? [0,0,0] : [.32,-.27,-.85]));
-    const key = `${draft.rotation.toArray().join(":")}:${thirdPerson}`;
+    const halfHeight = .85 * Math.tan(THREE.MathUtils.degToRad(camera.getEffectiveFOV()) / 2);
+    const halfWidth = halfHeight * camera.aspect;
+    const size = useHand ? .65 : Math.min(.28, halfWidth * .6, halfHeight * .6);
+    root.position.set(...(useHand ? [0,0,0] : [halfWidth*.45,-halfHeight*.45,-.85]));
+    const key = `${draft.rotation.toArray().join(":")}:${size}`;
     if (key !== transformKey) {
       transformKey = key;
       const geometry = draft.geometry;
@@ -34,11 +40,11 @@ export function createHeldSTL({ avatar, camera }) {
       const centered = box.clone().translate(center.clone().negate());
       const rotated = centered.applyMatrix4(new THREE.Matrix4().makeRotationFromEuler(draft.rotation));
       const extent = Math.max(...rotated.getSize(new THREE.Vector3()).toArray(), .000001);
-      const factor = (thirdPerson ? .65 : .28) / extent;
+      const factor = size / extent;
       mesh.position.copy(center).multiplyScalar(-1); mesh.scale.setScalar(1);
       pivot.scale.setScalar(factor); pivot.rotation.copy(draft.rotation);
     }
-    avatar.setHolding(thirdPerson); root.visible = true; root.updateWorldMatrix(true,true);
+    avatar.setHolding(useHand); root.visible = true; root.updateWorldMatrix(true,true);
   }
   return { update, clear, dispose() { clear(); disposed = true; },
     getState: () => ({ visible: root.visible, parent: root.parent?.name ?? null,
