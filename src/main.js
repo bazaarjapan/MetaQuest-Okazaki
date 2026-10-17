@@ -10,6 +10,7 @@ import { createControllerHud } from "./controller-hud.js";
 import { qualityProfile, readQuality, saveQuality } from "./quality.js";
 import { createRegionStreamer } from "./region-stream.js";
 import {createNearField} from './near-field.js';
+import {createTerrainSampler} from './ground-sampler.js';
 import { clampToRegion, regionProfiles } from "./region-plan.js";
 import { drawRegionMap, mapToWorld } from "./region-map.js";
 import { createAdaptiveUi } from "./ui-layout.js";
@@ -225,14 +226,11 @@ renderer.domElement.addEventListener("pointerdown", () => {
     }
   }
 });
-const terrainRay = new THREE.Raycaster();
-function terrainOnlySample(x, z) {
-  if (!terrainMesh) return null;
-  terrainRay.set(new THREE.Vector3(x, 2500, z), down);
-  return terrainRay.intersectObjects([terrainMesh, ...regionStreamer.getGroundMeshes()], false)[0]?.point.y ?? null;
-}
+const terrainOnlySample=createTerrainSampler(()=>[terrainMesh,...regionStreamer.getGroundMeshes()],
+  {getIndex:mesh=>mesh===terrainMesh?placementEnvironment?.terrain:null});
 creative = createCreativeControls(THREE, { camera, rig, domElement: renderer.domElement,
   getControls: () => controls, avatar: ownAvatar, groundHeight: (x,z)=>sampleGroundFootprint(terrainOnlySample,x,z),
+  cameraGroundHeight:terrainOnlySample,
   cameraObstacles: () => [...city.children, ...regionStreamer.getMeshes()],
   onChange: () => syncAvatarViewButtons(),
   onFlightClick: (event) => { void hotbar.place(event); },

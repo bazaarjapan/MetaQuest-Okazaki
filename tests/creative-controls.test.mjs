@@ -63,6 +63,10 @@ test('footprint supports slope corners and does not fabricate missing ground',()
   assert.equal(sampleGroundFootprint(()=>null,0,0),null);
   close(sampleGroundFootprint((x,z)=>x===0&&z===0?4:null,0,0),4.025);
 });
+test('unchanged proposed XZ reuses the first ground sample',()=>{
+  let calls=0;const f=fixture({groundHeight:()=>{calls++;return 30;}});f.enable();calls=0;
+  f.control.step(.1,{enabled:true});assert.equal(calls,1);f.control.dispose();
+});
 
 test("Z launches, held Z boosts, release glides, X brakes and input loss never resumes flight", () => {
   const f=fixture(); f.enable(); const start=f.control.getState().anchor;

@@ -117,6 +117,22 @@ export function createSurfaceIndex(positions, indices = null, { cellSize = 8 } =
   const index = Object.freeze({ triangles: count, cellSize }); indexes.set(index, data); return index;
 }
 function getIndex(index) { const data = indexes.get(index); if (!data) throw new Error("A trusted surface index is required"); return data; }
+// Downward ray equivalent for front-facing terrain, using the existing bounded
+// spatial grid instead of walking every triangle of the source mesh.
+export function sampleSurfaceHeight(index,x,z) {
+  if(![x,z].every(Number.isFinite))return null;
+  const data=getIndex(index);let top=-Infinity;
+  for(const id of query(data,[x,z,x,z],{checks:0})) {
+    const points=triangle(data,id),[a,b,c]=projected(points),divisor=cross(a,b,c);
+    if(divisor>=-EPSILON)continue; // Upward front face only, like a downward Three ray.
+    const wa=cross(b,c,[x,z])/divisor,wb=cross(c,a,[x,z])/divisor,wc=1-wa-wb;
+    if(wa>=-EPSILON&&wb>=-EPSILON&&wc>=-EPSILON) {
+      const y=wa*points[0][1]+wb*points[1][1]+wc*points[2][1];
+      if(y<=2500)top=Math.max(top,y);
+    }
+  }
+  return Number.isFinite(top)?top:null;
+}
 function query(data, box, budget) {
   const minX = Math.floor(box[0] / data.cellSize), minZ = Math.floor(box[1] / data.cellSize), maxX = Math.floor(box[2] / data.cellSize), maxZ = Math.floor(box[3] / data.cellSize);
   if ((maxX - minX + 1) * (maxZ - minZ + 1) > MAX_QUERY_CELLS) throw new Error("Placement spatial query is too large");

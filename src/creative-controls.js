@@ -51,7 +51,7 @@ function validView(view) {
 // teleport/XR return. Player feet are independent of the third-person camera.
 export function createCreativeControls(THREE, { camera, rig = camera?.parent,
   domElement, getControls = () => null, avatar = null, constrainPosition = null,
-  groundHeight = () => null, cameraObstacles = () => [], documentTarget = globalThis.document,
+  groundHeight = () => null, cameraGroundHeight = groundHeight, cameraObstacles = () => [], documentTarget = globalThis.document,
   windowTarget = globalThis.window, initialView = "back", now = () => globalThis.performance?.now?.() ?? Date.now(),
   onChange = () => {}, onFlightClick = () => {}, getPointerContext = () => null,
   onPointerActivate = () => {} } = {}) {
@@ -140,7 +140,7 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
       // Looking upwards near ground must not put the rear camera underneath
       // the real terrain. Unknown terrain remains unknown, never a fake plane.
       let cameraGround;
-      try { cameraGround = groundHeight(position.x, position.z); } catch { cameraGround = null; }
+      try { cameraGround = cameraGroundHeight(position.x, position.z); } catch { cameraGround = null; }
       if (typeof cameraGround === "number" && Number.isFinite(cameraGround)) {
         position.y = Math.max(position.y, cameraGround + 0.25);
       }
@@ -402,7 +402,8 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
         (fastClimb ? creativeConfig.fastClimbSpeed : creativeConfig.flySpeed) * deltaTime);
     }
     let height;
-    try { height = groundHeight(anchor.x + displacement.x, anchor.z + displacement.z); } catch { height = null; }
+    const proposedX=anchor.x+displacement.x,proposedZ=anchor.z+displacement.z;
+    try { height = groundHeight(proposedX,proposedZ); } catch { height = null; }
     groundAvailable = typeof height === "number" && Number.isFinite(height);
     // Auto lift near the ground makes Z a launch even when looking downward.
     if (boosting && groundAvailable && anchor.y < height + 2) displacement.y = Math.max(displacement.y, wingConfig.lift * deltaTime);
@@ -445,7 +446,8 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
     }
     // Re-sample AFTER XZ bounds, and apply the floor to creative flight too.
     // Previously Shift could put flying feet underneath a known surface.
-    let finalFloor;try{finalFloor=groundHeight(anchor.x,anchor.z);}catch{}
+    let finalFloor=height;
+    if(anchor.x!==proposedX||anchor.z!==proposedZ)try{finalFloor=groundHeight(anchor.x,anchor.z);}catch{finalFloor=null;}
     if(typeof finalFloor==='number'&&Number.isFinite(finalFloor)&&anchor.y<finalFloor){anchor.y=finalFloor;verticalVelocity=0;}
     moving = anchor.distanceToSquared(previousAnchor) > 1e-12;
     animation = !moving ? "idle" : wingFlight ? (boosting ? "boost" : "glide") :
