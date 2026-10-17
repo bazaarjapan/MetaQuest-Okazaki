@@ -41,6 +41,56 @@ function close(actual, expected, tolerance = 1e-8) {
   assert.ok(Math.abs(actual - expected) < tolerance, `${actual} != ${expected}`);
 }
 
+test("rear/front to drone round trips preserve the player eye, heading and anchor", () => {
+  for (const initialView of ["back", "front"]) {
+    const f = fixture({ initialView }); f.enable();
+    const before = f.control.getState();
+    for (let i = 0; i < 5; i++) {
+      f.control.setMode("drone");
+      assert.deepEqual(f.camera.getWorldPosition(new THREE.Vector3()).toArray(), before.eye);
+      f.control.setMode("creative");
+      assert.deepEqual(f.control.getState().anchor, before.anchor);
+      close(f.control.getState().yaw, before.yaw);
+    }
+    f.control.dispose();
+  }
+});
+
+test("failed XR entry retains rear/front view while real session exit stays first-person", () => {
+  for (const initialView of ["back", "front"]) {
+    const f = fixture({ initialView }); f.enable();
+    const before = f.control.getState(), camera = f.camera.position.clone();
+    const pending = f.control.captureForXR();
+    f.control.restoreAfterXR(pending, { entryFailed: true });
+    assert.equal(f.control.getState().viewMode, initialView);
+    assert.deepEqual(f.control.getState().anchor, before.anchor);
+    close(f.camera.position.distanceTo(camera), 0);
+    assert.equal(f.control.getState().enabled, false);
+    f.control.restoreAfterXR(f.control.captureForXR());
+    assert.equal(f.control.getState().viewMode, "first");
+    f.control.dispose();
+  }
+});
+
+test("idle touch rotates and pinches the rear camera without moving player; modal/XR gates suppress it", () => {
+  const f = fixture({ initialView: "back" }); f.enable();
+  f.control.step(0, { enabled: false });
+  const eye = f.control.getState().eye;
+  const point = (type, id, x, y) => f.canvas.emit(type, {pointerType:"touch",pointerId:id,clientX:x,clientY:y,preventDefault(){}});
+  point("pointerdown",1,100,100); point("pointermove",1,120,110);
+  close(f.control.getState().yaw,-.1); close(f.control.getState().pitch,-.05);
+  assert.deepEqual(f.control.getState().eye,eye);
+  point("pointerdown",2,220,110); point("pointermove",2,320,110);
+  close(f.control.getState().cameraDistance,2.5);
+  point("pointerup",1,120,110); point("pointercancel",2,320,110);
+  const yaw = f.control.getState().yaw;
+  f.setDialog(true); point("pointerdown",1,100,100); point("pointermove",1,200,100);
+  close(f.control.getState().yaw,yaw); f.setDialog(false);
+  f.control.captureForXR(); point("pointerdown",1,100,100); point("pointermove",1,200,100);
+  close(f.control.getState().yaw,yaw); assert.deepEqual(f.control.getState().eye,eye);
+  f.control.dispose();
+});
+
 test("fresh creative controls default rear third person without shifting player; pose adoption retains choice", () => {
   const f = fixture({ initialView: undefined }); f.enable();
   assert.equal(f.control.getState().viewMode, "back");

@@ -52,6 +52,8 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
   const forward = new THREE.Vector3(), side = new THREE.Vector3(), displacement = new THREE.Vector3();
   const cameraRay = new THREE.Raycaster();
   let cameraDistance = 0;
+  let thirdPersonDistance = creativeConfig.thirdPersonDistance, preXRViewMode = "first";
+  const touchPointers = new Map();
   let cameraObstacleSnapshot = [];
   const keys = new Set();
   const lastMovementTap = new Map(), fastMovementKeys = new Set();
@@ -76,6 +78,7 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
     }
   }
   function clearInput({ release = false } = {}) {
+    touchPointers.clear();
     keys.clear(); lastSpace = -Infinity; jumpQueued = false;
     lastMovementTap.clear(); fastMovementKeys.clear();
     verticalVelocity = 0; moving = false;
@@ -119,7 +122,7 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
     else {
       const direction = new THREE.Vector3(0, 0, -1).applyQuaternion(rotation);
       const position = eye.clone().addScaledVector(direction,
-        viewMode === "back" ? -creativeConfig.thirdPersonDistance : creativeConfig.thirdPersonDistance);
+        viewMode === "back" ? -thirdPersonDistance : thirdPersonDistance);
       // Looking upwards near ground must not put the rear camera underneath
       // the real terrain. Unknown terrain remains unknown, never a fake plane.
       let cameraGround;
@@ -168,6 +171,9 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
       if (controls) controls.enabled = false;
       renderView();
     } else {
+      // Drone starts at the player's eyes, never at the detached rear/front
+      // camera. A mode round-trip must not move the shared player anchor.
+      setWorldView(eyePosition(), headOrientation().clone());
       mode = value;
       const controls = getControls();
       if (controls) {
@@ -224,6 +230,32 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
     pitch = Math.max(-Math.PI * 0.49, Math.min(Math.PI * 0.49,
       pitch - Math.max(-1000, Math.min(1000, y)) * creativeConfig.mouseSensitivity));
     roll = 0; renderView();
+  }
+  const canTouchLook = (event) => !disposed && mode === "creative" && !enabled &&
+    !xr && !suspendedXR && !documentTarget?.hidden && !inputBlocked(event);
+  function touchDown(event) {
+    if (event.pointerType !== "touch" || !canTouchLook(event)) return;
+    if (![event.clientX, event.clientY].every(Number.isFinite)) return;
+    touchPointers.set(event.pointerId, [event.clientX, event.clientY]);
+    try { domElement.setPointerCapture?.(event.pointerId); } catch { /* Pointer may have ended. */ }
+    event.preventDefault?.();
+  }
+  function touchMove(event) {
+    if (!touchPointers.has(event.pointerId)) return;
+    if (!canTouchLook(event)) { touchPointers.clear(); return; }
+    if (![event.clientX, event.clientY].every(Number.isFinite)) return;
+    const before = [...touchPointers.values()], previous = touchPointers.get(event.pointerId);
+    touchPointers.set(event.pointerId, [event.clientX, event.clientY]);
+    if (touchPointers.size === 1) {
+      yaw -= (event.clientX - previous[0]) * .005;
+      pitch = Math.max(-Math.PI * .49, Math.min(Math.PI * .49, pitch - (event.clientY - previous[1]) * .005));
+      roll = 0;
+    } else if (touchPointers.size === 2 && viewMode !== "first") {
+      const after = [...touchPointers.values()];
+      const span = points => Math.hypot(points[0][0]-points[1][0], points[0][1]-points[1][1]);
+      if (span(before) > 0 && span(after) > 0) thirdPersonDistance = Math.max(1, Math.min(20, thirdPersonDistance * span(before) / span(after)));
+    }
+    event.preventDefault?.(); renderView();
   }
   async function requestPointer(event) {
     if (!active() || inputBlocked(event) || locked() || typeof domElement?.requestPointerLock !== "function") return;
@@ -307,12 +339,13 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
   }
   function captureForXR() {
     if (mode !== "creative") return worldView();
+    preXRViewMode = viewMode;
     const view = { position: eyePosition().toArray(), quaternion: headOrientation().toArray() };
     suspendedXR = true; clearInput({ release: true }); updateAvatar();
     return view;
   }
-  function restoreAfterXR(view) {
-    if (mode === "creative") adopt(view ?? worldView());
+  function restoreAfterXR(view, { entryFailed = false } = {}) {
+    if (mode === "creative") adopt(view ?? worldView(), entryFailed ? preXRViewMode : "first");
     suspendedXR = false; xr = false; enabled = false;
     clearInput({ release: true });
     if (mode === "creative") renderView();
@@ -336,6 +369,11 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
   listen(windowTarget, "keyup", handleKeyUp);
   listen(windowTarget, "blur", () => clearInput({ release: true }));
   listen(documentTarget, "mousemove", handleMouseMove);
+  listen(domElement, "pointerdown", touchDown);
+  listen(domElement, "pointermove", touchMove);
+  for (const type of ["pointerup", "pointercancel", "lostpointercapture"]) {
+    listen(domElement, type, event => touchPointers.delete(event.pointerId));
+  }
   listen(documentTarget, "pointerlockchange", () => {
     if (locked() && !active()) releasePointer();
     if (!locked()) clearInput();

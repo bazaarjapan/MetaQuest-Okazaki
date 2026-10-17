@@ -871,7 +871,7 @@ $("#enter-vr").onclick = async () => {
       "VRを開始できませんでした。権限を確認して、もう一度押してください。";
     $("#enter-vr").disabled = false;
     console.warn("XR request rejected", e.name);
-    if (creative.getState().mode === "creative") creative.restoreAfterXR(pendingXRView);
+    if (creative.getState().mode === "creative") creative.restoreAfterXR(pendingXRView, { entryFailed: true });
     pendingXRView = null;
   } finally {
     xrEntering = false;
