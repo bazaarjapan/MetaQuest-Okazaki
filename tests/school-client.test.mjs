@@ -80,6 +80,28 @@ test("rejected automatic admission preserves the authenticated account and worki
   }
 });
 
+test("returning student restores server work without submitting a new name",async()=>{
+  const h=harness(),student={...USER,role:"student",name:"まちの人"};
+  h.routes.set("GET /api/config",()=>h.response({configured:true,singleClassroom:true}));
+  h.routes.set("POST /api/auth/student",()=>h.response({user:student,csrf:"student-csrf"}));
+  h.routes.set("POST /api/classroom/enter",()=>h.response({world:world()}));
+  const saved={...snapshot(),assets:[{id:ASSET,ownerId:student.id}],objects:[{id:OTHER,assetId:ASSET,ownerId:student.id,position:[1,2,3],rotation:[.1,.2,.3],scale:[2,2,2]}]};
+  h.routes.set(`GET /api/worlds/${WORLD}/state`,()=>h.response(saved));
+  await h.client.loginStudent("s-test000001","test-only-password");
+  assert.equal(h.client.getState().user.name,"まちの人");
+  assert.deepEqual(h.client.getState().objects,saved.objects);assert.deepEqual(h.client.getState().assets,saved.assets);
+  assert.ok(!h.calls.some(call=>call.path==="/api/avatar"));
+  h.client.destroy();
+});
+
+test("duplicate name error leaves identity and saved work unchanged",async()=>{
+  const h=harness();await h.join();
+  const before=h.client.getState();
+  h.routes.set("PATCH /api/avatar",()=>h.response({error:"name_taken"},409));
+  await assert.rejects(h.client.updateAvatar({name:"重複"}),e=>e.code==="name_taken");
+  assert.deepEqual(h.client.getState(),before);h.client.destroy();
+});
+
 test("an actual 401 during automatic admission still invalidates identity",async()=>{
   const h=harness();h.setSignedIn(true);
   h.routes.set("GET /api/config",()=>h.response({configured:true,googleClientId:"test",singleClassroom:true}));

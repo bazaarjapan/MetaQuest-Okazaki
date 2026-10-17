@@ -12,6 +12,9 @@
     <link rel="icon" href="/favicon.svg" />
   </head>
   <body>
+    <section id="login-gate" aria-labelledby="login-gate-title">
+      <div><h1 id="login-gate-title">岡崎 みんなのワールド</h1><p>ログインして授業を始めましょう。ログインするまで街の操作はできません。</p><button type="button">ログインして始める</button></div>
+    </section>
     <header>
       <a class="brand" href="/" aria-label="岡崎駅フィールドノート ホーム"
         ><span class="mark">岡</span
@@ -74,10 +77,10 @@
             <p id="move-help" hidden><span class="desktop-copy">WASD：前後左右 / R・F：上下 / Q・E：旋回。</span><span class="mobile-copy">左：上下・旋回 / 右：前後・左右。指を離すと停止。</span></p>
           </div>
           <p id="creative-help" hidden>WASD：移動 / Space：上昇 / Shift：下降 / F5：視点。Z長押し：ロケット離陸・加速、離すと滑空 / X：空中停止。画面クリックで見回す・Escで停止。</p>
-          <p class="movement-note">最初は三人称・後方視点。見学中は仮アバター、ログイン後は自分のアバターで探索できます。選んだ未配置STLは手元に表示します。視点ボタンで一人称・三人称を切替。スマホは左：上下・旋回／右：前後・左右。QuestのVRは一人称です。VR入退場・地点切替・ダイアログ操作では移動OFF。</p>
+          <p class="movement-note">最初は三人称・後方視点。ログイン・名前登録後に自分のアバターで探索できます。選んだ未配置STLは手元に表示します。視点ボタンで一人称・三人称を切替。スマホは左：上下・旋回／右：前後・左右。QuestのVRは一人称です。VR入退場・地点切替・ダイアログ操作では移動OFF。</p>
         </div>
         <p class="panel-caption">JR岡崎駅から、街のつながりを観察。</p>
-        <p id="school-summary" class="panel-caption" role="status">見学モード：ログインなしで街とVRを見られます。作品配置・共同参加は「ログイン・教室」から。</p>
+        <p id="school-summary" class="panel-caption" role="status">ログイン後に移動・VR・作品配置を使えます。「ログイン・教室」から入ってください。</p>
         <nav aria-label="見学地点" id="viewpoints">
           <button data-view="overview" class="view active" disabled>
             <span class="view-number">01</span
@@ -132,7 +135,7 @@
             岡崎市2020年度の公式3D都市モデルを軽量化した教材です。約25km×19kmはモデルの収録範囲で、行政区域全体を保証するものではありません。現在の街や駅内部の完全な再現ではありません。駅周辺以外は写真のない軽量LOD1建物です。
           </p>
           <p>
-            街の見学・VR表示はログイン不要です。共同活動とSTL配置には、生徒は先生から配布されたID・パスワード、先生は登録済みGoogleアカウントでログインします。参加するとアバター・作品・位置などを保存します。ホスティング事業者・先生のGoogle認証・標高配信元との通信も発生します。
+            移動・視点操作・VR・作品づくりはログイン後に使えます。生徒は先生から配布されたID・パスワード、先生は登録済みGoogleアカウントでログインします。参加するとアバター・作品・位置などを保存します。ホスティング事業者・先生のGoogle認証・標高配信元との通信も発生します。
           </p>
           <a href="/teacher.html" target="_blank" rel="noopener"
             >先生向け・授業前の確認事項</a
@@ -169,7 +172,7 @@
           rel="noopener"
           >国土地理院</a
         >　写真加工・広域標高はライブ取得</span
-      ><span>MVP 1.9.2 · 生徒はIDログイン · 先生はGoogle · 共通ワールド</span>
+      ><span>MVP 1.9.3 · 生徒はIDログイン · 先生はGoogle · 共通ワールド</span>
     </footer>
     <dialog id="workshop-dialog" aria-labelledby="workshop-title">
       <button id="workshop-close" class="dialog-close">閉じる ×</button>
@@ -208,7 +211,7 @@
       <h3>スマホ</h3>
       <p>スマホは画面下の「見学」「広域」「設定」でパネルを開閉。1本指で回転、2本指で拡大。「移動」をオンにすると左の仮想スティックで上下・旋回、右で前後・左右へ移動できます。少し倒すとゆっくり、大きく倒すと速く移動し、指を離すと停止します。</p>
       <h3>Meta Quest</h3>
-      <p>街の見学・VR表示にはログイン不要です。共同作業は2D画面で、生徒は先生から受け取ったID・パスワード、先生は登録済みGoogleアカウントで入ります。初回に名前を決めると共通ワールドに自動参加します。STLは2Dで読み込み、VR内の中央パネルの「作品」で選択・XYZ回転・拡大縮小・配置を行えます。他の人の作品は編集できません。</p>
+      <p>街の操作・VR表示にはログインが必要です。共同作業は2D画面で、生徒は先生から受け取ったID・パスワード、先生は登録済みGoogleアカウントで入ります。初回に名前を決めると共通ワールドに自動参加します。STLは2Dで読み込み、VR内の中央パネルの「作品」で選択・XYZ回転・拡大縮小・配置を行えます。他の人の作品は編集できません。</p>
       <p>広域マップをクリックして、岡崎市の別の場所へ上空移動できます。VR中は中央パネルの「広域」を光線とトリガーで選び、地図内の移動先を選択します。Yボタンでいつでも駅へ戻れます。遠くの建物は軽量LOD1で、現在地付近だけを読み込みます。</p>
       <p>
         VRは中央の1枚の「岡崎まち フィールドノート」に案内・2D復帰・左右のコントローラー状態をまとめます。「見学」「広域」「作品」を同じパネル内で切り替えます。円の中の点がスティックの倒し量・方向、色付きのボタンが押下／タッチ、バーがトリガーとグリップの押し込み量です。Xを短く押して離すと内容を折りたたみ、2D復帰は残ります。

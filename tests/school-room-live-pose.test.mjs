@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { DatabaseSync } from "node:sqlite";
 import { SchoolRoom } from "../worker/school-room.mjs";
-import { createUser, createSession, createWorld, joinWorld } from "../worker/school-store.mjs";
+import { createUser, createSession, createWorld, joinWorld, first } from "../worker/school-store.mjs";
 import { LIMITS } from "../worker/school-common.mjs";
 
 // Explicit in-memory unit fixtures exercise the real DO handlers, fresh D1
@@ -57,8 +57,9 @@ async function fixture(t) {
   async function user(number, role = "student") {
     const sub = `live-pose-fixture-${role}-${number}`;
     const record = await createUser(db, { sub }, role, now());
+    await db.prepare("UPDATE school_users SET avatar_json=? WHERE id=?").bind(JSON.stringify({name:`${role}-${number}`,color:"#4a90e2"}),record.id).run();
     const session = await createSession(db, record.id, now());
-    return { ...record, sub, hash: session.hash };
+    return { ...await first(db,'SELECT * FROM school_users WHERE id=?',record.id), sub, hash: session.hash };
   }
   const teacher = await user(0, "teacher"), student = await user(1);
   const world = await createWorld(db, teacher, { name: "Live pose fixture" }, now());

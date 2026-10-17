@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { DatabaseSync } from "node:sqlite";
 import { SchoolRoom } from "../worker/school-room.mjs";
-import { createUser, createSession, createWorld } from "../worker/school-store.mjs";
+import { createUser, createSession, createWorld, first } from "../worker/school-store.mjs";
 
 const migration = await readFile(new URL("../migrations/0001_school_worlds.sql", import.meta.url), "utf8");
 async function fixture(t) {
@@ -24,8 +24,9 @@ async function fixture(t) {
   let clock = 1801332000000;
   const now = () => Math.floor(clock / 1000);
   const user = await createUser(db, { sub: "ping-fixture" }, "teacher", now());
+  await db.prepare("UPDATE school_users SET avatar_json=? WHERE id=?").bind(JSON.stringify({name:"先生",color:"#4a90e2"}),user.id).run();
   const session = await createSession(db, user.id, now());
-  const world = await createWorld(db, user, {}, now());
+  const world = await createWorld(db, await first(db,'SELECT * FROM school_users WHERE id=?',user.id), {}, now());
   const stored = new Map([["world-state", { worldId: world.id, revision: 0, objects: [], recent: [] }]]);
   const socket = {
     readyState: 1, messages: [],

@@ -1,14 +1,13 @@
-import { fail, randomToken, sha256, publicAvatar, LIMITS } from "./school-common.mjs";
+import { fail, randomToken, sha256, publicAvatar, requireAvatarName, LIMITS } from "./school-common.mjs";
 import { first, run, all } from "./school-store.mjs";
 import { CLASSROOM_ID } from "./classroom-id.mjs";
 
 export async function enterClassroom(db, user, now) {
+  if (user.role !== "teacher" && !await first(db, "SELECT user_id FROM school_student_credentials WHERE user_id=?", user.id)) fail(403, "student_id_required");
+  requireAvatarName(user);
   if (user.role === "teacher") {
     await run(db, `INSERT INTO school_worlds(id,teacher_id,name,join_code,created_at) VALUES(?,?,?,?,?)
       ON CONFLICT(id) DO NOTHING`, CLASSROOM_ID, user.id, "岡崎 みんなのワールド", randomToken().slice(0,12).toUpperCase(), now);
-  } else {
-    if (!await first(db, "SELECT user_id FROM school_student_credentials WHERE user_id=?", user.id)) fail(403, "student_id_required");
-    if (JSON.parse(user.avatar_json).namePending) fail(409, "name_required");
   }
   const world = await first(db, "SELECT * FROM school_worlds WHERE id=?", CLASSROOM_ID);
   if (!world) fail(409, "classroom_not_ready");
@@ -23,6 +22,7 @@ export async function enterClassroom(db, user, now) {
 function teacher(user) { if (user.role !== "teacher") fail(403, "teacher_required"); }
 async function admittedTeacher(db, user) {
   teacher(user);
+  requireAvatarName(user);
   if (!await first(db, "SELECT user_id FROM school_members WHERE world_id=? AND user_id=?", CLASSROOM_ID, user.id)) fail(403, "world_membership_required");
 }
 export async function studentRoster(db, user) {

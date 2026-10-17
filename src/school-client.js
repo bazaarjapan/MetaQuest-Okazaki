@@ -136,6 +136,7 @@ export function createSchoolClient(options = {}) {
         authEpoch++; clearRoom("identity_changed"); state.worlds = [];
       }
       csrf = result.csrf ?? null; nonce = result.nonce ?? null; state.user = result.user ?? null;
+      if (state.user?.namePending && state.world) clearRoom("name_required");
       if (!state.world) state.connection = state.user ? "idle" : "guest";
       state.error = null; emit("auth");
       if (state.user) await loadWorlds();

@@ -15,7 +15,10 @@
   check(state().ready && !state().ui.mobile, "PC-loaded");
   check(state().creative.mode === "creative", "fresh-PC-default-is-creative");
   check(state().creative.viewMode === "back" && state().avatar.visible, "fresh-PC-rear-view-with-local-avatar");
+  if(state().ui.open)document.querySelector('#panel-close').click();
+  canvas.focus();await until(()=>!state().creative.blocked,'scene-keyboard-focus-ready');
   key("F5"); key("F5");
+  document.querySelector('#simple-menu').click();
   document.querySelector("#tab-observe").click();
   const initial = [...state().camera];
   mode.value = "creative"; mode.dispatchEvent(new Event("change", {bubbles:true}));
