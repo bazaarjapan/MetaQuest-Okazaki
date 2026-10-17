@@ -338,7 +338,7 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
     if (!requireAccess() || busy() || !canChange(selectedItem())) return { valid: false };
     if (!beginDraft()) return { valid: false }; return previewDraft({ position });
   }
-  function adjustSelected({ axis, radians: amount, rotationAxis, rotationDelta, scaleFactor } = {}) {
+  function adjustSelected({ axis, radians: amount, rotationAxis, rotationDelta, scaleFactor, position = draft?.position } = {}) {
     if (!requireAccess() || busy() || !canChange(selectedItem()) || !beginDraft()) return { valid: false };
     const rotation = [...draft.rotation], scale = [...draft.scale];
     const selectedAxis = axis ?? rotationAxis, delta = amount ?? rotationDelta;
@@ -350,7 +350,7 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
       if (!Number.isFinite(scaleFactor) || scaleFactor <= 0) return { valid: false };
       for (let index = 0; index < 3; index++) scale[index] *= scaleFactor;
     }
-    return previewDraft({ rotation, scale });
+    return previewDraft({ rotation, scale, position });
   }
   async function commitSelected() {
     if (!requireAccess() || busy() || !draft || !canChange(draft) || !previewDraft().valid) return false;

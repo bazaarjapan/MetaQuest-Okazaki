@@ -15,6 +15,8 @@ test("wheel normalizes devices, scales proportionally, and clamps transform boun
   assert.ok(Math.abs(factor(100)*factor(-100)-1)<1e-12);
   assert.equal(factor(-100),factor(-6.25,1));assert.equal(factor(-100),factor(-.125,2));
   assert.equal(factor(-100,0,[100,50,25]),1);assert.equal(factor(100,0,[1e-6,2e-6,4e-6]),1);
+  assert.equal(factor(100,0,[1000,1000,1000]),.1);assert.equal(factor(-100,0,[1000,1000,1000]),1);
+  assert.equal(factor(-100,0,[1e-7,1e-7,1e-7]),10);assert.equal(factor(100,0,[1e-7,1e-7,1e-7]),1);
   assert.ok(factor(1e9)>.7);
   for(const event of [{deltaY:NaN},{deltaY:Infinity},{deltaY:100,ctrlKey:true},{deltaY:100,metaKey:true},{deltaY:100,deltaMode:3}])
     assert.equal(api.placementScaleFactor(event,[1,1,1]),1);
@@ -32,13 +34,13 @@ function harness() {
   const canvas=new Node(); canvas.parentElement=new Node();
   const document={createElement:()=>new Node(),querySelector:()=>null,pointerLockElement:null};
   const window=new Node();
-  let xr=false, calls=0, now=0, removals=0, commits=0, current=null, canEdit=true, ground=[], obstacles=[], menuOpen=false, looking=false, adjustments=0;
+  let xr=false, xrPending=false, picking=false, calls=0, now=0, removals=0, commits=0, current=null, canEdit=true, ground=[], obstacles=[], menuOpen=false, looking=false, adjustments=0, moves=0;
   const object={id:"object",assetId:"asset",editable:true,committed:true};
   const workshop={group:{children:[{userData:{creationId:"object"}}]},
-    getState(){calls++;return {userId:"student",worldId:"world",canEdit,ownAssets:[{id:"new-asset",name:"test.stl"}],objects:[object],current};},
+    getState(){calls++;return {userId:"student",worldId:"world",canEdit,picking,ownAssets:[{id:"new-asset",name:"test.stl"}],objects:[object],current};},
     async useAsset(){current={id:"draft",assetId:"new-asset",committed:false,editable:true,scale:[1,1,1]};return true;},
-    adjustSelected({scaleFactor}){adjustments++;current.scale=current.scale.map(v=>v*scaleFactor);},
-    moveSelected(){return {valid:true};},
+    adjustSelected({scaleFactor,position}){adjustments++;current.scale=current.scale.map(v=>v*scaleFactor);if(position)current.position=position;return {valid:true};},
+    moveSelected(){moves++;return {valid:true};},
     async commitSelected(){commits++;return true;},
     selectObject(){},async removeSelected(){removals++;return true;}};
   class Raycaster extends THREE.Raycaster {
@@ -47,10 +49,10 @@ function harness() {
   const context=vm.createContext({THREE:{...THREE,Raycaster},document,window,performance:{now:()=>now}});
   const factory=vm.runInContext(source+"\ncreateHotbar",context);
   const hotbar=factory({workshop,client:{getState(){calls++;return {user:null};}},camera:new THREE.PerspectiveCamera(),canvas,
-    scene:new THREE.Scene(),getEnvironment:()=>({terrainMeshes:ground}),getObstacles:()=>obstacles,isXR:()=>xr,isLooking:()=>looking,menu:{getState:()=>({open:menuOpen})}});
+    scene:new THREE.Scene(),getEnvironment:()=>({terrainMeshes:ground}),getObstacles:()=>obstacles,isXR:()=>xr,isXRPending:()=>xrPending,isLooking:()=>looking,menu:{getState:()=>({open:menuOpen})}});
   return {hotbar,canvas,window,workshop,document,setGround:value=>{ground=value;},setObstacles:value=>{obstacles=value;},setEditable:value=>{canEdit=value;},
     async selectDraft(){hotbar.update(0);canvas.parentElement.children[0].children[1].onclick();await new Promise(setImmediate);},
-    setMenu:value=>{menuOpen=value;},setLooking:value=>{looking=value;},get adjustments(){return adjustments;},get commits(){return commits;},
+    setMenu:value=>{menuOpen=value;},setPicking:value=>{picking=value;},setXRPending:value=>{xrPending=value;},setLooking:value=>{looking=value;},get adjustments(){return adjustments;},get moves(){return moves;},get commits(){return commits;},
     setXR:value=>{xr=value;},setTime:value=>{now=value;},get calls(){return calls;},get removals(){return removals;}};
 }
 test("hidden VR hotbar performs no school or workshop snapshot allocations",()=>{
@@ -82,12 +84,36 @@ test("R cannot retrieve through a wall, after pointer loss, or without ownership
 test("wheel affects only an editable held draft; UI, XR, committed and camera gestures are safe",async()=>{
   const h=harness();await h.selectDraft();h.workshop.group.children=[];h.setGround([{}]);
   let prevented=0,stopped=0;const wheel={deltaY:-100,deltaMode:0,clientX:400,clientY:300,preventDefault(){prevented++;},stopImmediatePropagation(){stopped++;}};
-  h.canvas.events.wheel(wheel);assert.equal(h.adjustments,1);assert.equal(prevented,1);assert.equal(stopped,1);
+  h.canvas.events.wheel(wheel);assert.equal(h.adjustments,0);h.hotbar.update(16);assert.equal(h.adjustments,1);assert.equal(prevented,1);assert.equal(stopped,1);
   assert.ok(Math.abs(h.workshop.getState().current.scale[0]-1.1)<1e-12);
-  for(const set of [v=>h.setMenu(v),v=>h.setXR(v),v=>h.setLooking(v),v=>{h.workshop.getState().current.committed=v;},v=>{h.setEditable(!v);}]) {
+  for(const set of [v=>h.setMenu(v),v=>h.setXR(v),v=>h.setXRPending(v),v=>h.setPicking(v),v=>h.setLooking(v),v=>{h.workshop.getState().current.committed=v;},v=>{h.setEditable(!v);}]) {
     set(true);h.canvas.events.wheel(wheel);set(false);assert.equal(h.adjustments,1);
   }
   h.canvas.events.wheel({...wheel,ctrlKey:true});assert.equal(h.adjustments,1);assert.equal(prevented,1);
+});
+
+test("trackpad bursts perform one combined scale and position validation per frame",async()=>{
+  const h=harness();await h.selectDraft();h.workshop.group.children=[];h.setGround([{}]);
+  const wheel={deltaY:-10,clientX:400,clientY:300,preventDefault(){},stopImmediatePropagation(){}};
+  for(let i=0;i<10;i++)h.canvas.events.wheel(wheel);
+  assert.equal(h.adjustments,0);h.hotbar.update(16);assert.equal(h.adjustments,1);assert.equal(h.moves,0);
+  assert.ok(Math.abs(h.workshop.getState().current.scale[0]-1.1)<1e-12);
+  assert.deepEqual([...h.workshop.getState().current.position],[0,0,0]);
+  h.canvas.events.wheel(wheel);h.window.events.blur();h.hotbar.update(32);assert.equal(h.adjustments,1);
+  h.canvas.events.wheel(wheel);h.workshop.getState().current.id='different-draft';h.hotbar.update(48);assert.equal(h.adjustments,1);
+});
+
+test("detailed picking and pending XR own input and discard queued wheel changes",async()=>{
+  for(const setGate of ['setPicking','setXRPending']) {
+    const h=harness();await h.selectDraft();h.setGround([{distance:10}]);
+    h.canvas.events.pointermove({clientX:400,clientY:300});
+    h.canvas.events.wheel({deltaY:-100,clientX:400,clientY:300,preventDefault(){},stopImmediatePropagation(){}});
+    h[setGate](true);assert.equal(h.hotbar.pointerContext().mode,'blocked');
+    h.canvas.events.pointerdown({button:0,pointerType:'mouse',clientX:400,clientY:300});
+    await h.hotbar.place({clientX:400,clientY:300});h.window.events.keydown({code:'KeyR',preventDefault(){}});
+    h.hotbar.update(16);h[setGate](false);h.hotbar.update(32);
+    assert.equal(h.adjustments,0);assert.equal(h.commits,0);assert.equal(h.removals,0);
+  }
 });
 test("browser number shortcuts with Ctrl, Meta or Alt are not captured",()=>{
   const h=harness(); let prevented=0;

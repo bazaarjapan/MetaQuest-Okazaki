@@ -8,13 +8,15 @@ const typing = target => target?.matches?.("input,textarea,select,[contenteditab
 export function placementScaleFactor(event, scale) {
   if (event.ctrlKey || event.metaKey || event.altKey || !Number.isFinite(event.deltaY) ||
     ![0,1,2].includes(event.deltaMode ?? 0) || !Array.isArray(scale) || scale.length!==3 ||
-    !scale.every(value=>Number.isFinite(value) && value>=1e-6 && value<=100)) return 1;
+    !scale.every(value=>Number.isFinite(value) && value>0) || event.deltaY===0) return 1;
   const pixels=event.deltaY * ([1,16,800][event.deltaMode ?? 0]);
   const desired=Math.exp(-Math.max(-240,Math.min(240,pixels))*Math.log(1.1)/100);
-  return Math.max(1e-6/Math.min(...scale),Math.min(100/Math.max(...scale),desired));
+  const lower=1e-6/Math.min(...scale),upper=100/Math.max(...scale);
+  if(lower>upper || (lower>1 && desired<=1) || (upper<1 && desired>=1)) return 1;
+  return Math.max(lower,Math.min(upper,desired));
 }
 
-export function createHotbar({ workshop, client, camera, canvas, scene, getEnvironment, getObstacles = () => [], isXR, menu, isLooking = () => false, isCreative = () => true }) {
+export function createHotbar({ workshop, client, camera, canvas, scene, getEnvironment, getObstacles = () => [], isXR, isXRPending = () => false, menu, isLooking = () => false, isCreative = () => true }) {
   const root = document.createElement("div"); root.id = "stl-hotbar"; root.setAttribute("aria-label", "自分のSTL 10枠");
   const hint = document.createElement("div"); hint.id = "hotbar-hint"; hint.setAttribute("role", "status");
   const crosshair = document.createElement("div"); crosshair.id = "placement-crosshair"; crosshair.textContent = "+";
@@ -28,10 +30,11 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
   const footprint = new THREE.Mesh(new THREE.PlaneGeometry(1,1,4,4), new THREE.MeshBasicMaterial({ color: "#32cda5", transparent: true, opacity: .35, side: THREE.DoubleSide, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
   footprint.name = "placement-footprint"; footprint.visible = false; scene.add(footprint);
   let active = -1, pending = false, aiming = false, lastPreview = -Infinity, previousIdentity = null;
-  let pointerKnown = false, renderSignature = "";
+  let pointerKnown = false, renderSignature = "", queuedWheel = null;
   const currentState = () => workshop.getState();
   const locked = () => document.pointerLockElement === canvas;
-  const blocked = () => isXR() || document.hidden || menu.getState().open || Boolean(document.querySelector("dialog[open]"));
+  const blocked = () => isXR() || isXRPending() || document.hidden || menu.getState().open || Boolean(document.querySelector("dialog[open]")) || currentState().picking;
+  const draftToken = state => `${state.userId}:${state.worldId}:${state.current?.id}`;
   function report(text) { if (hint.textContent !== text) hint.textContent = text; }
   function cast(event) {
     if (!locked()) {
@@ -54,7 +57,7 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
   function pointerContext() {
     const state = currentState();
     if (!aiming || !state.current || state.current.committed || !state.canEdit) return null;
-    const token = `${state.userId}:${state.worldId}:${state.current.id}`;
+    const token = draftToken(state);
     if (pending || state.busy || blocked()) return {mode:"blocked",token};
     // Gesture routing depends on the button, not terrain. Do not raycast the
     // entire city on every look event; place() validates the actual hit afresh.
@@ -76,7 +79,7 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
     if (pending || blocked()) return;
     const state = currentState();
     if (!state.canEdit) { loginButton.click(); return; }
-    active = index;
+    active = index; queuedWheel=null;
     const asset = state.ownAssets[index];
     if (!asset) { document.exitPointerLock?.(); file.click(); render(); return; }
     const placed = state.objects.find(item => item.assetId === asset.id && item.committed);
@@ -121,15 +124,18 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
     });
   }
   function preview(event) {
+    const state=currentState(), wheel=queuedWheel; queuedWheel=null;
+    const scaleFactor=wheel && wheel.token===draftToken(state) && wheel.baseScale===JSON.stringify(state.current?.scale) ? wheel.factor : 1;
     footprint.visible = false;
     if (canvas.style) canvas.style.cursor = "";
-    if (!aiming || pending || blocked() || !currentState().canEdit) return false;
-    const hit = isLooking() ? null : groundHit(event);
+    if (!aiming || pending || state.busy || blocked() || !state.canEdit) return false;
+    const hit = isLooking() ? null : groundHit(event ?? wheel?.event);
     const draftMesh = workshop.group.children.find(mesh=>mesh.userData.isDraft);
-    if (!hit) { if (draftMesh) draftMesh.visible = false; if(canvas.style)canvas.style.cursor=isLooking()?"grabbing":"crosshair"; report("右ドラッグ：見回す · ホイール：サイズ · 地面をねらって左クリック：設置"); return false; }
+    if (!hit) { if(scaleFactor!==1 && !isLooking()) workshop.adjustSelected({scaleFactor}); if (draftMesh) draftMesh.visible = false; if(canvas.style)canvas.style.cursor=isLooking()?"grabbing":"crosshair"; report("右ドラッグ：見回す · ホイール：サイズ · 地面をねらって左クリック：設置"); return false; }
     if(canvas.style) canvas.style.cursor="crosshair";
     if (draftMesh) draftMesh.visible = true;
-    const result = workshop.moveSelected(hit.point.toArray());
+    const result = scaleFactor===1 ? workshop.moveSelected(hit.point.toArray()) :
+      workshop.adjustSelected({scaleFactor,position:hit.point.toArray()});
     if (draftMesh) {
       // Full-size translucent ghost is distinct from the solid hand-held copy.
       draftMesh.material.opacity = .22;
@@ -172,11 +178,12 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
     if (event.ctrlKey || event.metaKey || event.altKey) return;
     // Capture before OrbitControls: a held STL changes size, never camera zoom.
     event.preventDefault(); event.stopImmediatePropagation();
-    const scaleFactor=placementScaleFactor(event,state.current.scale);
-    if (scaleFactor!==1) workshop.adjustSelected({scaleFactor});
-    lastPreview=-Infinity; preview(event);
+    const token=draftToken(state),baseScale=JSON.stringify(state.current.scale);
+    const previous=queuedWheel?.token===token && queuedWheel.baseScale===baseScale ? queuedWheel.factor : 1;
+    const factor=previous*placementScaleFactor(event,state.current.scale.map(value=>value*previous));
+    queuedWheel={token,baseScale,factor,event:{clientX:event.clientX,clientY:event.clientY}};
   }, {passive:false,capture:true});
-  const forgetPointer=()=>{pointerKnown=false;footprint.visible=false;if(canvas.style)canvas.style.cursor="";};
+  const forgetPointer=()=>{queuedWheel=null;pointerKnown=false;footprint.visible=false;if(canvas.style)canvas.style.cursor="";};
   window.addEventListener("blur",forgetPointer);
   canvas.addEventListener("pointercancel",forgetPointer);
   canvas.addEventListener("pointerleave", () => {
@@ -206,17 +213,17 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
     root.hidden = hint.hidden = crosshair.hidden = menuButton.hidden = loginButton.hidden = xr;
     // The PC UI is absent in VR. Avoid cloning classroom/geometry snapshots on
     // every headset frame and leave the draft under the VR workshop's control.
-    if (xr) { aiming = false; footprint.visible = false; return; }
+    if (xr) { queuedWheel=null; aiming = false; footprint.visible = false; return; }
     const state = currentState(), identity = `${state.userId}:${state.worldId}:${state.canEdit}`;
     if (aiming && !pending && (!state.current || state.current.committed)) aiming=false;
-    if (identity !== previousIdentity) { previousIdentity=identity; active=-1; aiming=false; footprint.visible=false; renderSignature=""; }
+    if (identity !== previousIdentity) { queuedWheel=null; previousIdentity=identity; active=-1; aiming=false; footprint.visible=false; renderSignature=""; }
     render();
     if (blocked() || !state.canEdit) {
-      footprint.visible=false; if(canvas.style)canvas.style.cursor="";
+      queuedWheel=null; footprint.visible=false; if(canvas.style && !state.picking)canvas.style.cursor="";
       const mesh=workshop.group.children.find(mesh=>mesh.userData.isDraft); if(mesh && aiming) mesh.visible=false;
       return;
     }
-    if (time-lastPreview>=120) { lastPreview=time; preview(); }
+    if (queuedWheel || time-lastPreview>=120) { lastPreview=time; preview(); }
     if (!aiming && !pending) footprint.visible=false;
   }
   report("1〜0：STL選択 · 左クリック：置く · 右ドラッグ：見回す · ホイール：サイズ · R：回収 · Esc：メニュー");

@@ -16,12 +16,13 @@
   check(!state().creative.pointerLocked&&state().workshop.committed===initialCount,'right-drag-never-places-or-locks');
   const original=state().workshop.current.scale[0],eye=JSON.stringify(state().creative.eye);
   const wheel=(deltaY,extra={})=>canvas.dispatchEvent(new WheelEvent('wheel',{clientX:x,clientY:y,deltaY,deltaMode:0,bubbles:true,cancelable:true,...extra}));
-  wheel(-100);check(Math.abs(state().workshop.current.scale[0]/original-1.1)<1e-9,'wheel-up-enlarges-ten-percent');
-  wheel(100);check(Math.abs(state().workshop.current.scale[0]/original-1)<1e-9,'wheel-down-reverses');
+  wheel(-100);await wait(60);check(Math.abs(state().workshop.current.scale[0]/original-1.1)<1e-9,'wheel-up-enlarges-ten-percent');
+  wheel(100);await wait(60);check(Math.abs(state().workshop.current.scale[0]/original-1)<1e-9,'wheel-down-reverses');
   check(JSON.stringify(state().creative.eye)===eye,'wheel-does-not-zoom-camera');
-  wheel(-100,{ctrlKey:true});check(Math.abs(state().workshop.current.scale[0]/original-1)<1e-9,'Ctrl-wheel-preserved');
+  wheel(-100,{ctrlKey:true});await wait(60);check(Math.abs(state().workshop.current.scale[0]/original-1)<1e-9,'Ctrl-wheel-preserved');
   // Scale down to make a small test model fit in genuine empty spaces.
   for(let i=0;i<8;i++)wheel(240);
+  await wait(60);
   let target=null;
   for(const fy of [.55,.7,.85,.4]) {
     for(const fx of [.5,.4,.6,.3,.7,.2,.8]) {

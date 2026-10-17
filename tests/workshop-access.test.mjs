@@ -142,6 +142,15 @@ test("STL is uploaded first; draft commits only after server acknowledgement", a
   await acknowledge(); assert.equal(await pending, true); await f.settle();
   assert.equal(f.workshop.getState().committed, 1); assert.equal(f.workshop.getState().storage, "cloud-world");
 });
+test("combined wheel transform validates the new position and scale together before commit", async t => {
+  const f=await fixture(t);await f.workshop.importFiles([f.file()]);
+  assert.equal(f.workshop.adjustSelected({scaleFactor:2,position:[10,99,10]}).valid,true);
+  assert.deepEqual(f.workshop.getState().current.scale,[2,2,2]);
+  assert.ok(f.workshop.getState().current.position.every((v,i)=>Math.abs(v-[10,5,10][i])<1e-10));
+  assert.equal(f.calls.edits,0);assert.equal(await f.workshop.commitSelected(),true);
+  assert.deepEqual(f.state().objects[0].scale,[2,2,2]);assert.ok(f.state().objects[0].position.every((v,i)=>Math.abs(v-[10,5,10][i])<1e-10));
+});
+
 test("other owners render but every mutation and import reuse remains own-only", async (t) => {
   const f = await fixture(t); const asset = f.metadata("user-b"), id = crypto.randomUUID();
   f.client.replace({ ...connected(), assets: [asset], objects: [{ id, assetId: asset.id, ownerId: "user-b", name: "他の生徒", position: [2,5,2], rotation: [0,0,0], scale: [1,1,1], triangles: 1 }] });

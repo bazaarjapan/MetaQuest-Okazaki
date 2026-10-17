@@ -186,7 +186,7 @@ const workshop = createWorkshop(THREE, { scene, domElement: renderer.domElement,
   onChange: () => { renderer.shadowMap.needsUpdate = true; } });
 const hotbar = createHotbar({ workshop, client: schoolClient, scene, camera, canvas: renderer.domElement,
   getEnvironment: () => placementEnvironment, getObstacles: () => [...city.children, ...regionStreamer.getMeshes()],
-  isXR: () => state.xr, menu: adaptiveUi,
+  isXR: () => state.xr, isXRPending: () => xrEntering || creative?.getState().suspendedXR, menu: adaptiveUi,
   isLooking: () => creative?.getState().mouseIntent === "look",
   isCreative: () => creative?.getState().mode === "creative" });
 const ownAvatar = createBlockAvatar(THREE);
@@ -217,7 +217,7 @@ creative = createCreativeControls(THREE, { camera, rig, domElement: renderer.dom
   onFlightClick: (event) => { void hotbar.place(event); },
   getPointerContext: (event) => hotbar.pointerContext(event),
   onPointerActivate: () => {
-    if (state.xr || adaptiveUi.getState().open || document.querySelector("dialog[open]")) return;
+    if (state.xr || xrEntering || workshop.getState().picking || adaptiveUi.getState().open || document.querySelector("dialog[open]")) return;
     renderer.domElement.focus(); if (!state.free) setFree(true);
     creative.step(0, {enabled:true,blocked:false,xr:false});
   },
