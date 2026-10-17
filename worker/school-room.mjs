@@ -90,6 +90,9 @@ export class SchoolRoom {
       await this.recoverRestore();
       const path = new URL(request.url).pathname;
       const caller = await this.caller(request, ["/save", "/restore"].includes(path));
+      if (path === "/refresh-avatars" && request.method === "POST") {
+        await this.pruneExpired(); this.broadcastPresence(); return json({ ok: true });
+      }
       if (path === "/socket" && request.method === "GET") {
         if ((request.headers.get("Upgrade") ?? "").toLowerCase() !== "websocket") fail(426, "websocket_required");
         return await this.connect(caller);
@@ -165,6 +168,7 @@ export class SchoolRoom {
     return [...this.sessions.values()].map((attachment) => ({ ...attachment.avatar, ...attachment.pose, position: [...attachment.pose.position] }));
   }
   async snapshot(world, session) {
+    await this.pruneExpired();
     const assets = await all(this.env.DB, "SELECT * FROM school_assets WHERE world_id=? AND status='ready' ORDER BY created_at,rowid", world.id);
     const saved = await all(this.env.DB, "SELECT id,revision,created_at FROM school_snapshots WHERE world_id=? ORDER BY created_at DESC,id DESC LIMIT 20", world.id);
     return { revision: this.state.revision, restoreCommit: this.poseRestoreCommit(), world: worldPublic(world, managesWorld(world, session)),
@@ -187,7 +191,8 @@ export class SchoolRoom {
     const now = Math.floor(this.now() / 1000);
     for (const [socket, attachment] of this.sessions) {
       const session = attachment.expiresAt > now && this.now() - attachment.lastSeenAt <= 60000 && await sessionByHash(this.env.DB, attachment.sessionHash, now);
-      if (!session || !await first(this.env.DB, "SELECT user_id FROM school_members WHERE world_id=? AND user_id=?", this.state.worldId, attachment.userId)) this.remove(socket, 1008, "session expired");
+      if (!session || publicAvatar(session).namePending || !await first(this.env.DB, "SELECT user_id FROM school_members WHERE world_id=? AND user_id=?", this.state.worldId, attachment.userId)) this.remove(socket, 1008, "session expired");
+      else { attachment.avatar = publicAvatar(session); socket.serializeAttachment(attachment); }
     }
   }
   async scheduleAlarm() {
@@ -219,7 +224,7 @@ export class SchoolRoom {
           if (attachment.expiresAt <= now) fail(401, "room_login_required");
           authorization = await authorizeRoomSession(this.env.DB, this.state.worldId, attachment.sessionHash, now);
         } catch (error) {
-          if (error instanceof SchoolError && error.status === 401) { this.remove(socket, 1008, "session expired"); this.broadcastPresence(); }
+          if (error instanceof SchoolError && (error.status === 401 || error.code === "name_required")) { this.remove(socket, 1008, "session expired"); this.broadcastPresence(); }
           throw error;
         }
         const { session, world } = authorization;

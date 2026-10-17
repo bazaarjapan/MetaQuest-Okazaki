@@ -6,7 +6,7 @@ import worker, { handleSchoolRequest, roomRequest, SchoolRoom } from "../worker/
 import { CORE_SOURCE_HASHES, loadCorePlacement } from "../worker/placement-source.mjs";
 import { LIMITS, base64url, sha256 } from "../worker/school-common.mjs";
 import { roleFromClaims, verifyGoogleToken } from "../worker/google-auth.mjs";
-import { all, createSession, createUser, createWorld, first, joinWorld, requestSession, run } from "../worker/school-store.mjs";
+import { all, createSession, createUser, createWorld, first, joinWorld, requestSession, run, updateAvatar } from "../worker/school-store.mjs";
 import { parseSTL, normalizeSTLPositions, STL_LIMITS } from "../src/stl-model.js";
 import { validatePlacement, createSurfaceIndex } from "../src/placement.js";
 
@@ -87,7 +87,9 @@ async function setup() {
   const dependencies = { now: () => clock, googleVerification: { jwks: [jwk] } };
   const now = () => Math.floor(clock / 1000);
   async function user(sub, role = "student") {
-    const record = await createUser(db, { sub }, role, now());
+    let record = await createUser(db, { sub }, role, now());
+    await updateAvatar(db,record,{name:sub.slice(0,20)});
+    record=await first(db,"SELECT * FROM school_users WHERE id=?",record.id);
     const issued = await createSession(db, record.id, now());
     return { ...record, token_hash: issued.hash, csrf: issued.csrf, expires_at: issued.expiresAt, cookie: `__Host-school-session=${issued.token}` };
   }

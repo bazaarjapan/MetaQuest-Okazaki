@@ -65,7 +65,7 @@ async function actualEmptyGround(bytes) {
 async function seedPerson(db, role, number) {
   const id = randomUUID(), sessionToken = token(), csrf = token();
   const now = Math.floor(Date.now() / 1000), expiresAt = now + LIMITS.sessionSeconds;
-  const avatar = { name: role === "teacher" ? "Runtime fixture teacher" : `Runtime fixture ${number}`, color: "#4a90e2" };
+  const avatar = { name: role === "teacher" ? `Runtime teacher ${number}` : `Runtime fixture ${number}`, color: "#4a90e2" };
   // Test identities are deliberately non-Google, non-personal identifiers. Only
   // the hash of a cryptographically random session token enters the temporary DB.
   await db.batch([
@@ -198,6 +198,8 @@ try {
   for (const sql of migration.split(";").map((part) => part.trim()).filter(Boolean)) await db.prepare(sql).run();
   const addition = await readFile(new URL("../migrations/0002_single_classroom.sql", import.meta.url), "utf8");
   for (const sql of addition.split(";").map(part=>part.trim()).filter(Boolean)) await db.prepare(sql).run();
+  const names = await readFile(new URL("../migrations/0003_unique_avatar_names.sql", import.meta.url), "utf8");
+  for (const sql of names.split(";").map(part=>part.trim()).filter(Boolean)) await db.prepare(sql).run();
   const teacher = await seedPerson(db, "teacher", 0), students = [];
   for (let i = 0; i < LIMITS.students; i++) students.push(await seedPerson(db, "student", i + 1));
   const extra = await seedPerson(db, "student", 31);
@@ -428,12 +430,37 @@ try {
     const snapshot=await expectJson(`/api/worlds/${shared.id}/state`,teacher,null);
     assert.equal(snapshot.participants.length,34);
     assert.equal(snapshot.participants.filter(person=>person.role==="student").length,30);
+    await expectError("/api/avatar",logins[0],{name:teacher.avatar.name},409,"name_taken",{method:"PATCH"});
+    await expectError("/api/avatar",teacher,{name:"ID student 1"},409,"name_taken",{method:"PATCH"});
+    const upload=await mf.dispatchFetch(`${origin}/api/worlds/${shared.id}/assets`,{method:"POST",headers:{Origin:origin,
+      Cookie:logins[0].cookie,"X-CSRF-Token":logins[0].csrf,"Content-Type":"model/stl","X-Up-Axis":"y","X-Units":"m","X-Filename":"persistent.stl"},body:bytes});
+    assert.equal(upload.status,201); const ownedAsset=(await upload.json()).asset;
+    const placedId=randomUUID();
+    await connections[4].probe.command({type:"object.create",requestId:randomUUID(),revision:0,id:placedId,
+      assetId:ownedAsset.id,position:[empty.position[0],999,empty.position[2]],rotation:[.3,.5,.2],scale:[.5,.5,.5]});
+    const persisted=(await expectJson(`/api/worlds/${shared.id}/state`,logins[0],null)).objects.find(o=>o.id===placedId);
+    await expectJson("/api/auth/logout",logins[0],{});
+    const challengeResponse=await fetchApi("/api/session"),challenge=await challengeResponse.json();
+    const relogin=await fetchApi("/api/auth/student",null,{...issued[0],csrf:challenge.csrf},
+      {headers:{Cookie:challengeResponse.headers.get("Set-Cookie").split(";")[0]}});
+    assert.equal(relogin.status,200);const result=await relogin.json();
+    assert.equal(result.user.id,issued[0].id);assert.equal(result.user.name,"ID student 1");assert.equal(result.user.namePending,undefined);
+    logins[0]={id:result.user.id,csrf:result.csrf,cookie:relogin.headers.getSetCookie().find(v=>v.startsWith("__Host-school-session=")).split(";")[0]};
+    await expectJson("/api/classroom/enter",logins[0],{});
+    const resumed=await connect(shared.id,logins[0]);connections.push(resumed);
+    assert.deepEqual(resumed.initial.objects.find(o=>o.id===placedId),persisted);
+    assert.deepEqual(resumed.initial.assets.find(a=>a.id===ownedAsset.id),ownedAsset);
+    const restoredBytes=await fetchApi(`/api/worlds/${shared.id}/assets/${ownedAsset.id}`,logins[0]);
+    assert.equal(digest(new Uint8Array(await restoredBytes.arrayBuffer())),digest(bytes));
+    const denied=await connections[5].probe.command({type:"object.delete",id:placedId,requestId:randomUUID(),revision:1},"error");
+    assert.equal(denied.error,"object_owner_required");
     await expectJson(`/api/worlds/${shared.id}/save`,otherTeachers[0],{});
     const reset=(await expectJson("/api/classroom/students/reset",teacher,{id:logins[0].id})).credentials[0];
     assert.notEqual(reset.password,issued[0].password);
     await expectError(`/api/worlds/${shared.id}/state`,logins[0],null,401,"login_required");
     connections.forEach(({probe})=>probe.close());
-    return {realStudentPasswordLogins:30,realOpenSockets:34,teacherCheckpoint:true,resetRevokesSession:true};
+    return {realStudentPasswordLogins:31,realOpenSockets:34,teacherCheckpoint:true,resetRevokesSession:true,
+      crossRoleNameConflict:true,logoutReloginRetainsName:true,originalSTLHashRetained:true,placementTransformRetained:true,ownershipRetained:true};
   });
   assert.equal(outboundAttempts, 0, "Runtime gate must not attempt external network requests");
   report = { passed: true, runtime: "Miniflare/workerd with real loopback TCP WebSockets, SQLite D1, R2 and SQLite Durable Objects",

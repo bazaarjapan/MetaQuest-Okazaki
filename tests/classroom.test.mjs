@@ -6,7 +6,7 @@ import worker, { SchoolRoom } from "../worker/index.mjs";
 import { enterClassroom, issueStudents, studentRoster, resetStudent, authenticateStudent } from "../worker/classroom.mjs";
 import { CLASSROOM_ID } from "../worker/classroom-id.mjs";
 import { createUser, createSession, updateAvatar, first, createWorld, authorizeWorld, authorizeRoomSession, requestSession } from "../worker/school-store.mjs";
-const migrations = await Promise.all(["0001_school_worlds.sql","0002_single_classroom.sql"].map(file=>readFile(new URL(`../migrations/${file}`,import.meta.url),"utf8")));
+const migrations = await Promise.all(["0001_school_worlds.sql","0002_single_classroom.sql","0003_unique_avatar_names.sql"].map(file=>readFile(new URL(`../migrations/${file}`,import.meta.url),"utf8")));
 const now=Math.floor(Date.now()/1000), origin="https://classroom.example";
 async function fixture(t) {
   const sql=new DatabaseSync(":memory:"); migrations.forEach(text=>sql.exec(text)); t.after(()=>sql.close());
@@ -14,11 +14,16 @@ async function fixture(t) {
     async first(){return statement.get(...args)??null;}, async all(){return {results:statement.all(...args)};},
     async run(){return this.runSync();},runSync(){return {meta:{changes:Number(statement.run(...args).changes)}};}
   };},async run(){return this.bind().run();}};},async batch(statements){sql.exec("BEGIN");try{const values=statements.map(s=>s.runSync());sql.exec("COMMIT");return values;}catch(error){sql.exec("ROLLBACK");throw error;}}};
-  const teacher=await createUser(db,{sub:"test-teacher"},"teacher",now), teacher2=await createUser(db,{sub:"test-teacher-2"},"teacher",now);
+  const teacher=await namedTeacher(db,"test-teacher"), teacher2=await namedTeacher(db,"test-teacher-2");
   const env={DB:db,ASSETS:{fetch:()=>new Response("asset")},STL_BUCKET:{},SCHOOL_ROOMS:{},GOOGLE_CLIENT_ID:"test",TEACHER_GOOGLE_SUBS:"test-teacher",APP_ORIGIN:origin,SINGLE_CLASSROOM:"true"};
   return {db,teacher,teacher2,env,sql};
 }
 const rejects=(task,code)=>assert.rejects(task,error=>error.code===code);
+async function namedTeacher(db,sub) {
+  const user=await createUser(db,{sub},"teacher",now);
+  await updateAvatar(db,user,{name:sub});
+  return first(db,"SELECT * FROM school_users WHERE id=?",user.id);
+}
 test("one canonical world shared by approved teachers; legacy world and its ownership are preserved",async t=>{
   const {db,teacher,teacher2}=await fixture(t);
   const legacy=await createWorld(db,teacher,{name:"legacy"},now);
@@ -97,13 +102,78 @@ test("a fifth rejected teacher cannot list IDs or reset a student's credentials"
   const [issued]=await issueStudents(db,teacher,{count:1},now);
   await enterClassroom(db,teacher2,now);
   for (const sub of ["teacher-three", "teacher-four"]) {
-    await enterClassroom(db,await createUser(db,{sub},"teacher",now),now);
+    await enterClassroom(db,await namedTeacher(db,sub),now);
   }
-  const fifth=await createUser(db,{sub:"teacher-five"},"teacher",now);
+  const fifth=await namedTeacher(db,"teacher-five");
   await rejects(()=>enterClassroom(db,fifth,now),"teacher_full");
   await rejects(()=>studentRoster(db,fifth),"world_membership_required");
   await rejects(()=>resetStudent(db,fifth,issued.id),"world_membership_required");
   assert.equal((await authenticateStudent(db,issued,now,"test")).user.id,issued.id);
   assert.equal((await studentRoster(db,teacher2)).length,1);
   assert.ok((await resetStudent(db,teacher2,issued.id)).password);
+});
+
+test("teachers and students share one atomic display-name namespace",async t=>{
+  const {db,teacher}=await fixture(t);
+  const issued=await issueStudents(db,teacher,{count:2},now);
+  const users=await Promise.all(issued.map(v=>first(db,"SELECT * FROM school_users WHERE id=?",v.id)));
+  await rejects(()=>updateAvatar(db,users[0],{name:"test-teacher"}),"name_taken");
+  const results=await Promise.allSettled(users.map(u=>updateAvatar(db,u,{name:" 同じ名前 "})));
+  assert.equal(results.filter(r=>r.status==="fulfilled").length,1);
+  assert.equal(results.find(r=>r.status==="rejected").reason.code,"name_taken");
+  const winner=results.findIndex(r=>r.status==="fulfilled"),loser=1-winner;
+  assert.equal(JSON.parse((await first(db,"SELECT avatar_json FROM school_users WHERE id=?",users[loser].id)).avatar_json).namePending,true);
+  await rejects(()=>updateAvatar(db,teacher,{name:"同じ名前"}),"name_taken");
+  await updateAvatar(db,users[winner],{name:"Same Name"});
+  await rejects(()=>updateAvatar(db,users[loser],{name:"  SAME NAME  "}),"name_taken");
+  await updateAvatar(db,users[winner],{color:"#abcdef"}); // same owner's name is allowed
+  assert.equal((await authenticateStudent(db,issued[winner],now,"test")).user.name,"Same Name");
+  await updateAvatar(db,users[loser],{name:"同じ名前"}); // freed name may be reused
+});
+
+test("new Google teachers choose a name too; repeat Google login never resets it",async t=>{
+  const {db}=await fixture(t),sub="new-teacher";
+  let teacher=await createUser(db,{sub},"teacher",now);
+  assert.equal(JSON.parse(teacher.avatar_json).namePending,true);
+  await rejects(()=>enterClassroom(db,teacher,now),"name_required");
+  await updateAvatar(db,teacher,{name:"あお先生"});
+  teacher=await createUser(db,{sub},"teacher",now+10);
+  assert.equal(JSON.parse(teacher.avatar_json).name,"あお先生");
+  assert.equal(JSON.parse(teacher.avatar_json).namePending,undefined);
+  await enterClassroom(db,teacher,now);
+});
+
+test("names cannot collapse to a different rendered label; emoji and Japanese are supported",async t=>{
+  const {db,teacher}=await fixture(t);
+  for(const name of ["a@example.com","a\u200bb","\u2060","生徒-abcd"]) {
+    await rejects(()=>updateAvatar(db,teacher,{name}),"invalid_avatar_name");
+  }
+  assert.equal((await updateAvatar(db,teacher,{name:"あおぞら👩‍🚀"})).name,"あおぞら👩‍🚀");
+});
+
+test("migration retains earliest duplicate and preserves IDs, credentials, memberships and work",async t=>{
+  const {db,sql,teacher}=await fixture(t);
+  sql.exec("DROP INDEX school_users_unique_avatar_name");
+  const issued=await issueStudents(db,teacher,{count:2},now);
+  for(const entry of [teacher,...issued]) sql.prepare("UPDATE school_users SET avatar_json=? WHERE id=?")
+    .run(JSON.stringify({name:"同じ名前",color:"#4a90e2"}),entry.id);
+  const student=await first(db,"SELECT * FROM school_users WHERE id=?",issued[0].id);
+  await enterClassroom(db,student,now);
+  sql.prepare("UPDATE school_members SET pose_json=? WHERE user_id=?").run('{"position":[1,2,3],"yaw":1}',student.id);
+  sql.prepare("INSERT INTO school_assets VALUES(?,?,?,?,?,?,?,?,?,?,?,?)").run(crypto.randomUUID(),CLASSROOM_ID,student.id,"stl-key","作品.stl","y","m",100,12,"abc","ready",now);
+  sql.prepare("INSERT INTO school_snapshots VALUES(?,?,?,?,?,?)").run(crypto.randomUUID(),CLASSROOM_ID,teacher.id,7,'{"objects":[{"ownerId":"'+student.id+'","position":[1,2,3]}]}',now);
+  const tables=["school_student_credentials","school_assets","school_members","school_snapshots"];
+  const before=tables.map(table=>JSON.stringify(sql.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all()));
+  sql.exec(migrations[2]);
+  const rows=sql.prepare("SELECT * FROM school_users ORDER BY created_at,id").all();
+  assert.equal(rows.filter(r=>!JSON.parse(r.avatar_json).namePending).length,2); // other named teacher + winner
+  const group=rows.filter(r=>JSON.parse(r.avatar_json).name==="同じ名前");
+  assert.equal(JSON.parse(group[0].avatar_json).namePending,undefined);
+  assert.ok(group.slice(1).every(r=>JSON.parse(r.avatar_json).nameConflict===true));
+  assert.deepEqual(tables.map(table=>JSON.stringify(sql.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all())),before);
+  const pending=group.find(r=>r.id===student.id&&JSON.parse(r.avatar_json).namePending)??group.find(r=>JSON.parse(r.avatar_json).namePending);
+  await rejects(()=>authorizeWorld(db,CLASSROOM_ID,pending),"name_required");
+  await updateAvatar(db,pending,{name:"重複解消"});
+  assert.equal((await first(db,"SELECT id FROM school_users WHERE id=?",pending.id)).id,pending.id);
+  assert.deepEqual(tables.map(table=>JSON.stringify(sql.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all())),before);
 });

@@ -1,3 +1,4 @@
+import { avatarNickname } from "../src/avatar-label.js";
 export const LIMITS = Object.freeze({
   participants: 31, classroomParticipants: 34, students: 30, stlBytes: 6 * 1024 * 1024,
   assetTriangles: 20000, userAssets: 10, userAssetBytes: 25 * 1024 * 1024,
@@ -95,5 +96,17 @@ export function requireConfigured(env) {
     !(env.TEACHER_GOOGLE_SUBS || env.TEACHER_GOOGLE_EMAILS)) fail(503, "school_not_configured");
 }
 export function publicAvatar(user) {
-  return { ...JSON.parse(user.avatar_json), id: user.id, role: user.role };
+  const avatar = JSON.parse(user.avatar_json);
+  // A saved name that the renderer would sanitize/fallback is not a usable
+  // unique display name. Legacy accounts can repair it without changing ID.
+  if (avatarNickname(avatar.name) !== avatar.name) avatar.namePending = true;
+  return { ...avatar, id: user.id, role: user.role };
+}
+export function requireAvatarName(user) {
+  if (publicAvatar(user).namePending) fail(409, "name_required");
+}
+export function cleanAvatarName(value, fallback) {
+  const name = cleanName(value, fallback, 20);
+  if (avatarNickname(name) !== name) fail(400, "invalid_avatar_name");
+  return name;
 }

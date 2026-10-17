@@ -57,6 +57,7 @@ async function fixture(t) {
   async function user(number, role = "student") {
     const sub = `live-pose-fixture-${role}-${number}`;
     const record = await createUser(db, { sub }, role, now());
+    await db.prepare("UPDATE school_users SET avatar_json=? WHERE id=?").bind(JSON.stringify({name:`${role}-${number}`,color:"#4a90e2"}),record.id).run();
     const session = await createSession(db, record.id, now());
     return { ...record, sub, hash: session.hash };
   }

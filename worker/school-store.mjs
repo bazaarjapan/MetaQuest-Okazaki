@@ -1,4 +1,4 @@
-import { LIMITS, cleanName, fail, parseCookies, publicAvatar, randomToken, sha256, validId } from "./school-common.mjs";
+import { LIMITS, cleanName, cleanAvatarName, requireAvatarName, fail, parseCookies, publicAvatar, randomToken, sha256, validId } from "./school-common.mjs";
 import { managesWorld } from "./classroom-id.mjs";
 
 export const SESSION_COOKIE = "__Host-school-session";
@@ -53,7 +53,7 @@ export async function limitGoogleAttempt(db, challenge, now) {
 export async function createUser(db, claims, role, now) {
   const id = crypto.randomUUID();
   const color = ["#4a90e2", "#e67e22", "#2ecc71", "#9b59b6", "#e74c3c", "#16a085"][parseInt((await sha256(claims.sub)).slice(0, 4), 16) % 6];
-  const avatar = JSON.stringify({ name: role === "teacher" ? "先生" : `生徒-${id.slice(0, 4)}`, color });
+  const avatar = JSON.stringify({ name: "名前未登録", color, namePending: true });
   return first(db, "INSERT INTO school_users(id,google_sub,role,avatar_json,created_at) VALUES(?,?,?,?,?) ON CONFLICT(google_sub) DO UPDATE SET role=excluded.role RETURNING *", id, claims.sub, role, avatar, now);
 }
 export async function createSession(db, userId, now) {
@@ -82,6 +82,7 @@ export async function getWorld(db, id) {
   return world;
 }
 export async function authorizeWorld(db, worldId, session, teacher = false) {
+  requireAvatarName(session);
   const world = await getWorld(db, worldId);
   const membership = await first(db, "SELECT * FROM school_members WHERE world_id=? AND user_id=?", worldId, session.id);
   if (!membership) fail(403, "world_membership_required");
@@ -97,6 +98,7 @@ export async function authorizeRoomSession(db, worldId, sessionHash, now, teache
     JOIN school_members m ON m.user_id=u.id AND m.world_id=?
     JOIN school_worlds w ON w.id=m.world_id WHERE s.token_hash=? AND s.expires_at>?`, worldId, sessionHash, now);
   if (!row) fail(401, "room_login_required");
+  requireAvatarName(row);
   if (teacher && !managesWorld({ id: worldId, teacher_id: row.teacher_id }, row)) fail(403, "teacher_required");
   return { session: row, world: { id: worldId, teacher_id: row.teacher_id, name: row.world_name, join_code: row.join_code, created_at: row.world_created_at },
     membership: { world_id: worldId, user_id: row.id, pose_json: row.pose_json, joined_at: row.joined_at } };
@@ -128,13 +130,21 @@ export async function joinWorld(db, session, code, now) {
   return world;
 }
 export async function updateAvatar(db, session, value) {
-  const previous = JSON.parse(session.avatar_json);
+  const current = await first(db, "SELECT * FROM school_users WHERE id=?", session.id);
+  if (!current) fail(401, "login_required");
+  const previous = publicAvatar(current);
   if (previous.namePending && (typeof value.name !== "string" || !value.name.trim())) fail(400, "name_required");
-  const name = cleanName(value.name, previous.name, 20);
+  const name = cleanAvatarName(value.name, previous.name);
   const color = value.color ?? previous.color;
   if (typeof color !== "string" || !/^#[a-f0-9]{6}$/i.test(color)) fail(400, "invalid_avatar_color");
-  const updated = await first(db, "UPDATE school_users SET avatar_json=? WHERE id=? RETURNING *", JSON.stringify({ name, color }), session.id);
-  return publicAvatar(updated);
+  try {
+    const updated = await first(db, "UPDATE school_users SET avatar_json=? WHERE id=? RETURNING *", JSON.stringify({ name, color }), session.id);
+    return publicAvatar(updated);
+  } catch (error) {
+    // D1 wraps SQLite errors; match only our named unique index, not outages.
+    if (String(error.message).includes("school_users_unique_avatar_name")) fail(409, "name_taken");
+    throw error;
+  }
 }
 export async function reserveAsset(db, session, worldId, asset, now) {
   const cutoff = reservationClock(now) - assetReservationPolicy.leaseSeconds;

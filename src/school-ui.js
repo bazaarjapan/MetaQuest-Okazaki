@@ -6,6 +6,9 @@ const ERROR_TEXT = {
   invalid_student_login: "IDまたはパスワードが違います。先生から受け取った内容を確認してください。",
   student_id_required: "Googleログインは登録済みの先生専用です。生徒は先生が発行したID・パスワードを使ってください。",
   name_required: "最初にアバターの名前を入力してください。",
+  name_taken: "その名前は先生または別の生徒が使っています。別の名前にしてください（英字の大文字・小文字は区別しません）。",
+  invalid_avatar_name: "名前は20文字以内で、見える文字を使ってください。メールアドレスや見えない制御文字は使えません。",
+  invalid_name: "名前を1〜20文字で入力してください。",
   classroom_not_ready: "先生がログインするとワールドが準備されます。",
   school_not_configured: "共同教室は準備中です。ログインなしの街・VR閲覧は引き続き使えます。",
   school_unavailable: "共同教室に接続できません。街の閲覧はそのまま使えます。",
@@ -125,6 +128,7 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {} }) {
     if (state.singleClassroom) {
       const form = element("form", undefined, "school-section");
       form.append(element("h3", "生徒：IDで入る"));
+      form.append(element("p", "初回はログイン後に名前を決めます。次回は同じID・パスワードで、名前・自分のSTL・配置した場所を引き継げます。", "school-note"));
       const id = inputField("ID", { id: "student-login-id", maxLength: 40 }); id.input.autocomplete = "username";
       const password = inputField("パスワード", { id: "student-password", type: "password", maxLength: 128 }); password.input.autocomplete = "current-password";
       const submit = element("button", "ワールドに入る"); submit.type = "submit"; submit.dataset.schoolAction = "true";
@@ -132,7 +136,7 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {} }) {
       form.addEventListener("submit", event => { event.preventDefault(); void perform(async () => {
         const secret = password.input.value; password.input.value = "";
         await client.loginStudent(id.input.value, secret);
-      }, "ログインしました。初めての人は名前を決めてください。"); });
+      }); });
       content.append(form);
     }
     const section = element("section", undefined, "school-section");
@@ -154,16 +158,20 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {} }) {
     const section = element("section", undefined, "school-section");
     section.append(element("h3", state.user.role === "teacher" ? "先生としてログイン中" : "生徒としてログイン中"));
     const row = element("div", undefined, "school-row");
-    if (state.user.namePending) section.append(element("p", "最初に、みんなに見える名前を決めましょう。本名でなくても大丈夫です。保存するとワールドに入ります。"));
-    const name = inputField("頭の上に表示する名前（20文字まで）", { value: state.user.namePending ? "" : state.user.name, maxLength: 20, id: "school-avatar-name" });
+    if (state.user.namePending) section.append(element("p", state.user.nameConflict
+      ? "以前の名前がほかの人と重複しています。別の名前を決めてください。あなたのSTL・配置場所はそのまま残っています。"
+      : "最初に、みんなに見える名前を決めましょう。本名でなくても大丈夫です。保存するとワールドに入ります。"));
+    section.append(element("p", "先生・生徒で同じ名前は使えません。名前を変えても自分の作品は引き継がれます。", "school-note"));
+    const name = inputField("頭の上に表示する名前（20文字まで）", { value: state.user.namePending ? "" : state.user.name, maxLength: 40, id: "school-avatar-name" });
     const color = inputField("色", { type: "color", value: state.user.color, id: "school-avatar-color" });
     row.append(name.label, color.label); section.append(row);
     const actions = element("div", undefined, "school-actions");
-    actions.append(command("アバターを保存", () => perform(() => client.updateAvatar({ name: name.input.value, color: color.input.value }), "アバターを保存しました。"), "school-avatar-save"),
+    actions.append(command(state.user.namePending ? "この名前でワールドに入る" : "アバターを保存", () => perform(() => client.updateAvatar({ name: name.input.value, color: color.input.value }), "名前と色を保存しました。次回も同じIDで続きを開けます。"), "school-avatar-save"),
       command("ログアウト", () => perform(() => client.logout(), "ログアウトしました。街・VRの閲覧は続けられます。"), "school-logout"));
     section.append(actions); content.append(section);
   }
   function renderEntry() {
+    if (state.user.namePending) return;
     if (state.singleClassroom) {
       if (!state.user.namePending && state.connection !== "connected") content.append(command("ワールドに接続", () => perform(() => client.enterClassroom()), "school-classroom-enter"));
       if (state.user.role === "teacher") renderStudents();

@@ -214,6 +214,8 @@ export async function startSchoolBrowserServer({ singleClassroom = process.argv.
     for (const sql of migration.split(";").map((part) => part.trim()).filter(Boolean)) await db.prepare(sql).run();
     const addition = await readFile(resolve(root, "migrations/0002_single_classroom.sql"), "utf8");
     for (const sql of addition.split(";").map(part=>part.trim()).filter(Boolean)) await db.prepare(sql).run();
+    const names = await readFile(resolve(root, "migrations/0003_unique_avatar_names.sql"), "utf8");
+    for (const sql of names.split(";").map(part=>part.trim()).filter(Boolean)) await db.prepare(sql).run();
     const teacher = await seedFixturePerson(db, "teacher", 0), students = [];
     for (let i = 0; i < LIMITS.students; i++) students.push(await seedFixturePerson(db, "student", i + 1));
     // A second temporary session for the same identity exercises logout/relogin

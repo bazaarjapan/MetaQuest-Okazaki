@@ -78,7 +78,15 @@ export async function handleSchoolRequest(request, env, dependencies = {}) {
     await run(env.DB, "DELETE FROM school_sessions WHERE token_hash=?", session.token_hash);
     return json({ ok: true }, 200, { "Set-Cookie": sessionCookie(SESSION_COOKIE, "", 0) });
   }
-  if (path === "/api/avatar" && request.method === "PATCH") return json({ user: await updateAvatar(env.DB, session, await readJson(request)) });
+  if (path === "/api/avatar" && request.method === "PATCH") {
+    const user = await updateAvatar(env.DB, session, await readJson(request));
+    const worlds = await all(env.DB, "SELECT world_id FROM school_members WHERE user_id=?", session.id);
+    for (const world of worlds) {
+      try { await roomRequest(env, world.world_id, session, "/refresh-avatars", "POST"); }
+      catch { /* Saved name remains authoritative; next packet/connect refreshes. */ }
+    }
+    return json({ user });
+  }
   if (path === "/api/worlds" && request.method === "GET") {
     const rows = await all(env.DB, "SELECT w.* FROM school_worlds w JOIN school_members m ON m.world_id=w.id WHERE m.user_id=? ORDER BY w.created_at DESC", session.id);
     return json({ worlds: rows.map((world) => worldPublic(world, session.role === "teacher" && session.id === world.teacher_id)) });

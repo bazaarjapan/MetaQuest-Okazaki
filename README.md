@@ -2,6 +2,8 @@
 
 公開先： https://metaquest001.gigach.net
 
+1.9.3では先生・生徒共通の表示名重複防止を追加しました。初回のみ名前を登録し、以降は同じIDで名前・STL・配置を再開します。`0003_unique_avatar_names.sql` は既存の重複名の後発アカウントを名前再登録待ちにしますが、ID、資格情報、所属、STL、配置データを削除しません。原子的なUNIQUEインデックスで同時登録も拒否します。本番更新はD1のTime Travel bookmarkを記録し、移行前後のデータ数を照合してから行います。
+
 PCで3Dを観察し、対応するQuest BrowserではWebXRでVRへ入れる教材です。街の閲覧はログイン不要。1.8は1つの共通ワールドに、指定Googleアカウントの先生と、先生が発行したID・パスワードの生徒が入ります。生徒30人＋先生4人、初回ニックネーム、10枠STLホットバー、左クリック配置、Rキー回収、底面プレビュー、Escメニューを提供します。Unity APK版・元PLATEAUは変更しません。最新の手順は [先生・生徒ガイド](docs/SCHOOL_GUIDE.md)。旧個別ワールドは保管し、自動統合しません。
 
 授業の使い方は[先生・生徒の共同教室ガイド](docs/SCHOOL_GUIDE.md)、データの取扱いは[プライバシー説明](public/privacy.html)にまとめています。開発状況は[親Issue #3](https://github.com/bazaarjapan/MetaQuest-Okazaki/issues/3)で追跡しています。実装済みと本番公開・Google実ログイン・学校の30台・Quest実機確認は別のゲートです。公開コミットと実施した試験は[VALIDATION.md](VALIDATION.md)を確認してください。パスキーは未実装です。
