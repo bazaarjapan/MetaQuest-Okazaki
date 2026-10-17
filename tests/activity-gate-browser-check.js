@@ -16,7 +16,7 @@
     movement: allowed ? distance > .1 : distance === 0,
     keysReleased: after.creative.pressedKeys.length === 0,
     activityStable: after.activityAllowed === allowed,
-    surfaces: [...document.querySelectorAll('body > header,body > main,body > footer')].every(el=>el.inert === !allowed),
+    surfaces: [...document.querySelectorAll('body > header,body > main,body > nav,body > footer')].every(el=>el.inert === !allowed),
     safety: allowed || (!after.free && !after.xr && !after.avatar.visible),
   };
   if (Object.values(checks).some(value=>!value)) throw new Error(JSON.stringify(checks));

@@ -6,7 +6,7 @@ export function worldActivityAllowed(state, ready = true) {
 export function createActivityGate({ documentTarget = document, windowTarget = window, onOpen, onLock = () => {}, onRetry = () => windowTarget.location.reload() }) {
   const gate = documentTarget.querySelector("#login-gate");
   const message = gate.querySelector("p"), button = gate.querySelector("button");
-  const surfaces = [...documentTarget.querySelectorAll("body > header,body > main,body > footer")];
+  const surfaces = [...documentTarget.querySelectorAll("body > header,body > main,body > nav,body > footer")];
   let allowed = false, loadError = null;
   const events = ["keydown","keyup","pointerdown","pointerup","pointermove","mousedown","mouseup","mousemove","click","dblclick","contextmenu","wheel","touchstart","touchmove","touchend"];
   function intercept(event) {

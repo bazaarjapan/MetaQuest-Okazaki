@@ -117,6 +117,7 @@ try {
   await click(teacher,'#login-gate button');await click(teacher,'#school-world-open');
   await wait(teacher,"window.__okazaki.getState().activityAllowed");await click(teacher,'#school-close');
   check("mobile named connected fixture starts movement OFF",!(await state(teacher)).free);
+  await click(teacher,'[data-mobile-panel=observe]');await browser(teacher,'select','#control-mode','drone');await click(teacher,'#panel-close');
   await browserScript(teacher, "tests/compact-mobile-check.js");
   await browser(teacher,"set","viewport","1280","800");
   await browser(teacher,"reload");await wait(teacher,"window.__okazaki?.getState().ready && window.__okazaki.getState().school.user");
