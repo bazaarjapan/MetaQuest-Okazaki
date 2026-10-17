@@ -101,7 +101,7 @@ test("idle is exact, running has stronger gait, and original wings/rockets follo
   assert.equal(avatar.group.getObjectByName("wing-membrane-0").material.transparent, true);
   for(const i of [0,1]) {
     const inner=avatar.group.getObjectByName(`wing-inner-${i}`);
-    const tip=new THREE.Vector3(.1,-.94,0).applyMatrix4(inner.matrix).sub(inner.position);
+    const tip=new THREE.Vector3(1.34,-.36,0).applyMatrix4(inner.matrix).sub(inner.position);
     assert.ok(tip.y<0,"wing tips sweep towards tail, not head");
     assert.ok(i ? tip.x>0 : tip.x<0,"wings open outwards on both sides");
   }
@@ -112,6 +112,19 @@ test("idle is exact, running has stronger gait, and original wings/rockets follo
   assert.equal(leg.rotation.x, 0); assert.equal(avatar.group.getObjectByName("avatar-body").rotation.x, 0);
   assert.equal(avatar.getState().wingsOpen, false); assert.equal(avatar.group.getObjectByName("flame-0").visible, false);
   assert.equal(avatar.group.getObjectByName("wing-inner-0").visible, false);
+  avatar.dispose();
+});
+
+test("reference hindwing keeps its leading edge above its fan-shaped trailing edge on both sides",()=>{
+  const avatar=createBlockAvatar(THREE);avatar.update({animation:"glide",time:0});
+  for(const i of [0,1]) {
+    const membrane=avatar.group.getObjectByName(`wing-membrane-${i}`);
+    const vertices=membrane.geometry.attributes.position;
+    let minY=0,maxY=-Infinity,maxX=0;
+    for(let n=0;n<vertices.count;n++) {minY=Math.min(minY,vertices.getY(n));maxY=Math.max(maxY,vertices.getY(n));maxX=Math.max(maxX,vertices.getX(n));}
+    assert.ok(maxY<=.00001&&minY<-.6&&maxX>1.3,"all of the broad fan trails below the root");
+    assert.equal(membrane.parent.rotation.z,0,"only left/right reflection, no upside-down rotation");
+  }
   avatar.dispose();
 });
 

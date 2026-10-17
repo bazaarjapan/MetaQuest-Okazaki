@@ -75,16 +75,21 @@ export function createBlockAvatar(THREE, { color = 0x367fab, identity = null } =
   const shellMaterial = material(0x285b45, "wing-shell");
   shellMaterial.roughness = .3; shellMaterial.metalness = .25;
   const shape = new THREE.Shape(); shape.moveTo(0, 0);
-  shape.bezierCurveTo(.24, .04, .58, -.24, .47, -.57);
-  shape.bezierCurveTo(.38, -.88, .18, -1.08, .07, -.94);
-  shape.bezierCurveTo(-.05, -.69, -.06, -.22, 0, 0);
+  // Draw the OPEN right hindwing directly: a firm upper leading edge,
+  // broad/scalloped lower trailing edge, and veins fanning out from the root.
+  // Mirroring X alone preserves the reference's top/bottom on BOTH sides.
+  shape.bezierCurveTo(.38, -.01, .95, -.07, 1.34, -.36);
+  shape.bezierCurveTo(1.18, -.31, 1.13, -.43, 1.10, -.50);
+  shape.bezierCurveTo(.91, -.44, .91, -.61, .76, -.62);
+  shape.bezierCurveTo(.57, -.53, .46, -.66, .31, -.55);
+  shape.bezierCurveTo(.13, -.40, .04, -.21, 0, 0);
   const membraneGeometry = new THREE.ShapeGeometry(shape, 8); geometries.add(membraneGeometry);
   const membraneMaterial = material(0xe7c992, "wing-membrane");
   membraneMaterial.side = THREE.DoubleSide; membraneMaterial.transparent = true;
   membraneMaterial.opacity = .58; membraneMaterial.depthWrite = false;
-  const veinPoints = [[0,0,.008],[.10,-.90,.008], [0,0,.008],[.42,-.53,.008],
-    [.04,-.30,.008],[.46,-.33,.008], [.07,-.57,.008],[.31,-.77,.008],
-    [.20,-.25,.008],[.30,-.77,.008]];
+  const veinPoints = [[0,0,.008],[1.30,-.35,.008], [0,0,.008],[1.08,-.48,.008],
+    [0,0,.008],[.76,-.60,.008], [0,0,.008],[.33,-.53,.008],
+    [.35,-.12,.008],[.75,-.27,.008], [.75,-.27,.008],[1.08,-.48,.008]];
   const veinGeometry = new THREE.BufferGeometry().setFromPoints(veinPoints.map(p => new THREE.Vector3(...p)));
   geometries.add(veinGeometry);
   const veinMaterial = new THREE.LineBasicMaterial({color:0x8f764c}); materials.set("wing-veins",veinMaterial);
@@ -149,9 +154,9 @@ export function createBlockAvatar(THREE, { color = 0x367fab, identity = null } =
       hinge.rotation.z = airborne ? sign * .65 : 0;
       hinge.rotation.y = airborne ? sign * -.4 : 0;
       inner.visible = airborne;
-      inner.scale.y = airborne ? 1.5 : 1;
-      // Sweep tips towards the feet/tail, not forward over the head.
-      inner.rotation.z = sign * 1.12;
+      // The fan outline already opens outwards and aft; no 90-degree rotation
+      // that would invert the leading/trailing edges from the supplied photo.
+      inner.rotation.z = 0;
       inner.rotation.y = sign * (Number.isFinite(time) ? Math.sin(time * 22) * .08 : 0);
     });
     for (const flame of flames) flame.visible = motion === "boost";
