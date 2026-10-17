@@ -1,10 +1,22 @@
 import * as THREE from "three";
 
 export const hotbarSlot = code => /^Digit[0-9]$/.test(code) ? (Number(code.at(-1)) + 9) % 10 : -1;
-export const retrievalHoldMs = 700;
 const typing = target => target?.matches?.("input,textarea,select,[contenteditable=true]");
 
-export function createHotbar({ workshop, client, camera, canvas, scene, getEnvironment, getObstacles = () => [], isXR, menu }) {
+// Normalize wheels and trackpads, preserve proportions, and stay within the
+// workshop/server transform limits. Ctrl/Meta wheel belongs to browser zoom.
+export function placementScaleFactor(event, scale) {
+  if (event.ctrlKey || event.metaKey || event.altKey || !Number.isFinite(event.deltaY) ||
+    ![0,1,2].includes(event.deltaMode ?? 0) || !Array.isArray(scale) || scale.length!==3 ||
+    !scale.every(value=>Number.isFinite(value) && value>0) || event.deltaY===0) return 1;
+  const pixels=event.deltaY * ([1,16,800][event.deltaMode ?? 0]);
+  const desired=Math.exp(-Math.max(-240,Math.min(240,pixels))*Math.log(1.1)/100);
+  const lower=1e-6/Math.min(...scale),upper=100/Math.max(...scale);
+  if(lower>upper || (lower>1 && desired<=1) || (upper<1 && desired>=1)) return 1;
+  return Math.max(lower,Math.min(upper,desired));
+}
+
+export function createHotbar({ workshop, client, camera, canvas, scene, getEnvironment, getObstacles = () => [], isXR, isXRPending = () => false, menu, isLooking = () => false, isCreative = () => true }) {
   const root = document.createElement("div"); root.id = "stl-hotbar"; root.setAttribute("aria-label", "自分のSTL 10枠");
   const hint = document.createElement("div"); hint.id = "hotbar-hint"; hint.setAttribute("role", "status");
   const crosshair = document.createElement("div"); crosshair.id = "placement-crosshair"; crosshair.textContent = "+";
@@ -17,18 +29,39 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
   const slots = [], ray = new THREE.Raycaster(), pointer = new THREE.Vector2();
   const footprint = new THREE.Mesh(new THREE.PlaneGeometry(1,1,4,4), new THREE.MeshBasicMaterial({ color: "#32cda5", transparent: true, opacity: .35, side: THREE.DoubleSide, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
   footprint.name = "placement-footprint"; footprint.visible = false; scene.add(footprint);
-  let active = -1, pending = false, aiming = false, hold = null, lastPreview = -Infinity, previousIdentity = null;
-  let pointerKnown = false, previousLock = false, renderSignature = "";
+  let active = -1, pending = false, aiming = false, lastPreview = -Infinity, previousIdentity = null;
+  let pointerKnown = false, renderSignature = "", queuedWheel = null;
   const currentState = () => workshop.getState();
   const locked = () => document.pointerLockElement === canvas;
-  const blocked = () => isXR() || document.hidden || menu.getState().open || Boolean(document.querySelector("dialog[open]"));
+  const blocked = () => isXR() || isXRPending() || document.hidden || menu.getState().open || Boolean(document.querySelector("dialog[open]")) || currentState().picking;
+  const draftToken = state => `${state.userId}:${state.worldId}:${state.current?.id}`;
   function report(text) { if (hint.textContent !== text) hint.textContent = text; }
   function cast(event) {
     if (!locked()) {
-      if (event) { const rect = canvas.getBoundingClientRect(); pointer.set((event.clientX-rect.left)/rect.width*2-1, -(event.clientY-rect.top)/rect.height*2+1); pointerKnown = true; }
+      if (event) {
+        const rect = canvas.getBoundingClientRect();
+        if (![event.clientX,event.clientY].every(Number.isFinite) || rect.width<=0 || rect.height<=0 ||
+          event.clientX<rect.left || event.clientX>rect.left+rect.width || event.clientY<rect.top || event.clientY>rect.top+rect.height) return false;
+        pointer.set((event.clientX-rect.left)/rect.width*2-1, -(event.clientY-rect.top)/rect.height*2+1); pointerKnown = true;
+      }
       if (!pointerKnown) return false;
     } else pointer.set(0,0);
     camera.updateWorldMatrix(true,false); ray.setFromCamera(pointer,camera); ray.far = 600; return true;
+  }
+  function groundHit(event) {
+    if (!cast(event)) return null;
+    const hit = ray.intersectObjects(getEnvironment().terrainMeshes ?? [],false)[0];
+    const obstacle = ray.intersectObjects([...getObstacles(), ...workshop.group.children.filter(mesh=>!mesh.userData.isDraft)], false)[0];
+    return hit && (!obstacle || obstacle.distance >= hit.distance-.05) ? hit : null;
+  }
+  function pointerContext() {
+    const state = currentState();
+    if (!aiming || !state.current || state.current.committed || !state.canEdit) return null;
+    const token = draftToken(state);
+    if (pending || state.busy || blocked()) return {mode:"blocked",token};
+    // Gesture routing depends on the button, not terrain. Do not raycast the
+    // entire city on every look event; place() validates the actual hit afresh.
+    return {mode:"place",token};
   }
   function ownHit(event) {
     if (!cast(event)) return null;
@@ -46,16 +79,16 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
     if (pending || blocked()) return;
     const state = currentState();
     if (!state.canEdit) { loginButton.click(); return; }
-    active = index; hold = null;
+    active = index; queuedWheel=null;
     const asset = state.ownAssets[index];
     if (!asset) { document.exitPointerLock?.(); file.click(); render(); return; }
     const placed = state.objects.find(item => item.assetId === asset.id && item.committed);
     if (placed) {
       workshop.cancelDraft(); aiming = false; footprint.visible = false;
-      report("設置済みです。作品をねらって右クリックを長押しすると回収できます。"); render(); return;
+      report("設置済みです。自分の作品をねらってRを押すと回収できます。"); render(); return;
     }
     pending = true;
-    try { aiming = await workshop.useAsset(asset.id); lastPreview = -Infinity; }
+    try { aiming = await workshop.useAsset(asset.id); lastPreview = -Infinity; if(aiming) document.exitPointerLock?.(); }
     finally { pending = false; render(); }
   }
   for (let index=0; index<10; index++) {
@@ -70,6 +103,7 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
       await workshop.importFiles(files);
       const state = currentState(); active = state.ownAssets.findIndex(asset => asset.id === state.current?.assetId);
       aiming = Boolean(state.current && !state.current.committed); lastPreview = -Infinity;
+      if(aiming) document.exitPointerLock?.();
       report(state.message);
     } finally { pending = false; render(); }
   };
@@ -90,14 +124,18 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
     });
   }
   function preview(event) {
+    const state=currentState(), wheel=queuedWheel; queuedWheel=null;
+    const scaleFactor=wheel && wheel.token===draftToken(state) && wheel.baseScale===JSON.stringify(state.current?.scale) ? wheel.factor : 1;
     footprint.visible = false;
-    if (!aiming || pending || blocked() || !currentState().canEdit || !cast(event)) return false;
-    const hit = ray.intersectObjects(getEnvironment().terrainMeshes ?? [],false)[0];
-    const obstacle = ray.intersectObjects([...getObstacles(), ...workshop.group.children.filter(mesh=>!mesh.userData.isDraft)], false)[0];
+    if (canvas.style) canvas.style.cursor = "";
+    if (!aiming || pending || state.busy || blocked() || !state.canEdit) return false;
+    const hit = isLooking() ? null : groundHit(event ?? wheel?.event);
     const draftMesh = workshop.group.children.find(mesh=>mesh.userData.isDraft);
-    if (!hit || (obstacle && obstacle.distance < hit.distance - .05)) { if (draftMesh) draftMesh.visible = false; report("建物のない駅周辺の地面をねらってください（建物の奥や空には置けません）。"); return false; }
+    if (!hit) { if(scaleFactor!==1 && !isLooking()) workshop.adjustSelected({scaleFactor}); if (draftMesh) draftMesh.visible = false; if(canvas.style)canvas.style.cursor=isLooking()?"grabbing":"crosshair"; report("右ドラッグ：見回す · ホイール：サイズ · 地面をねらって左クリック：設置"); return false; }
+    if(canvas.style) canvas.style.cursor="crosshair";
     if (draftMesh) draftMesh.visible = true;
-    const result = workshop.moveSelected(hit.point.toArray());
+    const result = scaleFactor===1 ? workshop.moveSelected(hit.point.toArray()) :
+      workshop.adjustSelected({scaleFactor,position:hit.point.toArray()});
     if (draftMesh) {
       // Full-size translucent ghost is distinct from the solid hand-held copy.
       draftMesh.material.opacity = .22;
@@ -115,12 +153,14 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
       positions.needsUpdate = true; footprint.geometry.computeBoundingSphere();
       footprint.material.color.set(result.valid ? "#32cda5" : "#f25353"); footprint.visible = complete;
     }
-    report(result.valid ? "左クリック：ここに置く · 右長押し：回収 · 1〜0：選択 · Esc：メニュー" : currentState().message);
+    const size = draftMesh ? new THREE.Box3().setFromObject(draftMesh).getSize(new THREE.Vector3()) : null;
+    const dimensions = size ? `幅${size.x.toFixed(1)} × 高さ${size.y.toFixed(1)} × 奥行${size.z.toFixed(1)}m · ` : "";
+    report(dimensions + (result.valid ? "左クリック：置く · ホイール：サイズ · 右ドラッグ：見回す · R：回収" : currentState().message));
     return result.valid;
   }
   async function place(event) {
     if (blocked() || !currentState().canEdit || !aiming || pending || !preview(event)) return;
-    pending = true; hold = null;
+    pending = true;
     try { if (await workshop.commitSelected()) { aiming = false; footprint.visible = false; } report(currentState().message); }
     finally { pending = false; render(); }
   }
@@ -129,55 +169,64 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
     if (blocked() || pending || event.pointerType === "touch" || !currentState().canEdit) return;
     // A click closing an open menu is blocked above. If pointer lock is denied,
     // ordinary cursor aiming/placement remains available instead of a dead end.
-    if (event.button===0) void place(event);
-    if (event.button===2) { event.preventDefault(); const item=ownHit(event); hold=item ? { id:item.id, assetId:item.assetId, started:performance.now() } : null; }
+    if (event.button===0 && !isLooking()) void place(event);
   });
-  const cancelHold = () => { if (hold) report("回収を取り消しました。回収するときは自分の作品を狙って押し続けます。"); hold=null; };
-  window.addEventListener("pointerup",cancelHold); window.addEventListener("blur",cancelHold);
-  canvas.addEventListener("pointercancel", cancelHold);
+  canvas.addEventListener("wheel", event => {
+    const state=currentState();
+    if (blocked() || pending || state.busy || state.picking || !aiming || !state.canEdit ||
+      !state.current || state.current.committed || !state.current.editable || isLooking()) return;
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
+    // Capture before OrbitControls: a held STL changes size, never camera zoom.
+    event.preventDefault(); event.stopImmediatePropagation();
+    const token=draftToken(state),baseScale=JSON.stringify(state.current.scale);
+    const previous=queuedWheel?.token===token && queuedWheel.baseScale===baseScale ? queuedWheel.factor : 1;
+    const factor=previous*placementScaleFactor(event,state.current.scale.map(value=>value*previous));
+    queuedWheel={token,baseScale,factor,event:{clientX:event.clientX,clientY:event.clientY}};
+  }, {passive:false,capture:true});
+  const forgetPointer=()=>{queuedWheel=null;pointerKnown=false;footprint.visible=false;if(canvas.style)canvas.style.cursor="";};
+  window.addEventListener("blur",forgetPointer);
+  document.addEventListener("visibilitychange",()=>{if(document.hidden)forgetPointer();});
+  canvas.addEventListener("pointercancel",forgetPointer);
   canvas.addEventListener("pointerleave", () => {
-    if (!locked()) { pointerKnown = false; footprint.visible = false; cancelHold(); }
+    if (!locked()) forgetPointer();
   });
   canvas.addEventListener("contextmenu", event=>event.preventDefault());
   window.addEventListener("keydown",event=>{
     if (typing(event.target) || event.repeat || event.ctrlKey || event.metaKey || event.altKey || blocked()) return;
+    if (event.code==="KeyR") { if(isCreative() && currentState().canEdit) { event.preventDefault(); void retrieve(); } return; }
     const index=hotbarSlot(event.code); if (index<0) return;
     event.preventDefault(); void select(index);
   });
+  async function retrieve() {
+    if (pending || blocked() || isLooking() || !currentState().canEdit || currentState().busy) return;
+    const target=ownHit();
+    if (!target) { report("自分が置いた作品をねらってRを押してください。"); return; }
+    pending=true; aiming=false; footprint.visible=false;
+    try {
+      workshop.selectObject(target.id);
+      const ok=await workshop.removeSelected();
+      if(ok) active=currentState().ownAssets.findIndex(asset=>asset.id===target.assetId);
+      report(ok ? "ホットバーに戻しました。同じ枠を選ぶと置き直せます。" : currentState().message);
+    } finally {pending=false;render();}
+  }
   function update(time) {
     const xr = isXR();
     root.hidden = hint.hidden = crosshair.hidden = menuButton.hidden = loginButton.hidden = xr;
     // The PC UI is absent in VR. Avoid cloning classroom/geometry snapshots on
     // every headset frame and leave the draft under the VR workshop's control.
-    if (xr) { aiming = false; hold = null; footprint.visible = false; return; }
+    if (xr) { queuedWheel=null; aiming = false; footprint.visible = false; return; }
     const state = currentState(), identity = `${state.userId}:${state.worldId}:${state.canEdit}`;
     if (aiming && !pending && (!state.current || state.current.committed)) aiming=false;
-    if (identity !== previousIdentity) { previousIdentity=identity; active=-1; aiming=false; hold=null; footprint.visible=false; renderSignature=""; }
+    if (identity !== previousIdentity) { queuedWheel=null; previousIdentity=identity; active=-1; aiming=false; footprint.visible=false; renderSignature=""; }
     render();
     if (blocked() || !state.canEdit) {
-      footprint.visible=false; hold=null;
+      queuedWheel=null; footprint.visible=false; if(canvas.style && !state.picking)canvas.style.cursor="";
       const mesh=workshop.group.children.find(mesh=>mesh.userData.isDraft); if(mesh && aiming) mesh.visible=false;
       return;
     }
-    if (previousLock && !locked()) hold=null; previousLock=locked();
-    if (hold && !pending) {
-      const item=ownHit();
-      if (item?.id!==hold.id) hold=null;
-      else {
-        const progress=Math.min(1,(performance.now()-hold.started)/retrievalHoldMs);
-        report(`回収中 ${Math.round(progress*100)}%（右クリックを押したまま）`);
-        if (progress===1) {
-          const target=hold; hold=null; pending=true; aiming=false; footprint.visible=false;
-          workshop.selectObject(target.id);
-          void workshop.removeSelected().then(ok=>{
-            if(ok) active=currentState().ownAssets.findIndex(asset=>asset.id===target.assetId);
-            report(ok ? "ホットバーに戻しました。同じ枠を選ぶと置き直せます。" : currentState().message);
-          }).finally(()=>{pending=false;render();});
-        }
-      }
-    } else if (time-lastPreview>=120) { lastPreview=time; preview(); }
-    if (!aiming && !pending && !hold) footprint.visible=false;
+    if (queuedWheel || time-lastPreview>=120) { lastPreview=time; preview(); }
+    if (!aiming && !pending) footprint.visible=false;
   }
-  report("1〜0 / 枠をクリック：STLを選択 · 左クリック：置く · 右長押し：回収 · Esc：メニュー");
-  return { update, place, getState:()=>({active,aiming,pending,footprintVisible:footprint.visible,hold:hold?.id??null}) };
+  report("1〜0：STL選択 · 左クリック：置く · 右ドラッグ：見回す · ホイール：サイズ · R：回収 · Esc：メニュー");
+  return { update, place, pointerContext, getState:()=>({active,aiming,pending,footprintVisible:footprint.visible}) };
 }

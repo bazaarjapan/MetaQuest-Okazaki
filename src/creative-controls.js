@@ -47,7 +47,8 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
   domElement, getControls = () => null, avatar = null, constrainPosition = null,
   groundHeight = () => null, cameraObstacles = () => [], documentTarget = globalThis.document,
   windowTarget = globalThis.window, initialView = "back", now = () => globalThis.performance?.now?.() ?? Date.now(),
-  onChange = () => {}, onFlightClick = () => {} } = {}) {
+  onChange = () => {}, onFlightClick = () => {}, getPointerContext = () => null,
+  onPointerActivate = () => {} } = {}) {
   if (!camera?.isCamera) throw new TypeError("Creative controls require a Three.js camera");
   const anchor = new THREE.Vector3();
   const orientation = new THREE.Quaternion();
@@ -256,38 +257,50 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
       pitch - Math.max(-1000, Math.min(1000, y)) * creativeConfig.mouseSensitivity));
     roll = 0; renderView();
   }
-  function stopMouseDrag() {
+  function stopMouseDrag({preserveClick=false} = {}) {
+    if (!preserveClick) suppressPointerClick=false;
     const pointerId = mouseDrag?.id; mouseDrag = null;
     if (pointerId !== undefined) {
       try { domElement?.releasePointerCapture?.(pointerId); } catch { /* Already released. */ }
     }
   }
   function flightMouseDown(event) {
-    if (event.pointerType !== "mouse" || event.button !== 0 || !active() || !wingFlight || locked() || inputBlocked(event)) return;
+    if (event.pointerType !== "mouse" || ![0,2].includes(event.button) || disposed || mode!=="creative" || xr || suspendedXR || locked() || mouseDrag) return;
+    const context = getPointerContext(event);
+    if(context?.mode==="blocked") return;
+    if(event.button===0 && !context) return;
+    onPointerActivate(event);
+    if(!active() || inputBlocked(event)) return;
     if (![event.clientX,event.clientY].every(Number.isFinite)) return;
-    mouseDrag = {id:event.pointerId,x:event.clientX,y:event.clientY,startX:event.clientX,startY:event.clientY,dragged:false}; suppressPointerClick = true;
+    mouseDrag = {id:event.pointerId,x:event.clientX,y:event.clientY,startX:event.clientX,startY:event.clientY,dragged:false,
+      intent:event.button===2 ? "look" : "place",token:context?.token,button:event.button};
+    // Right-button gestures produce contextmenu, not click. Do not swallow the next left click.
+    suppressPointerClick = event.button===0;
     try { domElement.setPointerCapture?.(event.pointerId); } catch { /* Window-up fallback below. */ }
     // In capture phase: a steering gesture must not also place the held STL.
     event.preventDefault?.(); event.stopImmediatePropagation?.();
   }
   function flightMouseMove(event) {
     if (!mouseDrag || event.pointerId !== mouseDrag.id) return;
-    if (!active() || !wingFlight || locked() || inputBlocked(event) || (event.buttons & 1) === 0) { stopMouseDrag(); return; }
+    const context = getPointerContext(event);
+    if (!active() || context?.mode==="blocked" || context?.token!==mouseDrag.token || locked() || inputBlocked(event) || (event.buttons & (mouseDrag.button===2 ? 2 : 1)) === 0) { stopMouseDrag(); return; }
     if (![event.clientX,event.clientY].every(Number.isFinite)) return;
     if (!mouseDrag.dragged) {
       if (Math.hypot(event.clientX-mouseDrag.startX,event.clientY-mouseDrag.startY) <= 5) return;
       mouseDrag.dragged = true;
     }
-    rotateMouse(event.clientX-mouseDrag.x,event.clientY-mouseDrag.y);
+    if(mouseDrag.intent!=="place") rotateMouse(event.clientX-mouseDrag.x,event.clientY-mouseDrag.y);
     mouseDrag.x=event.clientX; mouseDrag.y=event.clientY; event.preventDefault?.();
   }
   function flightMouseUp(event) {
     if (!mouseDrag || event.pointerId !== mouseDrag.id) return;
+    const context = getPointerContext(event);
     const click = !mouseDrag.dragged && event.button === 0 &&
       [event.clientX,event.clientY].every(Number.isFinite) &&
       Math.hypot(event.clientX-mouseDrag.startX,event.clientY-mouseDrag.startY) <= 5 &&
-      active() && wingFlight && !locked() && !inputBlocked(event);
-    stopMouseDrag();
+      active() && !locked() && !inputBlocked(event) &&
+      mouseDrag.intent==="place" && context?.mode==="place" && context.token===mouseDrag.token;
+    stopMouseDrag({preserveClick:true});
     if (click) onFlightClick(event);
   }
   const canTouchLook = (event) => !disposed && mode === "creative" && !enabled &&
@@ -319,6 +332,7 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
   async function requestPointer(event) {
     // Do not request unsupported pointer lock on the click ending a flight drag.
     if (suppressPointerClick) { suppressPointerClick = false; return; }
+    if (getPointerContext(event)) return; // Holding an STL needs a visible cursor, not pointer lock.
     if (!active() || inputBlocked(event) || locked() || typeof domElement?.requestPointerLock !== "function") return;
     try {
       await domElement.requestPointerLock(); pointerError = null;
@@ -439,7 +453,7 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
   function getState() {
     return { mode, viewMode, anchor: anchor.toArray(), eye: eyePosition().toArray(),
       yaw, pitch, flying, wingFlight, wingSpeed, fastClimb, animation, enabled, blocked, xr, suspendedXR, moving,
-      pointerLocked: locked(), mouseSteering: Boolean(mouseDrag), pointerError, groundAvailable, pressedKeys: [...keys],
+      pointerLocked: locked(), mouseSteering: Boolean(mouseDrag), mouseIntent: mouseDrag?.intent ?? null, pointerError, groundAvailable, pressedKeys: [...keys],
       sprinting: keys.has("ControlLeft") || keys.has("ControlRight") || fastMovementKeys.size > 0, cameraDistance, disposed };
   }
   function dispose() {
@@ -458,7 +472,7 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
   listen(domElement, "pointermove", flightMouseMove);
   listen(windowTarget, "pointerup", flightMouseUp);
   listen(domElement, "pointercancel", stopMouseDrag);
-  listen(domElement, "lostpointercapture", () => { mouseDrag = null; });
+  listen(domElement, "lostpointercapture", () => { if(mouseDrag) stopMouseDrag(); });
   listen(domElement, "pointerdown", touchDown);
   listen(domElement, "pointermove", touchMove);
   for (const type of ["pointerup", "pointercancel", "lostpointercapture"]) {

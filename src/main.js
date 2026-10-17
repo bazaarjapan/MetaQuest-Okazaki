@@ -186,7 +186,9 @@ const workshop = createWorkshop(THREE, { scene, domElement: renderer.domElement,
   onChange: () => { renderer.shadowMap.needsUpdate = true; } });
 const hotbar = createHotbar({ workshop, client: schoolClient, scene, camera, canvas: renderer.domElement,
   getEnvironment: () => placementEnvironment, getObstacles: () => [...city.children, ...regionStreamer.getMeshes()],
-  isXR: () => state.xr, menu: adaptiveUi });
+  isXR: () => state.xr, isXRPending: () => xrEntering || creative?.getState().suspendedXR, menu: adaptiveUi,
+  isLooking: () => creative?.getState().mouseIntent === "look",
+  isCreative: () => creative?.getState().mode === "creative" });
 const ownAvatar = createBlockAvatar(THREE);
 const ownAvatarLabel = createAvatarLabel(THREE, { parent: ownAvatar.group });
 let ownIdentity = null, ownColor = null;
@@ -213,6 +215,12 @@ creative = createCreativeControls(THREE, { camera, rig, domElement: renderer.dom
   cameraObstacles: () => [...city.children, ...regionStreamer.getMeshes()],
   onChange: () => syncAvatarViewButtons(),
   onFlightClick: (event) => { void hotbar.place(event); },
+  getPointerContext: (event) => hotbar.pointerContext(event),
+  onPointerActivate: () => {
+    if (state.xr || xrEntering || workshop.getState().picking || adaptiveUi.getState().open || document.querySelector("dialog[open]")) return;
+    renderer.domElement.focus(); if (!state.free) setFree(true);
+    creative.step(0, {enabled:true,blocked:false,xr:false});
+  },
   constrainPosition: (feet) => constrainCreativeFeet(feet, constrainPosition) });
 $("#control-mode").onchange = (event) => {
   if (state.xr || xrEntering || creative.getState().suspendedXR) { event.target.value = creative.getState().mode; return; }
@@ -229,7 +237,7 @@ function syncAvatarViewButtons() {
   const hint = $("#rocket-hint");
   if (hint) hint.hidden = !state.ready || state.xr || current?.mode !== "creative";
   if (hint && current?.mode === "creative") {
-    const text = current.wingFlight ? `${current.animation === "boost" ? "ロケット推進" : "滑空"} · ${Math.round(current.wingSpeed)}m/s · ${current.pointerLocked ? "マウス" : "左ドラッグ"}：方向 · ${current.fastClimb ? "高速上昇 36m/s" : "Space：上昇 / 2回＋保持：高速上昇"} · Z：加速 · X：停止` :
+    const text = current.wingFlight ? `${current.animation === "boost" ? "ロケット推進" : "滑空"} · ${Math.round(current.wingSpeed)}m/s · ${current.pointerLocked ? "マウス" : "右ドラッグ"}：方向 · ${current.fastClimb ? "高速上昇 36m/s" : "Space：上昇 / 2回＋保持：高速上昇"} · Z：加速 · X：停止` :
       "Z長押し：ロケット · Space：上昇 · X：空中停止 · F5：視点";
     if (hint.textContent !== text) hint.textContent = text;
   }
@@ -1282,7 +1290,7 @@ window.__okazaki = {
     panelVisible: panel.visible && vrFieldPanel.getState().expanded,
     vrPanel: vrFieldPanel.getState(),
     pointers: { left: controllerPointers.left.getState(), right: controllerPointers.right.getState() },
-    version: "1.9.1",
+    version: "1.9.2",
     vrReturn: { buttonVisible: vrReturnButton.getState().visible,
       holdProgress: vrReturnButton.getState().progress, exiting: xrExitPending,
       hasResume: hasVRResume, view: lastXRView ? {
