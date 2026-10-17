@@ -298,10 +298,9 @@ function syncActivityGate() {
   if (!activityAllowed) { controls.enabled = false; ownAvatar.group.visible = false; }
   else if (!previous) {
     controls.enabled = creative.getState().mode === "drone" && !state.xr;
-    setFree(true,{preserveView:true}); void checkVR();
+    setFree(!adaptiveUi.getState().mobile && !document.querySelector('dialog[open]'),{preserveView:true}); void checkVR();
   }
 }
-schoolUI.dialog.addEventListener("close", () => { if (activityAllowed && !state.xr && !xrEntering) setFree(true,{preserveView:true}); });
 function adoptSchoolPose() {
   if (!state.ready || !schoolState.world || schoolState.connection !== "connected" ||
       schoolState.snapshotSeq === lastSchoolSnapshot) return;

@@ -11,3 +11,16 @@ test('fatal activity lock clears authoritative input flag even if XR end rejects
   vm.runInContext(body,context);await Promise.resolve();
   assert.equal(context.activityAllowed,false);assert.equal(context.controls.enabled,false);assert.equal(ended,1);assert.equal(cleared,1);
 });
+
+test('unlocking permits mobile/dialog activity without automatically starting movement',async()=>{
+  const source=await readFile(new URL('../src/main.js',import.meta.url),'utf8');
+  const fn=source.slice(source.indexOf('function syncActivityGate()'),source.indexOf('function adoptSchoolPose()'));
+  for(const [mobile,dialog,expected] of [[true,false,false],[false,true,false],[false,false,true]]) {
+    let movement;
+    const context=vm.createContext({activityAllowed:false,activityGate:{update:()=>true},schoolState:{},state:{ready:true,xr:false},
+      ownAvatar:{group:{}},controls:{},creative:{getState:()=>({mode:'creative'})},adaptiveUi:{getState:()=>({mobile})},
+      document:{querySelector:()=>dialog?{}:null},setFree:value=>{movement=value;},checkVR(){}});
+    vm.runInContext(fn+';syncActivityGate();',context);
+    assert.equal(context.activityAllowed,true);assert.equal(movement,expected,`mobile=${mobile} dialog=${dialog}`);
+  }
+});

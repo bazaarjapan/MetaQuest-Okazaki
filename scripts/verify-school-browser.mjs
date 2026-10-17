@@ -69,7 +69,7 @@ async function browserScript(session, path) {
   const result = typeof rawResult === "string" ? JSON.parse(rawResult) : rawResult;
   assert.equal(result.passed, true, path);
   if (Array.isArray(result.gestureTimings)) timingMetadata.push({test:path,gestures:result.gestureTimings});
-  for (const item of result.results) check(`${path}: ${item.name}`, item.ok);
+  for (const item of result.results ?? Object.entries(result.checks).map(([name,ok])=>({name,ok}))) check(`${path}: ${item.name}`, item.ok);
 }
 async function transform(session, location, rotation = [0.3,0.5,0.2], scale = 0.5) {
   const values = { x: location[0], z: location[2], rx: rotation[0]*180/Math.PI,
@@ -92,30 +92,40 @@ try {
   await browser(guest, "reload"); await wait(guest, "window.__okazaki?.getState().ready");
   check("guest city ready, creative default, no shared avatar or editing", (await state(guest)).creative.mode === "creative" && !(await state(guest)).school.user && !(await state(guest)).workshop.canEdit);
   check("Google script stays lazy during anonymous viewing", await evaluate(guest, "!document.querySelector('script[src*=gsi]')"));
-  await browserScript(guest, "tests/compact-desktop-check.js");
-  await browserScript(guest, "tests/creative-browser-check.js");
-  await click(guest, "#open-workshop");
-  check("guest object entry opens login rather than importer", await evaluate(guest, "document.querySelector('#school-dialog').open && !document.querySelector('#workshop-dialog').open && document.querySelector('#stl-files').disabled"));
+  await browserScript(guest, "tests/activity-gate-browser-check.js");
+  await click(guest, "#login-gate button");
+  check("guest gate opens login rather than importer", await evaluate(guest, "document.querySelector('#school-dialog').open && !document.querySelector('#workshop-dialog').open && document.querySelector('#stl-files').disabled"));
   check("guest private classroom API returns401", await evaluate(guest, "(async()=> (await fetch('/api/worlds')).status)()") === 401);
   await click(guest, "#school-close");
-  await evaluate(guest, "(()=>{localStorage.setItem('okazaki-control-mode-v2','creative');return true})()");
-  await browser(guest, "set", "viewport", "390", "844"); await browser(guest, "reload"); await wait(guest, "window.__okazaki?.getState().ready");
-  check("mobile uses drone without overwriting PC creative preference", (await state(guest)).creative.mode === "drone" && await evaluate(guest, "localStorage.getItem('okazaki-control-mode-v2')") === "creative");
-  await browserScript(guest, "tests/compact-mobile-check.js");
-  await browser(guest, "set", "viewport", "1280", "800"); await browser(guest, "reload"); await wait(guest, "window.__okazaki?.getState().ready");
-  check("wide reload restores PC creative choice", (await state(guest)).creative.mode === "creative");
   await browser(guest, "close");
 
-  await open(teacher); await cookie(teacher, fixtures.teacher); await click(teacher, "#school-button");
+  await open(teacher); await cookie(teacher, fixtures.teacher); await click(teacher, "#login-gate button");
   await browser(teacher, "fill", "#school-world-name", "ブラウザ検証クラス"); await click(teacher, "#school-world-create");
   await wait(teacher, "window.__okazaki.getState().school.connection==='connected'");
   const world = (await state(teacher)).school.world;
   check("teacher creates real D1/DO world and12character invite", world.name === "ブラウザ検証クラス" && world.joinCode.length === 12);
   check("teacher invitation fragment and no query leak", await evaluate(teacher, "document.querySelector('#school-invite-url').value.includes('/#join=')"));
   await browser(teacher, "screenshot", "test-results/school-browser-teacher.png"); await click(teacher, "#school-close");
+  // Interactive suites require an actual named, connected room. Guest input
+  // is intentionally inert; never bypass the gate to run UI checks.
+  await wait(teacher,"window.__okazaki.getState().activityAllowed");
+  await browserScript(teacher, "tests/compact-desktop-check.js");
+  await browserScript(teacher, "tests/creative-browser-check.js");
+  await evaluate(teacher, "(()=>{localStorage.setItem('okazaki-control-mode-v2','creative');return true})()");
+  await browser(teacher,"set","viewport","390","844");
+  await browser(teacher,"reload");await wait(teacher,"window.__okazaki?.getState().ready && window.__okazaki.getState().school.user");
+  await click(teacher,'#login-gate button');await click(teacher,'#school-world-open');
+  await wait(teacher,"window.__okazaki.getState().activityAllowed");await click(teacher,'#school-close');
+  check("mobile named connected fixture starts movement OFF",!(await state(teacher)).free);
+  await browserScript(teacher, "tests/compact-mobile-check.js");
+  await browser(teacher,"set","viewport","1280","800");
+  await browser(teacher,"reload");await wait(teacher,"window.__okazaki?.getState().ready && window.__okazaki.getState().school.user");
+  await click(teacher,'#login-gate button');await click(teacher,'#school-world-open');
+  await wait(teacher,"window.__okazaki.getState().activityAllowed");await click(teacher,'#school-close');
+  check("wide reload restores PC creative choice", (await state(teacher)).creative.mode === "creative");
   await open(student, `${fixtures.origin}/#join=${world.joinCode}`); await cookie(student, fixtures.student);
   check("authenticated invite is not joined automatically", !(await state(student)).school.world && !(await state(student)).workshop.canEdit);
-  await click(student, "#school-button"); check("student invite code prefilled", await evaluate(student, "document.querySelector('#school-join-code').value") === world.joinCode);
+  await click(student, "#login-gate button"); check("student invite code prefilled", await evaluate(student, "document.querySelector('#school-join-code').value") === world.joinCode);
   await click(student, "#school-join"); await wait(student, "window.__okazaki.getState().school.connection==='connected'");
   check("student joins teacher's real world", (await state(student)).school.world.id === world.id);
   await browser(student, "fill", "#school-avatar-name", "検証アバター"); await click(student, "#school-avatar-save");
@@ -142,7 +152,7 @@ try {
   await wait(teacher, "window.__okazaki.getState().school.snapshots.length>0"); check("teacher saves actual D1 checkpoint", (await state(teacher)).school.snapshots.length > 0);
   await click(student, "#workshop-close"); await browser(student, "reload"); await wait(student, "window.__okazaki?.getState().ready && window.__okazaki.getState().school.user");
   check("reload preserves Google-sub based identity/avatar, no auto activity", (await state(student)).school.user.id === fixtures.student.id && (await state(student)).school.user.name === "検証アバター" && !(await state(student)).school.world);
-  await click(student, "#school-button"); await click(student, "#school-world-open"); await wait(student, "window.__okazaki.getState().workshop.committed===2"); await click(student, "#school-close");
+  await click(student, "#login-gate button"); await click(student, "#school-world-open"); await wait(student, "window.__okazaki.getState().workshop.committed===2"); await click(student, "#school-close");
   check("rejoin restores owned assets and objects", (await state(student)).workshop.ownAssets.length === 2 && (await state(student)).school.objects.every(o=>o.ownerId===fixtures.student.id));
   await click(student, "#open-workshop"); await browser(student, "select", "#workshop-list", original[0].id);
   await transform(student, fixtures.cube.groundPositions[2].position, [0,0,0], 0.8); await click(student, "#object-apply"); await wait(student, "window.__okazaki.getState().school.revision>2");
