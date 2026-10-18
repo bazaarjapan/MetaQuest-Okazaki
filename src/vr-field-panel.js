@@ -2,7 +2,6 @@ export const vrFieldPanelLayout = Object.freeze({
   position: Object.freeze([0, 0, -1.8]),
   size: Object.freeze([1.4, 1.12]),
   canvas: Object.freeze([1280, 1024]),
-  compactHeight: 384,
   maxRefreshHz: 15,
 });
 
@@ -35,7 +34,7 @@ export function createVRFieldPanel(THREE, { camera, controllerHud, vrWorkshop,
   mesh.name = "vr-field-note-panel"; mesh.position.fromArray(vrFieldPanelLayout.position);
   mesh.renderOrder = 1001; mesh.frustumCulled = false; mesh.visible = false;
   camera.add(mesh);
-  let tab = "observe", expanded = true, interactive = false, hovered = null;
+  let tab = "observe", expanded = true, xrActive = false, interactive = false, hovered = null;
   let progress = 0, exiting = false, lastKey = "", lastDraw = -Infinity, redraws = 0, disposed = false;
   let lastTime = 0, feedbackGeneration = 0;
   // Reuse these slots for both rays; no spatial resources are allocated per frame.
@@ -71,13 +70,12 @@ export function createVRFieldPanel(THREE, { camera, controllerHud, vrWorkshop,
   }
 
   function returnRect() {
-    return { action: "return", label: "2Dに戻る", x: 40, y: expanded ? 838 : 194,
-      w: 1184, h: 148, enabled: !exiting };
+    return { action: "return", label: "2Dに戻る", x: 40, y: 838,
+      w: 1184, h: 148, enabled: expanded && !exiting };
   }
   function actions() {
+    if (!expanded) return [];
     const view = getViewState(), result = [returnRect()];
-    if (!expanded) return [...result, { action: "expand", label: "パネルを開く", x: 40, y: 94,
-      w: 1184, h: 76, enabled: !exiting }];
     result.push(...tabs.map((entry) => ({ ...entry, enabled: !exiting })));
     if (tab === "observe") result.push(
       ...[["overview", "上空", 40], ["east", "東側", 448], ["west", "西側", 856]]
@@ -113,6 +111,7 @@ export function createVRFieldPanel(THREE, { camera, controllerHud, vrWorkshop,
     const c = canvas.getContext("2d");
     if (!c) return;
     c.clearRect(0, 0, canvas.width, canvas.height);
+    if (!expanded) { texture.needsUpdate = true; return; }
     c.fillStyle = "rgba(8,20,35,.96)"; c.beginPath();
     c.roundRect(2, 2, canvas.width - 4, canvas.height - 4, 28); c.fill();
     c.strokeStyle = "#83cfbf"; c.lineWidth = 3; c.stroke();
@@ -151,7 +150,7 @@ export function createVRFieldPanel(THREE, { camera, controllerHud, vrWorkshop,
           c.fillText(text, 984, 358 + i * 56, 240);
         }
       } else c.drawImage(vrWorkshop.getCanvas(), workshopRect.x, workshopRect.y, workshopRect.w, workshopRect.h);
-    } else drawButton(list.find((entry) => entry.action === "expand"));
+    }
     const exit = returnRect();
     drawButton({ ...exit, label: exiting ? "2Dに戻っています…" : isHovered("return") ?
       "2Dに戻る · トリガーで選択" : "2Dに戻る · Xを1.5秒長押し" });
@@ -175,9 +174,12 @@ export function createVRFieldPanel(THREE, { camera, controllerHud, vrWorkshop,
     texture.needsUpdate = true;
   }
   function changeExpanded(value) {
+    if (disposed) return;
     expanded = Boolean(value);
-    canvas.height = expanded ? vrFieldPanelLayout.canvas[1] : vrFieldPanelLayout.compactHeight;
-    mesh.scale.y = canvas.height / vrFieldPanelLayout.canvas[1];
+    // X hides the entire menu, never resizes it. Keep XR lifecycle separate:
+    // per-frame/progress updates must not make a hidden menu visible again.
+    mesh.visible = xrActive && expanded;
+    if (!mesh.visible) interactive = false;
     clearFeedback(); synchronizeContent(lastTime); draw(lastTime, true);
   }
   function selectTab(value) {
@@ -188,9 +190,9 @@ export function createVRFieldPanel(THREE, { camera, controllerHud, vrWorkshop,
   function actionAt(x, y, { handedness = "right" } = {}) {
     if (disposed || !mesh.visible || !interactive || exiting) return null;
     const entry = actions().find((entry) => within(entry, x, y) && entry.enabled);
-    if (!entry || tab === "workshop" && !["return", "expand", "tab-observe", "tab-region", "tab-workshop"].includes(entry.action) && !isKnownHand(handedness)) return null;
+    if (!entry || tab === "workshop" && !["return", "tab-observe", "tab-region", "tab-workshop"].includes(entry.action) && !isKnownHand(handedness)) return null;
     // Embedded workshop coordinates are validated by its live permission gate.
-    if (tab === "workshop" && !entry.action.startsWith("tab-") && !["return", "expand"].includes(entry.action)) {
+    if (tab === "workshop" && !entry.action.startsWith("tab-") && entry.action !== "return") {
       return vrWorkshop.actionAt((x - workshopRect.x) * vrWorkshop.getCanvas().width / workshopRect.w,
         (y - workshopRect.y) * vrWorkshop.getCanvas().height / workshopRect.h);
     }
@@ -208,7 +210,6 @@ export function createVRFieldPanel(THREE, { camera, controllerHud, vrWorkshop,
     if (disposed || !mesh.visible || !interactive || exiting) return false;
     const entry = actions().find((entry) => entry.action === action && entry.enabled);
     if (!entry) return false;
-    if (action === "expand") { changeExpanded(true); return true; }
     if (action.startsWith("tab-")) {
       const selected = selectTab(entry.tab); if (selected) flash(action, handedness); return selected;
     }
@@ -248,12 +249,13 @@ export function createVRFieldPanel(THREE, { camera, controllerHud, vrWorkshop,
   draw(0, true);
   return { mesh, hit, actionAt, activate, selectTab, setExpanded: changeExpanded,
     toggleExpanded: () => changeExpanded(!expanded), getState, getReturnState,
-    update({ xr = mesh.visible, interactive: nextInteractive = interactive, hovered: nextHover,
+    update({ xr = xrActive, interactive: nextInteractive = interactive, hovered: nextHover,
       hoveredHands: nextHoveredHands,
       progress: nextProgress = progress, exiting: nextExiting = exiting, time = performance.now() } = {}) {
       if (disposed) return;
-      const changed = mesh.visible !== Boolean(xr);
-      mesh.visible = Boolean(xr); interactive = Boolean(mesh.visible && nextInteractive);
+      xrActive = Boolean(xr);
+      const visible = xrActive && expanded, changed = mesh.visible !== visible;
+      mesh.visible = visible; interactive = Boolean(mesh.visible && nextInteractive);
       progress = Number.isFinite(nextProgress) ? Math.max(0, Math.min(1, nextProgress)) : 0;
       exiting = Boolean(nextExiting); lastTime = Number.isFinite(time) ? time : performance.now();
       if (nextHoveredHands !== undefined) {

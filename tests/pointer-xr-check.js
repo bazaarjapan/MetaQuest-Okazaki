@@ -84,9 +84,14 @@
     check(state().vrPanel.hoveredActions.length===0 && !state().free,"blur-clears-highlights-and-stops-movement");
     device.updateVisibilityState("visible"); await pause(200);
     device.controllers.left.updateButtonValue("x-button",1); await pause(200); release("left","x-button");
-    await until(()=>!state().vrPanel.expanded,"X-compact");
+    await until(()=>!state().vrPanel.visible,"X-hidden");
+    check(state().vrPanel.panelCount===0 && state().vrPanel.actions.length===0 && !state().vrReturn.buttonVisible,
+      "hidden-panel-has-no-return-ray-target");
+    await pause(250);
+    device.controllers.left.updateButtonValue("x-button",1); await pause(200); release("left","x-button");
+    await until(()=>state().vrPanel.visible,"X-restores-panel");
     await aim("right","return");
-    check(state().vrPanel.panelCount===1 && state().vrPanel.actionRects.return.enabled,"one-compact-panel-keeps-return-ray-target");
+    check(state().vrPanel.panelCount===1 && state().vrPanel.actionRects.return.enabled,"restored-full-panel-has-clickable-return-ray-target");
     report={passed:true,environment:"Native browser + IWER Quest 3, not physical Quest/haptic/FPS",results};
   } catch (error) { report={passed:false,error:String(error?.message||error),results}; }
   finally {

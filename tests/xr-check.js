@@ -79,8 +79,9 @@
   d.controllers.left.updateAxes("thumbstick", 0, 0);
   await wait(100);
   await button("left", "x-button");
-  assert(!s().panelVisible && s().vrPanel.visible && s().vrReturn.buttonVisible,
-    "X-folds-content-with-central-return-still-visible");
+  assert(!s().panelVisible && !s().vrPanel.visible && !s().vrReturn.buttonVisible &&
+    s().vrPanel.panelCount === 0 && s().vrPanel.actions.length === 0,
+    "X-hides-entire-panel-without-clickable-ghosts");
   await button("left", "x-button");
   assert(s().panelVisible, "X-show-panel");
   const beforeHead = s().head;

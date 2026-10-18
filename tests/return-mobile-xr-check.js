@@ -15,9 +15,9 @@
     left.updateButtonValue("x-button", 1); await wait(250);
     left.updateButtonValue("x-button", 0); await wait(250);
   }
-  assert(!state().panelVisible && !state().vrPanel.expanded && state().vrPanel.visible &&
-    state().vrReturn.buttonVisible && state().vrPanel.actionRects.return?.enabled,
-    "mobile-folded-content-keeps-central-return-action");
+  assert(!state().panelVisible && !state().vrPanel.expanded && !state().vrPanel.visible &&
+    !state().vrReturn.buttonVisible && state().vrPanel.actions.length === 0,
+    "mobile-X-hides-entire-panel-before-emergency-long-hold-exit");
   const origin = performance.timeOrigin;
   left.updateButtonValue("x-button", 1); await until(() => !state().xr);
   left.setButtonValueImmediate("x-button", 0);

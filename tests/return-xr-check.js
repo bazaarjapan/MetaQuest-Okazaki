@@ -116,9 +116,9 @@
       "X-short-press-waits-for-release-before-toggling-guide", state().vrReturn);
     release("left", "x-button");
     await waitUntil(() => state().panelVisible !== shortBefore);
-    assert(state().xr && !state().panelVisible && !state().vrPanel.expanded && state().vrPanel.visible &&
-      state().vrPanel.actionRects.return?.enabled && state().vrReturn.buttonVisible,
-      "X-short-release-folds-content-but-keeps-central-return-visible", state().vrPanel);
+    assert(state().xr && !state().panelVisible && !state().vrPanel.expanded && !state().vrPanel.visible &&
+      state().vrPanel.actions.length === 0 && !state().vrReturn.buttonVisible,
+      "X-short-release-hides-entire-panel-including-return", state().vrPanel);
     await clickButton("left", "x-button");
     assert(state().panelVisible && state().xr, "second-X-short-release-restores-guide");
 
@@ -172,13 +172,14 @@
     assert(beforeLong?.position?.length === 3 && beforeLong?.quaternion?.length === 4 &&
       distance(beforeLong.position, [195, 76, 105]) > 10,
       "current-world-eye-pose-is-captured-away-from-start-view", beforeLong);
+    if (state().panelVisible) await clickButton("left", "x-button");
     const guideBeforeLong = state().panelVisible;
     const holdStartedAt = performance.now();
     device.controllers.left.updateButtonValue("x-button", 1);
     await waitUntil(() => state().vrReturn.holdProgress > 0.1 || !state().xr);
-    assert(state().xr && state().panelVisible === guideBeforeLong && state().vrReturn.buttonVisible &&
+    assert(state().xr && state().panelVisible === guideBeforeLong && !state().vrReturn.buttonVisible &&
       state().vrReturn.holdProgress > 0 && state().vrReturn.holdProgress < 1,
-      "X-long-hold-shows-progress-without-premature-guide-toggle-or-exit", state().vrReturn);
+      "hidden-menu-long-hold-tracks-progress-without-reshowing-panel-or-premature-exit", state().vrReturn);
     await waitUntil(() => !state().xr);
     const exitElapsedMs = performance.now() - holdStartedAt;
     release("left", "x-button");
@@ -204,8 +205,11 @@
       "resumed-location-remains-nonstarting-and-stationary-without-page-reload", resumed.vrReturn);
 
     if (state().panelVisible) await clickButton("left", "x-button");
-    assert(!state().panelVisible && state().vrPanel.visible && state().vrPanel.actionRects.return?.enabled && state().vrReturn.buttonVisible,
-      "central-return-still-available-with-content-folded-on-resume", state().vrPanel);
+    assert(!state().panelVisible && !state().vrPanel.visible && !state().vrReturn.buttonVisible,
+      "resumed-menu-can-be-fully-hidden", state().vrPanel);
+    await clickButton("left", "x-button");
+    assert(state().panelVisible && state().vrPanel.visible && state().vrPanel.actionRects.return?.enabled,
+      "second-short-X-restores-central-return-after-resume", state().vrPanel);
     const beforeTrigger = state().vrReturn.view;
     await pointReturn();
     device.controllers.right.updateButtonValue("trigger", 1);
@@ -213,7 +217,7 @@
     release("right", "trigger");
     await wait(450);
     assert(!state().xr && state().vrReturn.hasResume && !state().vrReturn.buttonVisible,
-      "controller-trigger-can-return-to-2D-with-guide-hidden", state().vrReturn);
+      "controller-trigger-can-return-to-2D-after-menu-is-restored", state().vrReturn);
     assert(poseMatches(state().camera, state().cameraQuaternion, beforeTrigger) && pageUnchanged(),
       "trigger-return-also-preserves-eye-pose-and-page", { before: beforeTrigger, position: state().camera, quaternion: state().cameraQuaternion });
 
@@ -239,7 +243,7 @@
         `tilted-cycle-${cycle}-VR-reentry-has-no-accumulated-eye-pose-drift`, { baseline: cycleBaseline, view: cycleView });
 
       if (cycle === 1) {
-        if (state().panelVisible) await clickButton("left", "x-button");
+        if (!state().panelVisible) await clickButton("left", "x-button");
         await pointReturn();
         device.controllers.right.updateButtonValue("trigger", 1);
         await waitUntil(() => !state().xr);

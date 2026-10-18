@@ -88,10 +88,11 @@
       "guest-workshop-buttons-remain-disabled");
     const tab = state().vrPanel.tab;
     await button("left", "x-button");
-    check(!state().panelVisible && !state().vrPanel.expanded && onePanel() && state().vrPanel.actionRects.return.enabled,
-      "short-X-folds-same-panel-and-keeps-centered-exit");
-    await point("left", "expand", () => state().vrPanel.expanded);
-    check(state().panelVisible && state().vrPanel.tab === tab && onePanel(), "left-trigger-expands-folded-workshop-without-extra-panels");
+    check(!state().panelVisible && !state().vrPanel.visible && state().vrPanel.panelCount === 0 &&
+      state().vrPanel.actions.length === 0 && !state().vrReturn.buttonVisible,
+      "short-X-hides-entire-panel-and-all-ray-targets");
+    await button("left", "x-button");
+    check(state().panelVisible && state().vrPanel.tab === tab && onePanel(), "second-X-restores-same-workshop-without-extra-panels");
     await point("right", "tab-observe", () => state().vrPanel.tab === "observe");
     check(onePanel() && state().hud.hands.left.embeddedVisible && state().hud.hands.right.embeddedVisible,
       "observation-tab-restores-both-embedded-controllers");
