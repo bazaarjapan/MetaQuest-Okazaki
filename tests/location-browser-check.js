@@ -37,7 +37,7 @@
   const rect = hud.getBoundingClientRect();
   const overlap = other => { const r = other.getBoundingClientRect();
     return r.width > 0 && r.height > 0 && r.left < rect.right && r.right > rect.left && r.top < rect.bottom && r.bottom > rect.top; };
-  check(['#simple-menu','#simple-login','.map-label','#north','#status'].every(s => !overlap(document.querySelector(s))), 'top-HUD-no-overlap');
+  check(['#simple-menu','#simple-login','.map-label','#north','#status','#rocket-hint'].every(s => !overlap(document.querySelector(s))), 'top-HUD-no-overlap');
   check(rect.left >= 0 && rect.right <= innerWidth && rect.top >= 0 && rect.bottom < innerHeight/2, 'HUD-fits-upper-screen');
   return { passed: true, results, text: state().location.text };
 })();
