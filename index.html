@@ -71,13 +71,14 @@
         <div id="movement-controls" class="movement-controls" data-free="false">
           <label for="control-mode">移動・視点の操作</label>
           <select id="control-mode" disabled><option value="creative" selected>クリエイティブ風（PC・初期設定）</option><option value="drone">ドローン・見学（従来の操作）</option></select>
+          <p id="device-control-note" class="movement-note" hidden>Questを検出：ドローン・モード2で開始します。VR中は左スティック＝昇降・旋回、右＝前後・左右。2D画面の「全画面」と、視界いっぱいのVR表示は別です。狭い画面では「設定」タブから「QuestでVRを見る」を押してください。</p>
           <button id="avatar-view" type="button" disabled>視点：一人称</button>
           <div class="move-setting">
             <label><input id="free-move" type="checkbox" disabled aria-describedby="creative-help move-help" /><span>自由移動 <strong id="free-move-state" class="movement-state">OFF</strong><small><span class="desktop-copy">PCは初期ON・キーを離すと停止</span><span class="mobile-copy">指を離すと停止・Questはモード2</span></small></span></label>
             <p id="move-help" hidden><span class="desktop-copy">WASD：前後左右 / R・F：上下 / Q・E：旋回。</span><span class="mobile-copy">左：上下・旋回 / 右：前後・左右。指を離すと停止。</span></p>
           </div>
           <p id="creative-help" hidden>WASD：移動 / Space：上昇 / Shift：下降 / F5：視点。Z長押し：ロケット離陸・加速、離すと滑空 / X：空中停止。画面クリックで見回す・Escで停止。</p>
-          <p class="movement-note">最初は三人称・後方視点。ログイン・名前登録後に自分のアバターで探索できます。選んだ未配置STLは手元に表示します。視点ボタンで一人称・三人称を切替。スマホは左：上下・旋回／右：前後・左右。QuestのVRは一人称です。VR入退場・地点切替・ダイアログ操作では移動OFF。</p>
+          <p class="movement-note">PC・スマホのクリエイティブ風は最初、三人称・後方視点。ログイン・名前登録後に自分のアバターで探索できます。選んだ未配置STLは手元に表示します。視点ボタンで一人称・三人称を切替。スマホは左：上下・旋回／右：前後・左右。Questはモード2で開始し、VRは一人称です。VR入退場・地点切替・ダイアログ操作では移動OFF。</p>
         </div>
         <p class="panel-caption">JR岡崎駅から、街のつながりを観察。</p>
         <p id="school-summary" class="panel-caption" role="status">ログイン後に移動・VR・作品配置を使えます。「ログイン・教室」から入ってください。</p>
@@ -105,7 +106,7 @@
           <h2 id="question">線路は街をどのように分けている？</h2>
           <p id="question-detail">線路を越えて東西を行き来できる場所を探してみよう。</p>
         </section>
-        <p class="panel-caption desktop-copy">操作モードと自由移動は、この「見学」タブで切り替えます。初期はクリエイティブ風・移動ONです。</p>
+        <p class="panel-caption desktop-copy">操作モードと自由移動は、この「見学」タブで切り替えます。PCの初期はクリエイティブ風、Questはモード2です。接続後に画面クリック、VRはBボタンで移動を開始します。</p>
         <p class="panel-caption mobile-copy">1本指で回転・2本指で拡大。「移動」をオンにすると左右の仮想スティックで飛べます。</p>
         </section>
         <section id="panel-region" role="tabpanel" class="region-setting" aria-labelledby="tab-region" hidden>
@@ -180,7 +181,7 @@
           rel="noopener"
           >国土地理院</a
         >・<a href="https://github.com/gsi-cyberjapan/optimal_bvmap" target="_blank" rel="noopener">国土地理院最適化ベクトルタイル（加工）</a>　広域標高はライブ取得</span
-      ><span>MVP 1.10.2 · 生徒はIDログイン · 先生はGoogle · 共通ワールド</span>
+      ><span>MVP 1.10.3 · 生徒はIDログイン · 先生はGoogle · 共通ワールド</span>
     </footer>
     <dialog id="workshop-dialog" aria-labelledby="workshop-title">
       <button id="workshop-close" class="dialog-close">閉じる ×</button>

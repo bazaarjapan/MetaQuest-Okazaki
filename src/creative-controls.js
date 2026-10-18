@@ -11,17 +11,24 @@ export function sampleGroundFootprint(sample,x,z,radius=.28) {
     .map(([dx,dz])=>sample(x+dx,z+dz)).filter(value=>typeof value==='number'&&Number.isFinite(value));
   return heights.length?Math.max(...heights)+.025:null;
 }
-export function readControlMode(storage) {
+// A device hint selects a comfortable initial control scheme only. WebXR
+// capability and authorization must still be checked independently at runtime.
+export function isQuestBrowser(userAgent) {
+  return typeof userAgent === "string" && /\bOculusBrowser\/[\d.]+/i.test(userAgent);
+}
+export function readControlMode(storage, { quest = false, mobile = false } = {}) {
+  if (quest) return "drone";
+  if (mobile) return "creative";
   try { const value = storage?.getItem(controlPreferenceKey); if (["creative", "drone"].includes(value)) return value; } catch { /* Optional preference. */ }
   return "creative";
 }
 
 // Enable a fresh desktop visit only after the model is ready. An interrupted
 // load must not undo a user/visibility/modal safety stop, or resume shared/XR activity.
-export function initialPCMovement({ ready = false, mobile = false, hidden = false,
+export function initialPCMovement({ ready = false, mobile = false, quest = false, hidden = false,
   interrupted = false, dialogOpen = false, xr = false, xrEntering = false,
   restoredWorld = false } = {}) {
-  return Boolean(ready && !mobile && !hidden && !interrupted && !dialogOpen &&
+  return Boolean(ready && !mobile && !quest && !hidden && !interrupted && !dialogOpen &&
     !xr && !xrEntering && !restoredWorld);
 }
 

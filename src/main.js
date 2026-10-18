@@ -20,7 +20,7 @@ import { createExitHold, updateExitHold, cancelExitHold } from "./xr-exit-hold.j
 import { captureView, captureXRView, alignRigToView, resolveXRExitView, resolveXREntryView } from "./vr-view.js";
 import { createSurfaceIndex } from "./placement.js";
 import { createWorkshop } from "./workshop.js";
-import { createCreativeControls, constrainCreativeFeet, readControlMode, controlPreferenceKey, initialPCMovement, sampleGroundFootprint } from "./creative-controls.js";
+import { createCreativeControls, constrainCreativeFeet, readControlMode, controlPreferenceKey, initialPCMovement, sampleGroundFootprint, isQuestBrowser } from "./creative-controls.js";
 import { createBlockAvatar } from "./block-avatar.js";
 import { createSchoolClient } from "./school-client.js";
 import { createSchoolUI } from "./school-ui.js";
@@ -37,6 +37,8 @@ import "./hotbar.css";
 
 const $ = (s) => document.querySelector(s),
   viewport = $("#viewport");
+const questBrowser = isQuestBrowser(navigator.userAgent);
+$("#device-control-note").hidden = !questBrowser;
 let activityAllowed = false;
 const activityGate = createActivityGate({ onOpen: () => schoolUI?.open(), onLock: () => {
   activityAllowed = false;
@@ -244,9 +246,9 @@ creative = createCreativeControls(THREE, { camera, rig, domElement: renderer.dom
 $("#control-mode").onchange = (event) => {
   if (state.xr || xrEntering || creative.getState().suspendedXR) { event.target.value = creative.getState().mode; return; }
   const mobile = adaptiveUi.getState().mobile;
-  if (mobile) mobileAvatarControls = event.target.value === "creative";
+  if (mobile || questBrowser) mobileAvatarControls = event.target.value === "creative";
   setFree(false); creative.setMode(event.target.value);
-  try { if (!mobile) preferenceStorage?.setItem(controlPreferenceKey, event.target.value); } catch { /* Optional preference. */ }
+  try { if (!mobile && !questBrowser) preferenceStorage?.setItem(controlPreferenceKey, event.target.value); } catch { /* Optional preference. */ }
   syncMovementHelp();
   $("#canvas-hint").textContent = event.target.value === "creative"
     ? "WASD：移動 · Z長押し：ロケット · X：停止 · F5：視点 · Esc：メニュー" : "ドラッグで回転 · ホイールで拡大";
@@ -461,13 +463,14 @@ async function loadCity() {
     .forEach((b) => (b.disabled = false));
   goTo("overview");
   $("#control-mode").disabled = false;
-  // Let the change handler apply a mobile fallback without persisting it over
-  // the user's PC choice. A narrow window must not change desktop preference.
-  $("#control-mode").value = adaptiveUi.getState().mobile ? "creative" : readControlMode(preferenceStorage);
+  // Quest starts in Mode 2 even with an old creative preference or a narrow
+  // browser panel. Device defaults never overwrite the remembered PC choice.
+  $("#control-mode").value = readControlMode(preferenceStorage, { quest: questBrowser, mobile: adaptiveUi.getState().mobile });
   $("#control-mode").dispatchEvent(new Event("change"));
   adoptSchoolPose();
   syncActivityGate();
   if (initialPCMovement({ ready: state.ready, mobile: adaptiveUi.getState().mobile,
+    quest: questBrowser,
     hidden: document.hidden, interrupted: initialMovementInterrupted,
     dialogOpen: Boolean(document.querySelector("dialog[open]")), xr: state.xr,
     xrEntering, restoredWorld })) {
@@ -718,7 +721,7 @@ function updateLabels(id) {
     question: "市街地と周辺で、建物の集まり方はどう違う？",
     detail: "広域マップで移動して比較しよう。収録範囲は行政界ではなく、2020年度モデルの範囲です。",
   } : id === "school" ? {
-    title: "共同教室でまちづくり", description: "画面クリックで移動開始 · WASD / Space / Shift",
+    title: "共同教室でまちづくり", description: questBrowser ? "Quest：モード2 · 視界いっぱいの表示はVRへ" : "画面クリックで移動開始 · WASD / Space / Shift",
     question: "この街にどんな作品を加えたい？",
     detail: "自分のSTLを空いている実地面へ配置しよう。元の街と他の人の作品は変更できません。",
   } : null);
@@ -733,7 +736,7 @@ function updateLabels(id) {
     b.setAttribute("aria-pressed", String(b.dataset.view === id));
   });
   $("#status").textContent =
-    `${state.xr ? "VR" : "PC"}で観察中 · ${state.free ? "自由移動" : "地点から見学"}`;
+    `${state.xr ? "VR" : questBrowser ? "Questの2D画面" : "PC"}で観察中 · ${state.free ? "自由移動" : "地点から見学"}`;
 }
 function goTo(id) {
   if (!viewpoints[id]) return;
@@ -922,7 +925,8 @@ async function checkVR() {
       button.textContent = hasVRResume ? "VRに戻る" : "QuestでVRを見る";
       $("#vr-note").textContent =
         hasVRResume ? "今見ている場所から再開。移動はOFFです。" :
-          "安全なプレイエリアで使用してください。まずは地点ボタンで見学。";
+          questBrowser ? "Questはモード2で開始。視界いっぱいに見るにはこのボタンでVRへ。移動はBでON/OFF。安全な場所で使用してください。" :
+            "安全なプレイエリアで使用してください。まずは地点ボタンで見学。";
     } else {
       button.textContent = "QuestのブラウザーでVR体験";
       button.disabled = true;
@@ -1353,6 +1357,7 @@ window.__okazaki = {
       coreParts:city.children.map(mesh=>({name:mesh.name,gameBuilding:Boolean(mesh.material.userData.fieldBuilding),
         colorVertices:mesh.geometry.attributes.fieldColor?.count??0,textured:Boolean(mesh.material.map)}))},
     ...state,
+    device: { questBrowser },
     school: schoolClient.getState(),
     activityAllowed,
     presence: presence.getState(),
@@ -1372,7 +1377,7 @@ window.__okazaki = {
     panelVisible: panel.visible && vrFieldPanel.getState().expanded,
     vrPanel: vrFieldPanel.getState(),
     pointers: { left: controllerPointers.left.getState(), right: controllerPointers.right.getState() },
-    version: "1.10.2",
+    version: "1.10.3",
     vrReturn: { buttonVisible: vrReturnButton.getState().visible,
       holdProgress: vrReturnButton.getState().progress, exiting: xrExitPending,
       hasResume: hasVRResume, view: lastXRView ? {
