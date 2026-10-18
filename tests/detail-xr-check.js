@@ -135,9 +135,9 @@
       "X-press-updates-button-chip-without-toggling-guide-until-release", { guideVisible: state().panelVisible, left: hudHand("left") });
     device.controllers.left.updateButtonValue("x-button", 0);
     await wait(350);
-    assert(!state().panelVisible && !state().vrPanel.expanded && !bothVisible() && state().vrPanel.visible &&
-      state().vrReturn.buttonVisible && ["left", "right"].every(hand => hudHand(hand).connected),
-      "short-X-release-folds-content-keeps-return-and-fresh-input-status", { panel: state().vrPanel, hands: state().hud.hands });
+    assert(!state().panelVisible && !state().vrPanel.expanded && !bothVisible() && !state().vrPanel.visible &&
+      !state().vrReturn.buttonVisible && ["left", "right"].every(hand => hudHand(hand).connected),
+      "short-X-release-hides-entire-panel-and-retains-fresh-input-status", { panel: state().vrPanel, hands: state().hud.hands });
     await button("left", "x-button");
     assert(state().panelVisible && bothVisible(), "X-expands-central-content-and-controller-diagrams", state().hud);
     await waitUntil(neutral);

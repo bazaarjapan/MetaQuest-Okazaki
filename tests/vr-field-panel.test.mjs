@@ -94,7 +94,7 @@ test("primary button surfaces have deliberate gaps, larger physical targets, and
   f.cleanup();
 });
 
-test("2D return persists in every tab, compact mode and region loading; collapse keeps the same mesh", async () => {
+test("X hides the entire menu and restores the same tab, size and mesh without clickable ghosts", async () => {
   const f = fixture(), mesh = f.panel.mesh;
   for (const tab of ["observe", "region", "workshop"]) {
     f.panel.selectTab(tab);
@@ -105,18 +105,58 @@ test("2D return persists in every tab, compact mode and region loading; collapse
   assert.equal(f.panel.getState().actionRects.map.enabled, false);
   assert.equal(f.panel.actionAt(...f.center("map")), null);
   assert.equal(f.panel.actionAt(...f.center("return")), "return");
-  f.panel.selectTab("workshop"); f.panel.toggleExpanded();
+  f.panel.selectTab("workshop");
+  const before = f.panel.getState(), exitCenter = f.center("return");
+  f.panel.toggleExpanded();
   assert.equal(f.panel.mesh, mesh); assert.equal(f.camera.children.length, 1);
-  assert.deepEqual(f.panel.getState().canvas, [1280, 384]);
-  assert.equal(f.panel.getState().size[0], 1.4);
-  assert.ok(Math.abs(f.panel.getState().size[1] - .42) < 1e-9);
-  assert.equal(f.panel.getState().actions.length, 2);
-  assert.equal(f.panel.actionAt(...f.center("expand"), { handedness: "left" }), "expand");
-  assert.equal(f.panel.actionAt(...f.center("return")), "return");
+  assert.deepEqual(f.panel.getState().canvas, before.canvas);
+  assert.deepEqual(f.panel.getState().size, before.size);
+  assert.equal(f.panel.getState().visible, false);
+  assert.equal(f.panel.getState().panelCount, 0);
+  assert.equal(f.panel.getState().meshCount, 1);
+  assert.equal(f.panel.getState().actions.length, 0);
+  assert.equal(f.panel.actionAt(...exitCenter), null);
+  assert.equal(f.panel.hit(new THREE.Raycaster(new THREE.Vector3(), new THREE.Vector3(0,0,-1))), null);
+  assert.equal(await f.panel.activate("return"), false);
+  assert.equal(f.panel.getReturnState().visible, false);
   assert.equal(f.vrWorkshop.getState().visible, false);
   assert.equal(f.hud.getState().hands.left.embeddedVisible, false);
-  assert.equal(await f.panel.activate("expand"), true);
+  f.panel.update({ xr: true, interactive: true, progress: .4, time: 2000 });
+  f.panel.update({ progress: 0, hovered: "return", time: 2100 });
+  assert.equal(f.panel.getState().visible, false, "XR/progress-only updates never re-show the hidden menu");
+  assert.deepEqual(f.panel.getState().hoveredActions, []);
+  f.panel.toggleExpanded(); f.panel.update({ xr: true, interactive: true, time: 2200 });
   assert.equal(f.panel.getState().expanded, true);
+  assert.equal(f.panel.getState().visible, true);
+  assert.equal(f.panel.getState().tab, "workshop");
+  assert.deepEqual(f.panel.getState().size, before.size);
+  assert.deepEqual(f.panel.getState().canvas, before.canvas);
+  assert.equal(f.panel.actionAt(...exitCenter), "return");
+  f.cleanup();
+});
+
+test("hidden-menu toggle is independent from XR lifecycle, and re-entry resets to the full menu", () => {
+  const f = fixture();
+  f.panel.setExpanded(false); f.panel.update({ xr: false, time: 1400 });
+  f.panel.setExpanded(true);
+  assert.equal(f.panel.getState().visible, false, "show preference cannot create a 2D overlay");
+  f.panel.update({ xr: true, interactive: false, time: 1500 });
+  assert.equal(f.panel.getState().visible, true);
+  assert.equal(f.panel.actionAt(...f.center("return")), null, "XR entry still requires validated interactivity");
+  f.panel.update({ interactive: true, time: 1600 });
+  assert.equal(f.panel.actionAt(...f.center("return")), "return");
+  f.cleanup(); f.panel.toggleExpanded(); f.panel.toggleExpanded();
+  assert.equal(f.panel.mesh.visible, false, "disposed menus cannot reappear");
+});
+
+test("hiding a workshop menu cancels its placement picking without changing the selected draft", async () => {
+  const f = fixture(); f.panel.selectTab("workshop");
+  await f.panel.activate("pick"); assert.equal(f.vrWorkshop.getState().picking, true);
+  f.panel.toggleExpanded();
+  assert.equal(f.vrWorkshop.getState().picking, false);
+  f.panel.toggleExpanded(); f.panel.update({ xr: true, interactive: true, time: 2000 });
+  assert.equal(f.vrWorkshop.getState().selected, "creation");
+  assert.equal(f.panel.getState().tab, "workshop");
   f.cleanup();
 });
 
