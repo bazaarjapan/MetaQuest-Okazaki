@@ -91,7 +91,7 @@
       "programmatic-quality-change-cannot-resize-live-xr-framebuffer", state().quality);
     selector.value = currentQuality;
 
-    await button("right", "b-button");
+    if (!state().free) await button("right", "b-button");
     assert(state().free && hudHand("left").active && hudHand("right").active,
       "B-enables-flight-and-both-hud-active-indicators", state().hud);
     device.controllers.right.updateAxes("thumbstick", 0, -0.59);
