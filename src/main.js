@@ -17,6 +17,7 @@ import { createAdaptiveUi } from "./ui-layout.js";
 import { createTouchControls } from "./touch-controls.js";
 import { createVRFieldPanel, fieldRegionMapRect } from "./vr-field-panel.js";
 import { createExitHold, updateExitHold, cancelExitHold } from "./xr-exit-hold.js";
+import { horizontalViewAxes, createXRFlightStart, armXRFlightStart, cancelXRFlightStart, pollXRFlightStart } from "./xr-navigation.js";
 import { captureView, captureXRView, alignRigToView, resolveXRExitView, resolveXREntryView } from "./vr-view.js";
 import { createSurfaceIndex } from "./placement.js";
 import { createWorkshop } from "./workshop.js";
@@ -199,6 +200,8 @@ function acceptedControllerSelection(controller, source, session) {
   }
 }
 const flight = createFlightState();
+const xrFlightStart = createXRFlightStart(), xrViewOrientation = new THREE.Quaternion(), xrPhysicalOrientation = new THREE.Quaternion();
+let xrMoveYaw = 0;
 const schoolClient = createSchoolClient();
 let schoolUI;
 let placementEnvironment = { terrain: null, obstacles: [], bounds: [-320, -381, 315, 372], terrainMeshes: [] };
@@ -819,12 +822,13 @@ function syncMovementHelp() {
   $("#free-move-state").textContent = state.free ? "ON" : "OFF";
   $("#movement-controls").dataset.free = String(state.free);
 }
-function setFree(value, { preserveView = false } = {}) {
+function setFree(value, { preserveView = false, preserveXRStartup = false } = {}) {
   value = Boolean(value);
   if (value && (!state.ready || !activityAllowed)) value = false;
   if (value && !state.xr && (document.hidden || document.querySelector("dialog[open]"))) value = false;
   if (state.xr && vrWorkshop?.getState().picking) value = false;
   if (xrEntering && !state.xr) value = false;
+  if (value || !preserveXRStartup) cancelXRFlightStart(xrFlightStart);
   if (value && !preserveView && !state.xr && creative?.getState().mode !== "creative" && state.current !== "region" && !hasVRResume && !restoredWorld) goTo("east");
   keys.clear();
   creative?.clearInput({ release: !value });
@@ -924,8 +928,8 @@ async function checkVR() {
       button.disabled = !activityAllowed;
       button.textContent = hasVRResume ? "VRに戻る" : "QuestでVRを見る";
       $("#vr-note").textContent =
-        hasVRResume ? "今見ている場所から再開。移動はOFFです。" :
-          questBrowser ? "Questはモード2で開始。視界いっぱいに見るにはこのボタンでVRへ。移動はBでON/OFF。安全な場所で使用してください。" :
+        hasVRResume ? "今見ている場所から再開。VRは移動ONで開始。Bで停止できます。" :
+          questBrowser ? "Questはモード2・自由移動ONでVR開始。視界いっぱいに見るにはこのボタンでVRへ。Bで停止・再開。安全な場所で使用してください。" :
             "安全なプレイエリアで使用してください。まずは地点ボタンで見学。";
     } else {
       button.textContent = "QuestのブラウザーでVR体験";
@@ -972,6 +976,7 @@ renderer.xr.addEventListener("sessionstart", () => {
   state.xr = true;
   $("#control-mode").disabled = true;
   setFree(false);
+  armXRFlightStart(xrFlightStart);
   controllerHud.setXR(true);
   $("#quality-select").disabled = true;
   $("#quality-note").textContent = `${quality.label} · 画質変更は2D画面に戻ってから。`;
@@ -987,9 +992,9 @@ renderer.xr.addEventListener("sessionstart", () => {
     cancelExitHold(exitHold); vrReturnButton.update({ progress: 0 });
     syncButtons(session);
   });
-  session.addEventListener("inputsourceschange", () => {
+  session.addEventListener("inputsourceschange", (event) => {
     hideControllerPointers();
-    setFree(false);
+    setFree(false, { preserveXRStartup: xrFlightStart.pending && !event.removed?.length });
     cancelExitHold(exitHold); vrReturnButton.update({ progress: 0 });
     syncButtons(session);
   });
@@ -999,6 +1004,7 @@ renderer.xr.addEventListener("sessionstart", () => {
   camera.rotation.set(0, 0, 0);
   rig.position.set(195, 74.4, 105);
   rig.rotation.set(0, 0.95, 0);
+  xrMoveYaw = rig.rotation.y;
   vrFieldPanel.setExpanded(true);
   drawPanel();
   updateLabels(pendingXRView ? state.current : "east");
@@ -1032,7 +1038,7 @@ renderer.xr.addEventListener("sessionend", () => {
   lastXRView = view;
   updateLabels(state.current);
   $("#status").textContent = "2Dで観察中 · 移動OFF · VRに戻れます";
-  $("#vr-note").textContent = "今見ている場所から再開。移動はOFFです。";
+  $("#vr-note").textContent = "今見ている場所から再開。VRは移動ONで開始。Bで停止できます。";
   resize();
   checkVR();
 });
@@ -1124,16 +1130,17 @@ function justPressed(source, index) {
   previousButtons.set(key, value);
   return value && !last;
 }
-function xrMove(dt, now) {
+function xrMove(dt, now, viewerTransform) {
   const session = renderer.xr.getSession();
   if (!session) return;
   simulationSeconds += dt;
   if (session.visibilityState !== "visible") {
     if (state.free) setFree(false);
     cancelExitHold(exitHold); vrReturnButton.update({ progress: 0, hovered: false });
+    syncButtons(session);
     return;
   }
-  if (xrExitPending || pendingXRView) return;
+  if (xrExitPending || pendingXRView) { syncButtons(session); return; }
   const leftSource = [...session.inputSources].find((source) => source.handedness === "left" && source.gamepad);
   const action = updateExitHold(exitHold, { pressed: Boolean(leftSource?.gamepad.buttons[4]?.pressed),
     available: Boolean(leftSource), now });
@@ -1141,6 +1148,21 @@ function xrMove(dt, now) {
   if (action.toggleGuide) vrFieldPanel.toggleExpanded();
   if (action.exit) { returnTo2D(); return; }
   if (!activityAllowed) return; // Always retain the emergency X-hold exit.
+  // Three.js refreshes controller.visible from the current XR target-ray pose.
+  // A connected gamepad alone is not proof of positional tracking.
+  const trackedHands = controllers.map(controller => trackedControllerSource(controller, session))
+    .filter(source => source?.gamepad).map(source => source.handedness);
+  const trackingReady = ["left", "right"].every(hand => trackedHands.includes(hand));
+  let axes = viewerTransform ? updateXRHeading(viewerTransform) : null;
+  if (pollXRFlightStart(xrFlightStart, { allowed: activityAllowed, ready: state.ready,
+    visible: session.visibilityState === "visible", poseReady: Boolean(viewerTransform), sources: session.inputSources, trackedHands })) {
+    setFree(true, { preserveView: true });
+  }
+  if (!viewerTransform || !trackingReady) {
+    if (!xrFlightStart.pending) setFree(false);
+    syncButtons(session);
+    resetFlight(flight); return;
+  }
   let left = [0, 0],
     right = [0, 0];
   for (const source of session.inputSources) {
@@ -1170,18 +1192,29 @@ function xrMove(dt, now) {
     const offset = rig.position.clone().sub(temp);
     const yaw = movement.yaw * dt;
     rig.rotation.y += yaw;
+    xrMoveYaw += yaw; // Preserve stick yaw even when gaze is exactly vertical.
     offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
     rig.position.copy(temp).add(offset);
     rig.updateMatrixWorld(true);
   }
-  // Drone heading is independent of looking around or looking straight up/down.
-  temp.set(0, 0, -1).applyQuaternion(rig.quaternion);
-  const side = new THREE.Vector3(-temp.z, 0, temp.x);
+  // Use this frame's physical centre-eye pose plus the just-applied rig yaw.
+  // Looking up/down does not add vertical speed or reduce horizontal speed.
+  if (movement.yaw) axes = updateXRHeading(viewerTransform);
+  temp.fromArray(axes.forward);
+  const side = new THREE.Vector3().fromArray(axes.right);
   rig.position
     .addScaledVector(temp, movement.forward * dt)
     .addScaledVector(side, movement.strafe * dt);
   rig.position.y += movement.rise * dt;
   constrainPosition(rig.position);
+}
+function updateXRHeading(viewerTransform) {
+  const orientation = viewerTransform.orientation;
+  rig.getWorldQuaternion(xrViewOrientation).multiply(xrPhysicalOrientation.set(
+    orientation.x, orientation.y, orientation.z, orientation.w));
+  const axes = horizontalViewAxes(xrViewOrientation, xrMoveYaw);
+  xrMoveYaw = axes.yaw;
+  return axes;
 }
 function desktopMove(dt) {
   if (!activityAllowed) return;
@@ -1249,14 +1282,15 @@ renderer.setAnimationLoop((time, frame) => {
     syncTouchControls();
     if (state.xr) {
       creative.step(0, { xr: true, enabled: false });
-      if (pendingXRView && frame) {
-        const pose = frame.getViewerPose(renderer.xr.getReferenceSpace());
+      const pose = frame?.getViewerPose(renderer.xr.getReferenceSpace());
+      if (pendingXRView) {
         if (pose) {
           alignRigToView(rig, pendingXRView, pose.transform);
           pendingXRView = null;
+          xrMoveYaw = rig.rotation.y;
         }
       }
-      xrMove(dt, time);
+      xrMove(dt, time, pose?.transform);
     }
     else {
       const touch = touchControls.getState();
@@ -1377,7 +1411,7 @@ window.__okazaki = {
     panelVisible: panel.visible && vrFieldPanel.getState().expanded,
     vrPanel: vrFieldPanel.getState(),
     pointers: { left: controllerPointers.left.getState(), right: controllerPointers.right.getState() },
-    version: "1.10.4",
+    version: "1.10.5",
     vrReturn: { buttonVisible: vrReturnButton.getState().visible,
       holdProgress: vrReturnButton.getState().progress, exiting: xrExitPending,
       hasResume: hasVRResume, view: lastXRView ? {

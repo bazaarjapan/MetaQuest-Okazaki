@@ -240,9 +240,9 @@
     "mode2-left-left-yaw-turns-opposite-direction",
     oppositeYawRate,
   );
-  // Turning the wearer's head must not steer the drone's translation axes.
+  // The physical head turn changes translation, without rotating the rig.
   const strafeYaw = s().rigYaw,
-    side = [Math.cos(strafeYaw), 0, -Math.sin(strafeYaw)];
+    side = [Math.cos(strafeYaw + Math.PI / 4), 0, -Math.sin(strafeYaw + Math.PI / 4)];
   d.quaternion.set(0, Math.sin(Math.PI / 8), 0, Math.cos(Math.PI / 8));
   await wait(100);
   const strafeStart = s();
@@ -258,7 +258,7 @@
       rateNear(strafeSpeed, 6) &&
       Math.abs(strafeDelta[1]) < 0.1 &&
       Math.abs(s().rigYaw - strafeYaw) < 0.001,
-    "mode2-right-strafe-follows-drone-not-head-direction",
+    "mode2-right-strafe-follows-current-horizontal-head-direction",
     { strafeDelta, strafeSpeed },
   );
   d.quaternion.set(0, 0, 0, 1);

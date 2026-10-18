@@ -201,8 +201,8 @@
     const resumed = state();
     assert(resumed.xr && poseMatches(resumed.vrReturn.view?.position, resumed.vrReturn.view?.quaternion, beforeLong),
       "VR-resume-preserves-same-world-eye-view-instead-of-east-reset", { expected: beforeLong, resumed: resumed.vrReturn.view });
-    assert(distance(resumed.head, [195, 76, 105]) > 10 && !resumed.free && pageUnchanged(),
-      "resumed-location-remains-nonstarting-and-stationary-without-page-reload", resumed.vrReturn);
+    assert(distance(resumed.head, [195, 76, 105]) > 10 && resumed.free && pageUnchanged(),
+      "resumed-location-remains-nonstarting-and-flight-defaults-on-without-page-reload", resumed.vrReturn);
 
     if (state().panelVisible) await clickButton("left", "x-button");
     assert(!state().panelVisible && !state().vrPanel.visible && !state().vrReturn.buttonVisible,
