@@ -278,15 +278,14 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
     }
   }
   function flightMouseDown(event) {
-    if (event.pointerType !== "mouse" || ![0,2].includes(event.button) || disposed || mode!=="creative" || xr || suspendedXR || locked() || mouseDrag) return;
+    if (event.pointerType !== "mouse" || event.button!==2 || disposed || mode!=="creative" || xr || suspendedXR || locked() || mouseDrag) return;
     const context = getPointerContext(event);
     if(context?.mode==="blocked") return;
-    if(event.button===0 && !context) return;
     onPointerActivate(event);
     if(!active() || inputBlocked(event)) return;
     if (![event.clientX,event.clientY].every(Number.isFinite)) return;
     mouseDrag = {id:event.pointerId,x:event.clientX,y:event.clientY,startX:event.clientX,startY:event.clientY,dragged:false,
-      intent:event.button===2 ? "look" : "place",token:context?.token,button:event.button};
+      intent:"look",canPlace:context?.mode==="place",token:context?.token,button:event.button};
     // Right-button gestures produce contextmenu, not click. Do not swallow the next left click.
     suppressPointerClick = event.button===0;
     try { domElement.setPointerCapture?.(event.pointerId); } catch { /* Window-up fallback below. */ }
@@ -308,11 +307,11 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
   function flightMouseUp(event) {
     if (!mouseDrag || event.pointerId !== mouseDrag.id) return;
     const context = getPointerContext(event);
-    const click = !mouseDrag.dragged && event.button === 0 &&
+    const click = !mouseDrag.dragged && event.button === 2 &&
       [event.clientX,event.clientY].every(Number.isFinite) &&
       Math.hypot(event.clientX-mouseDrag.startX,event.clientY-mouseDrag.startY) <= 5 &&
       active() && !locked() && !inputBlocked(event) &&
-      mouseDrag.intent==="place" && context?.mode==="place" && context.token===mouseDrag.token;
+      mouseDrag.canPlace && context?.mode==="place" && context.token===mouseDrag.token;
     stopMouseDrag({preserveClick:true});
     if (click) onFlightClick(event);
   }
@@ -478,7 +477,7 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
   function getState() {
     return { mode, viewMode, anchor: anchor.toArray(), eye: eyePosition().toArray(),
       yaw, pitch, flying, wingFlight, wingSpeed, fastClimb, animation, enabled, blocked, xr, suspendedXR, moving,
-      pointerLocked: locked(), mouseSteering: Boolean(mouseDrag), mouseIntent: mouseDrag?.intent ?? null, pointerError, groundAvailable, pressedKeys: [...keys],
+      pointerLocked: locked(), mouseSteering: Boolean(mouseDrag), mouseIntent: mouseDrag && !mouseDrag.dragged && mouseDrag.canPlace ? "place" : mouseDrag?.intent ?? null, pointerError, groundAvailable, pressedKeys: [...keys],
       sprinting: keys.has("ControlLeft") || keys.has("ControlRight") || fastMovementKeys.size > 0, cameraDistance, disposed };
   }
   function dispose() {

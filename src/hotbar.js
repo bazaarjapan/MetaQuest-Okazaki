@@ -31,6 +31,10 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
   footprint.name = "placement-footprint"; footprint.visible = false; scene.add(footprint);
   let active = -1, pending = false, aiming = false, lastPreview = -Infinity, previousIdentity = null;
   let pointerKnown = false, renderSignature = "", queuedWheel = null;
+  let retrievalHold = null, rightClick = null, consumeLeftClick = false, placementFailure = null;
+  let previewToken = null, previewFootprint = false;
+  const identityToken = () => { const s=currentState(); return `${s.userId}:${s.worldId}:${s.canEdit}`; };
+  const cancelGestures = () => { retrievalHold=null; rightClick=null; };
   const currentState = () => workshop.getState();
   const locked = () => document.pointerLockElement === canvas;
   const blocked = () => isXR() || isXRPending() || document.hidden || menu.getState().open || Boolean(document.querySelector("dialog[open]")) || currentState().picking;
@@ -77,6 +81,7 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
   }
   async function select(index) {
     if (pending || blocked()) return;
+    cancelGestures(); placementFailure=null;
     const state = currentState();
     if (!state.canEdit) { loginButton.click(); return; }
     active = index; queuedWheel=null;
@@ -85,7 +90,7 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
     const placed = state.objects.find(item => item.assetId === asset.id && item.committed);
     if (placed) {
       workshop.cancelDraft(); aiming = false; footprint.visible = false;
-      report("設置済みです。自分の作品をねらってRを押すと回収できます。"); render(); return;
+      report("設置済みです。自分の作品を左クリック長押し（0.8秒）で回収できます。Rキーでも回収できます。"); render(); return;
     }
     pending = true;
     try { aiming = await workshop.useAsset(asset.id); lastPreview = -Infinity; if(aiming) document.exitPointerLock?.(); }
@@ -126,12 +131,32 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
   function preview(event) {
     const state=currentState(), wheel=queuedWheel; queuedWheel=null;
     const scaleFactor=wheel && wheel.token===draftToken(state) && wheel.baseScale===JSON.stringify(state.current?.scale) ? wheel.factor : 1;
+    if(aiming && !pending && !state.busy && !blocked() && state.canEdit && isLooking()) {
+      // Keep the last ghost while looking; a right-button press must not make
+      // the held object appear to vanish. Release revalidates the cursor hit.
+      if(canvas.style)canvas.style.cursor="grabbing";
+      report("見回し中 · STLは手元に保持しています · 離して置き場所を選び、右クリックで設置");
+      return false;
+    }
     footprint.visible = false;
     if (canvas.style) canvas.style.cursor = "";
     if (!aiming || pending || state.busy || blocked() || !state.canEdit) return false;
     const hit = isLooking() ? null : groundHit(event ?? wheel?.event);
     const draftMesh = workshop.group.children.find(mesh=>mesh.userData.isDraft);
-    if (!hit) { if(scaleFactor!==1 && !isLooking()) workshop.adjustSelected({scaleFactor}); if (draftMesh) draftMesh.visible = false; if(canvas.style)canvas.style.cursor=isLooking()?"grabbing":"crosshair"; report("右ドラッグ：見回す · ホイール：サイズ · 地面をねらって左クリック：設置"); return false; }
+    if (!hit) {
+      if(scaleFactor!==1) { workshop.adjustSelected({scaleFactor}); previewFootprint=false; }
+      const retained=previewToken===draftToken(state);
+      if (draftMesh) {
+        draftMesh.visible=retained;
+        if(retained) { draftMesh.material.color.set("#e4ac38"); draftMesh.material.opacity=.35; }
+      }
+      footprint.visible=retained && previewFootprint;
+      footprint.material.color.set("#e4ac38");
+      if(canvas.style)canvas.style.cursor="crosshair";
+      report(retained ? "黄色は最後のプレビュー（未設置） · 今の位置には置けません · 空いている地面を選んでください" :
+        "STLは手元に保持中 · 空いている地面をねらうとプレビューが出ます · 右クリック：設置");
+      return false;
+    }
     if(canvas.style) canvas.style.cursor="crosshair";
     if (draftMesh) draftMesh.visible = true;
     const result = scaleFactor===1 ? workshop.moveSelected(hit.point.toArray()) :
@@ -153,24 +178,66 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
       positions.needsUpdate = true; footprint.geometry.computeBoundingSphere();
       footprint.material.color.set(result.valid ? "#32cda5" : "#f25353"); footprint.visible = complete;
     }
+    previewToken=draftToken(state); previewFootprint=footprint.visible;
     const size = draftMesh ? new THREE.Box3().setFromObject(draftMesh).getSize(new THREE.Vector3()) : null;
     const dimensions = size ? `幅${size.x.toFixed(1)} × 高さ${size.y.toFixed(1)} × 奥行${size.z.toFixed(1)}m · ` : "";
-    report(dimensions + (result.valid ? "左クリック：置く · ホイール：サイズ · 右ドラッグ：見回す · R：回収" : currentState().message));
+    report(placementFailure && placementFailure.token===draftToken(state) && performance.now()<placementFailure.until ? placementFailure.message :
+      dimensions + (result.valid ? "右クリック：置く · ホイール：サイズ · 右ドラッグ：見回す · 左長押し / R：回収" : currentState().message));
     return result.valid;
   }
   async function place(event) {
     if (blocked() || !currentState().canEdit || !aiming || pending || !preview(event)) return;
     pending = true;
-    try { if (await workshop.commitSelected()) { aiming = false; footprint.visible = false; } report(currentState().message); }
+    placementFailure=null;
+    report("配置を保存中… · 確定するまでSTLを保持します");
+    try {
+      if (await workshop.commitSelected()) { aiming = false; footprint.visible = false; report(currentState().message); }
+      else {
+        placementFailure={token:draftToken(currentState()),until:performance.now()+5000,message:`STLは手元に保持しています。${currentState().message}`};
+        report(placementFailure.message);
+      }
+    }
     finally { pending = false; render(); }
   }
-  canvas.addEventListener("pointermove", event => { if (!locked()) cast(event); });
-  canvas.addEventListener("pointerdown", event => {
-    if (blocked() || pending || event.pointerType === "touch" || !currentState().canEdit) return;
-    // A click closing an open menu is blocked above. If pointer lock is denied,
-    // ordinary cursor aiming/placement remains available instead of a dead end.
-    if (event.button===0 && !isLooking()) void place(event);
+  canvas.addEventListener("pointermove", event => {
+    if (!locked()) cast(event);
+    for (const gesture of [retrievalHold,rightClick]) {
+      if (!gesture || event.pointerId!==gesture.pointerId) continue;
+      gesture.distance += locked() ? Math.hypot(event.movementX??0,event.movementY??0) : 0;
+      if ((event.buttons & gesture.buttons)===0 || gesture.distance>5 ||
+        Math.hypot(event.clientX-gesture.x,event.clientY-gesture.y)>5) cancelGestures();
+    }
   });
+  canvas.addEventListener("pointerdown", event => {
+    cancelGestures();
+    if(event.button===0)consumeLeftClick=false;
+    if (blocked() || pending || currentState().busy || event.pointerType !== "mouse" || !currentState().canEdit || isLooking()) return;
+    const gesture={pointerId:event.pointerId,x:event.clientX,y:event.clientY,distance:0,identity:identityToken()};
+    if (event.button===0) {
+      const target=ownHit(event); if(!target) return;
+      retrievalHold={...gesture,buttons:1,targetId:target.id,start:performance.now(),checked:-Infinity};
+      consumeLeftClick=true;
+      report("回収中 0% · 左ボタンを押し続けてください（0.8秒）");
+      event.preventDefault?.(); event.stopImmediatePropagation?.();
+    } else if(event.button===2 && (!isCreative() || locked()) && pointerContext()?.mode==="place") {
+      // Creative cursor gestures are routed by creative-controls. Orbit/locked
+      // input uses the same release-only rule here, with a fresh ground check.
+      rightClick={...gesture,buttons:2,token:draftToken(currentState())};
+      event.preventDefault?.();
+    }
+  },true);
+  window.addEventListener("pointerup",event=>{
+    if(event.button===0 && retrievalHold?.pointerId===event.pointerId) retrievalHold=null;
+    const gesture=rightClick;
+    if(!gesture || event.pointerId!==gesture.pointerId || event.button!==2) return;
+    rightClick=null;
+    if(!blocked() && gesture.identity===identityToken() && gesture.token===draftToken(currentState()) &&
+      Math.hypot(event.clientX-gesture.x,event.clientY-gesture.y)<=5) void place(event);
+  });
+  canvas.addEventListener("click",event=>{
+    if(!consumeLeftClick) return;
+    consumeLeftClick=false; event.preventDefault?.(); event.stopImmediatePropagation?.();
+  },true);
   canvas.addEventListener("wheel", event => {
     const state=currentState();
     if (blocked() || pending || state.busy || state.picking || !aiming || !state.canEdit ||
@@ -183,10 +250,11 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
     const factor=previous*placementScaleFactor(event,state.current.scale.map(value=>value*previous));
     queuedWheel={token,baseScale,factor,event:{clientX:event.clientX,clientY:event.clientY}};
   }, {passive:false,capture:true});
-  const forgetPointer=()=>{queuedWheel=null;pointerKnown=false;footprint.visible=false;if(canvas.style)canvas.style.cursor="";};
+  const forgetPointer=()=>{cancelGestures();queuedWheel=null;pointerKnown=false;footprint.visible=false;if(canvas.style)canvas.style.cursor="";};
   window.addEventListener("blur",forgetPointer);
   document.addEventListener("visibilitychange",()=>{if(document.hidden)forgetPointer();});
   canvas.addEventListener("pointercancel",forgetPointer);
+  canvas.addEventListener("lostpointercapture",forgetPointer);
   canvas.addEventListener("pointerleave", () => {
     if (!locked()) forgetPointer();
   });
@@ -197,10 +265,11 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
     const index=hotbarSlot(event.code); if (index<0) return;
     event.preventDefault(); void select(index);
   });
-  async function retrieve() {
+  async function retrieve(expectedId) {
     if (pending || blocked() || isLooking() || !currentState().canEdit || currentState().busy) return;
+    cancelGestures();
     const target=ownHit();
-    if (!target) { report("自分が置いた作品をねらってRを押してください。"); return; }
+    if (!target || (expectedId && target.id!==expectedId)) { report("自分が置いた作品をねらって左長押し、またはRを押してください。"); return; }
     pending=true; aiming=false; footprint.visible=false;
     try {
       workshop.selectObject(target.id);
@@ -214,19 +283,37 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
     root.hidden = hint.hidden = crosshair.hidden = menuButton.hidden = loginButton.hidden = xr;
     // The PC UI is absent in VR. Avoid cloning classroom/geometry snapshots on
     // every headset frame and leave the draft under the VR workshop's control.
-    if (xr) { queuedWheel=null; aiming = false; footprint.visible = false; return; }
+    if (xr) { cancelGestures();queuedWheel=null; aiming = false; footprint.visible = false; return; }
     const state = currentState(), identity = `${state.userId}:${state.worldId}:${state.canEdit}`;
     if (aiming && !pending && (!state.current || state.current.committed)) aiming=false;
-    if (identity !== previousIdentity) { queuedWheel=null; previousIdentity=identity; active=-1; aiming=false; footprint.visible=false; renderSignature=""; }
+    if (identity !== previousIdentity) { cancelGestures();queuedWheel=null; previousIdentity=identity; active=-1; aiming=false; footprint.visible=false; renderSignature=""; }
+    // Drafts can also originate in the detailed workshop or survive leaving VR.
+    // The hand-held item, not the route used to import it, enables placement.
+    if (!aiming && !pending && state.canEdit && !state.busy && workshop.getHeldDraft?.()) {
+      aiming=true; active=state.ownAssets.findIndex(asset=>asset.id===state.current?.assetId);
+      lastPreview=-Infinity;
+    }
     render();
     if (blocked() || !state.canEdit) {
+      cancelGestures();
       queuedWheel=null; footprint.visible=false; if(canvas.style && !state.picking)canvas.style.cursor="";
       const mesh=workshop.group.children.find(mesh=>mesh.userData.isDraft); if(mesh && aiming) mesh.visible=false;
       return;
     }
+    if(retrievalHold) {
+      const hold=retrievalHold,now=performance.now();
+      if(pending || state.busy || isLooking() || hold.identity!==identity) cancelGestures();
+      else if(now-hold.checked>=80) {
+        hold.checked=now;
+        if(ownHit()?.id!==hold.targetId) cancelGestures();
+        else if(now-hold.start>=800) { retrievalHold=null; void retrieve(hold.targetId); }
+        else report(`回収中 ${Math.floor((now-hold.start)/8)}% · 左ボタンを押し続けてください`);
+      }
+      if(retrievalHold || pending) return;
+    }
     if (queuedWheel || time-lastPreview>=120) { lastPreview=time; preview(); }
     if (!aiming && !pending) footprint.visible=false;
   }
-  report("1〜0：STL選択 · 左クリック：置く · 右ドラッグ：見回す · ホイール：サイズ · R：回収 · Esc：メニュー");
+  report("1〜0：STL選択 · 右クリック：置く · 左長押し：回収 · 右ドラッグ：見回す · ホイール：サイズ · Esc：メニュー");
   return { update, place, pointerContext, getState:()=>({active,aiming,pending,footprintVisible:footprint.visible}) };
 }

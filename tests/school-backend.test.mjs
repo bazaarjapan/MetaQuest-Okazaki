@@ -262,6 +262,37 @@ test("actual core mesh SHA validation refuses substituted ground bytes", async (
   const substituted = { async fetch() { return new Response("{}") } };
   await assert.rejects(loadCorePlacement(substituted), (error) => error.code === "placement_source_hash_mismatch");
 });
+
+test('slow terrain fetch leaves poses/pings/restore live and rejects stale or logged-out placement',async()=>{
+  for(const interrupt of ['restore','logout','none']){
+    const s=await setup(),teacher=await s.user('queue-teacher','teacher'),student=await s.user('queue-student');
+    try{
+      const world=await createWorld(s.db,teacher,{},s.now());await joinWorld(s.db,student,world.join_code,s.now());
+      const asset=(await(await upload(s,world,student)).json()).asset;
+      const a=await s.connect(world.id,student),b=await s.connect(world.id,teacher),room=a.room;
+      const surfaces=await loadCorePlacement(sourceAssets),position=await unusedCoreLocation();
+      let release,started;const entered=new Promise(r=>started=r),blocked=new Promise(r=>release=r);
+      room.loadPlacement=async()=>{started();await blocked;return surfaces;};
+      const command={type:'object.create',requestId:crypto.randomUUID(),revision:0,assetId:asset.id,position,rotation:[0,0,0],scale:[.5,.5,.5]};
+      const placing=room.webSocketMessage(a.socket,JSON.stringify(command));await entered;
+      // These would deadlock if the deferred loader still occupied serial().
+      await Promise.race([room.webSocketMessage(b.socket,JSON.stringify({type:'ping'})),new Promise((_,r)=>setTimeout(()=>r(Error('queue blocked')),1000))]);
+      assert.equal(b.socket.messages.at(-1).type,'pong');
+      await room.webSocketMessage(b.socket,JSON.stringify({type:'pose',position:[1,40,1],yaw:0,seq:0,restoreCommit:null}));
+      assert.equal(b.socket.messages.at(-1).type,'pose');assert.equal(room.state.objects.length,0);
+      s.advance();await room.webSocketMessage(a.socket,JSON.stringify({...command,requestId:crypto.randomUUID()}));
+      assert.equal(a.socket.messages.at(-1).error,'edit_rate_limit');
+      if(interrupt==='restore'){
+        const snapshot=await(await roomRequest(s.env,world.id,teacher,'/save','POST')).json();
+        assert.equal((await roomRequest(s.env,world.id,teacher,'/restore','POST',{snapshotId:snapshot.id,revision:0})).status,200);
+      }else if(interrupt==='logout')await s.db.prepare('DELETE FROM school_sessions WHERE token_hash=?').bind(student.token_hash).run();
+      release();await placing;
+      assert.equal(room.pendingPlacements.size,0);
+      if(interrupt==='none'){assert.equal(a.socket.messages.at(-1).type,'ack');assert.equal(room.state.objects.length,1);}
+      else {assert.equal(a.socket.messages.at(-1).type,'error');assert.equal(room.state.objects.length,0);if(interrupt==='restore')assert.equal(a.socket.messages.at(-1).error,'stale_revision');}
+    }finally{s.sqlite.close();}
+  }
+});
 test("server sync validates actual core empty ground, ignores ownership lies, saves/restores and rejects stale clients", async () => {
   const s = await setup(), teacher = await s.user("teacher", "teacher"), student = await s.user("student"), stranger = await s.user("other"), world = await createWorld(s.db, teacher, {}, s.now());
   await joinWorld(s.db, student, world.join_code, s.now()); await joinWorld(s.db, stranger, world.join_code, s.now());

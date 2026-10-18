@@ -170,6 +170,18 @@ function transformedPositions(source, rotation, scale, position) {
   return { positions: result, bounds: { min, max } };
 }
 
+export function placementFootprint(candidate) {
+  const p=candidate?.positions;
+  if(!(p instanceof Float32Array) || !p.length || p.length%9 || p.length>180000 || !p.every(Number.isFinite)) throw Error("Invalid object triangles");
+  const rotation=vector(candidate.rotation,"rotation"),scale=vector(candidate.scale,"scale"),position=vector(candidate.position,"position");
+  if(scale.some(v=>v<1e-6||v>100)||position.some(v=>Math.abs(v)>1e7)||rotation.some(v=>Math.abs(v)>Math.PI*100)) throw Error("Invalid object transform");
+  const {min,max}=transformedPositions(p,rotation,scale,position).bounds;
+  if(max.some((v,i)=>v-min[i]>100+EPSILON))throw Error("Object dimensions must not exceed 100 metres");
+  return [min[0],min[2],max[0],max[2]];
+}
+export const placementIntersects=(a,b)=>a[0]<=b[2]&&a[2]>=b[0]&&a[1]<=b[3]&&a[3]>=b[1];
+export const placementContains=(outer,inner)=>inner[0]>=outer[0]&&inner[1]>=outer[1]&&inner[2]<=outer[2]&&inner[3]<=outer[3];
+
 /**
  * Validate real transformed triangles. Returns {valid, position, bounds, error}.
  * Candidate XYZ rotation is radians; positive XYZ scale is 1e-6..100. Y is
@@ -177,8 +189,9 @@ function transformedPositions(source, rotation, scale, position) {
  * covered by terrain and must not touch any projected obstacle, even walls.
  * Unknown ground, excessive complexity, out-of-region geometry fail closed.
  */
-export function validatePlacement(candidate, { terrain, obstacles = [], bounds } = {}) {
+export function validatePlacement(candidate, { terrain, obstacles = [], bounds, error:sourceError } = {}) {
   try {
+    if(sourceError)throw Error(sourceError);
     const source = candidate?.positions;
     if (!(source instanceof Float32Array) || !source.length || source.length % 9 || source.length > 20000 * 9) throw new Error("Invalid object triangles");
     for (const value of source) if (!Number.isFinite(value) || Math.abs(value) > 1e9) throw new Error("Invalid object coordinate");
@@ -195,15 +208,15 @@ export function validatePlacement(candidate, { terrain, obstacles = [], bounds }
     if (worldBounds.max.some((value, axis) => value - worldBounds.min[axis] > 100 + EPSILON)) throw new Error("Object dimensions must not exceed 100 metres");
     const box = [worldBounds.min[0], worldBounds.min[2], worldBounds.max[0], worldBounds.max[2]];
     if (box[0] < bounds[0] || box[1] < bounds[1] || box[2] > bounds[2] || box[3] > bounds[3]) throw new Error("Object is outside the editable region");
-    const budget = { checks: 0 }, ground = getIndex(terrain);
+    const budget = { checks: 0 }, grounds = (Array.isArray(terrain)?terrain:[terrain]).map(getIndex);
     const obstacleIndexes = Array.isArray(obstacles) ? obstacles : [obstacles];
     for (const obstacle of obstacleIndexes) {
       const data = getIndex(obstacle);
       for (const id of query(data, box, budget)) if (triangleTouchesRectangle(projected(triangle(data, id)), box)) throw new Error("Object overlaps an existing building or occupied space");
     }
-    const groundIds = query(ground, box, budget).filter((id) => {
+    const groundIds = grounds.flatMap(ground=>query(ground, box, budget).filter((id) => {
       const points = projected(triangle(ground, id)); return Math.abs(cross(...points)) > EPSILON;
-    });
+    }).map(id=>({ground,id})));
     if (!groundIds.length) throw new Error("Verified terrain is unavailable at this location");
     // Exact polygon subtraction catches holes even when all four corners have
     // valid elevation. This is deliberately stricter than sampling a fake plane.
@@ -211,7 +224,7 @@ export function validatePlacement(candidate, { terrain, obstacles = [], bounds }
     if (coverageBox[2] - coverageBox[0] < 1e-5) { coverageBox[0] -= 5e-6; coverageBox[2] += 5e-6; }
     if (coverageBox[3] - coverageBox[1] < 1e-5) { coverageBox[1] -= 5e-6; coverageBox[3] += 5e-6; }
     let uncovered = [[[coverageBox[0], coverageBox[1]], [coverageBox[2], coverageBox[1]], [coverageBox[2], coverageBox[3]], [coverageBox[0], coverageBox[3]]]];
-    for (const id of groundIds) {
+    for (const {ground,id} of groundIds) {
       const groundProjection = projected(triangle(ground, id)), next = [];
       for (const polygon of uncovered) {
         if (++budget.checks > MAX_CHECKS) throw new Error("Placement geometry is too complex");
@@ -227,7 +240,7 @@ export function validatePlacement(candidate, { terrain, obstacles = [], bounds }
     for (let i = 0; i < p.length; i += 9) {
       const objectPoints = [[p[i], p[i + 1], p[i + 2]], [p[i + 3], p[i + 4], p[i + 5]], [p[i + 6], p[i + 7], p[i + 8]]];
       const objectProjection = projected(objectPoints), objectBox = xzBounds(objectProjection);
-      for (const id of query(ground, objectBox, budget)) {
+      for (const ground of grounds) for (const id of query(ground, objectBox, budget)) {
         if (++budget.checks > MAX_CHECKS) throw new Error("Placement geometry is too complex");
         const groundPoints = triangle(ground, id), groundProjection = projected(groundPoints);
         if (Math.abs(cross(...groundProjection)) <= EPSILON) continue;

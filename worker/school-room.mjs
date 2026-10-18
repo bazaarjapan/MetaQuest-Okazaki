@@ -2,7 +2,7 @@ import { validatePlacement } from "../src/placement.js";
 import { LIMITS, SchoolError, fail, json, publicAvatar, sha256, validId } from "./school-common.mjs";
 import { all, assetPublic, authorizeRoomSession, first, getAsset, sessionByHash, worldPublic } from "./school-store.mjs";
 import { readAssetModel } from "./school-assets.mjs";
-import { loadCorePlacement } from "./placement-source.mjs";
+import { loadRegionalPlacement } from "./regional-placement.mjs";
 import { CLASSROOM_ID, managesWorld } from "./classroom-id.mjs";
 import { validAvatarMotion } from "../src/avatar-motion.js";
 
@@ -49,9 +49,10 @@ export class SchoolRoom {
     this.now = dependencies.now ?? (() => Date.now());
     this.makePair = dependencies.makePair ?? (() => new WebSocketPair());
     this.upgradeResponse = dependencies.upgradeResponse ?? ((client) => new Response(null, { status: 101, webSocket: client }));
-    this.loadPlacement = dependencies.loadPlacement ?? (() => loadCorePlacement(env.ASSETS));
+    this.loadPlacement = dependencies.loadPlacement ?? (candidate => loadRegionalPlacement(env.ASSETS,candidate));
     this.sessions = new Map();
     this.assetCache = new Map();
+    this.pendingPlacements = new Set();
     this.tail = Promise.resolve();
     for (const socket of ctx.getWebSockets()) {
       const attachment = socket.deserializeAttachment();
@@ -203,8 +204,9 @@ export class SchoolRoom {
   alarm() { return this.serial(async () => { await this.recoverRestore(); await this.pruneExpired(); this.broadcastPresence(); await this.scheduleAlarm(); }); }
   webSocketClose(socket) { return this.serial(() => { if (this.sessions.has(socket)) { this.remove(socket, 1000, "disconnected"); this.broadcastPresence(); } }); }
   webSocketError(socket) { return this.serial(() => { this.remove(socket, 1011, "connection error"); this.broadcastPresence(); }); }
-  webSocketMessage(socket, data) {
-    return this.serial(async () => {
+  async webSocketMessage(socket, data) {
+    let preparation;
+    await this.serial(async () => {
       let value;
       try {
         const attachment = this.sessions.get(socket);
@@ -278,21 +280,53 @@ export class SchoolRoom {
         if (!Number.isSafeInteger(value.revision) || value.revision !== this.state.revision) fail(409, "stale_revision");
         if (this.now() - attachment.lastEditAt < 250) fail(429, "edit_rate_limit");
         attachment.lastEditAt = this.now(); attachment.lastSeenAt = this.now(); socket.serializeAttachment(attachment);
-        const before = this.state;
-        let ack;
-        try {
-          const result = await this.applyEdit(value, session, world);
-          ack = { type: "ack", requestId: value.requestId, revision: this.state.revision, id: result.id };
-          this.state.recent = [...this.state.recent, { userId: session.id, requestId: value.requestId, fingerprint, ack }].slice(-128);
-          await this.ctx.storage.put("world-state", this.state);
-        } catch (error) { this.state = before; throw error; }
-        this.broadcast({ type: "objects", revision: this.state.revision, objects: this.state.objects });
-        socket.send(JSON.stringify(ack));
+        if(value.type!=='object.delete'){
+          if(this.pendingPlacements.has(session.id))fail(429,'edit_rate_limit');
+          const current=this.state.objects.find(object=>object.id===value.id);
+          if(value.type==='object.update' && !current)fail(404,'object_not_found');
+          if(value.type==='object.update' && current.ownerId!==session.id)fail(403,'object_owner_required');
+          const asset=await getAsset(this.env.DB,world.id,value.type==='object.create'?value.assetId:current.assetId);
+          if(asset.owner_id!==session.id)fail(403,'asset_owner_required');
+          const candidate={positions:(await this.model(asset)).positions,...validateTransform(value)};
+          this.pendingPlacements.add(session.id);
+          preparation={value,fingerprint,attachment,userId:session.id,candidate,restoreCommit:this.poseRestoreCommit()};
+          return;
+        }
+        await this.commitEdit(socket,value,session,world,fingerprint);
       } catch (error) {
         try { socket.send(JSON.stringify({ type: "error", error: error instanceof SchoolError ? error.code : "internal_error",
           ...(validId(value?.requestId) ? { requestId: value.requestId } : {}), revision: this.state?.revision ?? 0 })); } catch { /* closed */ }
       }
     });
+    if(!preparation)return;
+    const {value,fingerprint,attachment,userId,candidate,restoreCommit}=preparation;
+    try{
+      // Remote elevation I/O must not occupy the classroom mutation queue.
+      // Other users' pose, heartbeat, close and restore events remain live.
+      const environment=await this.loadPlacement(candidate);
+      await this.serial(async()=>{
+        await this.recoverRestore();
+        if(this.sessions.get(socket)!==attachment||socket.readyState!==1)fail(401,'login_required');
+        const {session,world}=await authorizeRoomSession(this.env.DB,this.state.worldId,attachment.sessionHash,Math.floor(this.now()/1000));
+        if(session.id!==userId)fail(401,'login_required');
+        if(value.revision!==this.state.revision||restoreCommit!==this.poseRestoreCommit())fail(409,'stale_revision');
+        // applyEdit rechecks current asset ownership, limits and all overlaps.
+        await this.commitEdit(socket,value,session,world,fingerprint,environment);
+      });
+    }catch(error){
+      try{socket.send(JSON.stringify({type:'error',error:error instanceof SchoolError?error.code:'internal_error',requestId:value.requestId,revision:this.state?.revision??0}));}catch{/* closed */}
+    }finally{this.pendingPlacements.delete(userId);}
+  }
+  async commitEdit(socket,value,session,world,fingerprint,environment) {
+    const before=this.state;let ack;
+    try{
+      const result=await this.applyEdit(value,session,world,environment);
+      ack={type:'ack',requestId:value.requestId,revision:this.state.revision,id:result.id};
+      this.state.recent=[...this.state.recent,{userId:session.id,requestId:value.requestId,fingerprint,ack}].slice(-128);
+      await this.ctx.storage.put('world-state',this.state);
+    }catch(error){this.state=before;throw error;}
+    this.broadcast({type:'objects',revision:this.state.revision,objects:this.state.objects});
+    socket.send(JSON.stringify(ack));
   }
   async model(asset) {
     if (this.assetCache.has(asset.id)) {
@@ -303,7 +337,7 @@ export class SchoolRoom {
     while (this.assetCache.size > 8) this.assetCache.delete(this.assetCache.keys().next().value);
     return model;
   }
-  async applyEdit(value, session, world) {
+  async applyEdit(value, session, world, environment) {
     const current = this.state.objects.find((object) => object.id === value.id);
     if (value.type !== "object.create") {
       if (!current) fail(404, "object_not_found");
@@ -327,7 +361,8 @@ export class SchoolRoom {
     if (asset.owner_id !== session.id) fail(403, "asset_owner_required");
     if (this.state.objects.reduce((sum, object) => sum + (object.id === current?.id ? 0 : object.triangles), asset.triangles) > LIMITS.worldTriangles) fail(409, "world_triangle_limit");
     const transform = validateTransform(value), model = await this.model(asset);
-    const placement = validatePlacement({ positions: model.positions, ...transform }, await this.loadPlacement());
+    const candidate={ positions: model.positions, ...transform };
+    const placement = validatePlacement(candidate, environment);
     if (!placement.valid) fail(409, "invalid_placement", placement.error);
     if (placement.bounds.max.some((n, axis) => n - placement.bounds.min[axis] > LIMITS.objectMeters)) fail(409, "object_size_limit");
     if (this.state.objects.some((object) => object.id !== current?.id && overlaps(placement.bounds, object.bounds))) fail(409, "object_overlap");

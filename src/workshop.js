@@ -12,15 +12,17 @@ function explainError(error) {
   if (/login|session|unauth/.test(message)) return "ログインし直してください。";
   if (/stale_revision|conflict/.test(message)) return "他の人の変更と競合しました。最新のワールドで位置を確認し、もう一度確定してください。";
   if (/owner/.test(message)) return "変更できるのは自分の作品だけです。";
-  if (/asset_already_placed/.test(message)) return "このSTLは設置済みです。右長押しで回収してから置き直してください。";
+  if (/asset_already_placed/.test(message)) return "このSTLは設置済みです。左長押しで回収してから置き直してください。";
   if (/own_object_limit/.test(message)) return "同時に置ける自分の作品は10点までです。先に回収してください。";
   if (/overlap/.test(message)) return "元の建物や他の作品に重なっています。別の場所を選んでください。";
   if (/asset_limit|quota/.test(message)) return "自分のSTLはワールドごとに10個・合計25MiBまでです。";
   if (/world_triangle_limit/.test(message)) return "ワールド全体の作品は20万三角形までです。";
   if (/world_object_limit/.test(message)) return "ワールドの作品数が上限に達しています。";
   if (/disconnected|connection/.test(message)) return "共同ワールドに接続してから操作してください。";
-  if (/outside the editable region/.test(message)) return "駅周辺の配置範囲からはみ出しています。";
-  if (/terrain|terrain contact/.test(message)) return "作品の下全体の実地形を確認できません。駅周辺の別の場所を選んでください。";
+  if (/placement_source_unavailable/.test(message)) return "地面の標高データを取得できませんでした。STLは手元に残っています。少し待って再度置いてください。";
+  if (/still loading/.test(message)) return "周辺の地面と建物を読み込んでいます。近づいて少し待ってください。";
+  if (/outside the editable region/.test(message)) return "表示できる岡崎の街の範囲からはみ出しています。";
+  if (/terrain|terrain contact/.test(message)) return "作品の下全体の実地形を確認できません。近づいて地面の読み込みを待つか、別の場所を選んでください。";
   if (/dimensions/.test(message)) return "作品の大きさは各方向100mまでです。縮尺を小さくしてください。";
   if (/complex/.test(message)) return "形状が複雑すぎて安全に配置を確認できません。簡略化したSTLを使ってください。";
   if (/triangles/.test(message)) return "STLは1〜2万三角形までです。形状を簡略化してください。";
@@ -270,7 +272,8 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
       setMessage("値が範囲外です。縮尺は0.000001〜100、回転は±18000°以内で指定してください。");
       renderList(); return { valid: false };
     }
-    const result = validatePlacement({ positions: draft.positions, position, rotation, scale }, getEnvironment());
+    const candidate={ positions: draft.positions, position, rotation, scale };
+    const result = validatePlacement(candidate, getEnvironment(candidate));
     if (result.valid && (state.objects ?? []).some((object) => object.id !== draft.baseId && sharedObjectOverlap(result.bounds, object))) {
       result.valid = false; result.error = "object_overlap";
     }
@@ -426,7 +429,7 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
       -(event.clientY - rect.top) / rect.height * 2 + 1), camera);
     const hit = ray.intersectObjects(getEnvironment().terrainMeshes ?? [], false)[0];
     stopPick(); if (!dialog.open) dialog.showModal();
-    if (!hit) { setMessage("駅周辺の実地面を選んでください。広域・空・建物は配置対象外です。"); return; }
+    if (!hit) { setMessage("読み込み済みの実地面を選んでください。空中・建物上へは配置できません。"); return; }
     moveSelected([hit.point.x, hit.point.y, hit.point.z]);
   };
   const onEscape = (event) => { if (event.code === "Escape" && picking) { stopPick(); if (requireAccess(false) && !isXR() && !dialog.open) dialog.showModal(); } };

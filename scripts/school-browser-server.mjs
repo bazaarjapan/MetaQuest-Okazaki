@@ -171,7 +171,7 @@ export async function createBrowserCubeFixture(assets) {
   return { bytes, sha256: digest(bytes), groundPositions: await cubeGroundPositions(assets, bytes) };
 }
 
-export async function startSchoolBrowserServer({ singleClassroom = process.argv.includes("--single-classroom") } = {}) {
+export async function startSchoolBrowserServer({ singleClassroom = process.argv.includes("--single-classroom"), liveDem = process.argv.includes("--live-dem") } = {}) {
   await ensurePortFree();
   const assets = await createDistAssetService();
   const compilation = await build({ absWorkingDir: root, entryPoints: ["worker/index.mjs"], bundle: true,
@@ -206,7 +206,15 @@ export async function startSchoolBrowserServer({ singleClassroom = process.argv.
       d1Databases: { DB: randomUUID() }, r2Buckets: { STL_BUCKET: `browser-fixture-${randomUUID()}` },
       durableObjects: { SCHOOL_ROOMS: { className: "SchoolRoom", useSQLite: true } },
       serviceBindings: { ASSETS: assets.fetch },
-      outboundService: async () => { outboundAttempts++; return new Response("External requests disabled by local browser gate", { status: 503 }); },
+      outboundService: async request => {
+        const url=new URL(request.url),match=url.pathname.match(/^\/xyz\/dem_png\/14\/(\d+)\/(\d+)\.png$/);
+        if(liveDem && request.method==='GET' && url.origin==='https://cyberjapandata.gsi.go.jp' && !url.search && match &&
+          Number(match[1])>=14431 && Number(match[1])<=14445 && Number(match[2])>=6487 && Number(match[2])<=6498){
+          // Only public elevation data. Never forward cookies/headers or allow OAuth/API calls.
+          return fetch(url.href,{redirect:'error',signal:AbortSignal.timeout(8000)});
+        }
+        outboundAttempts++; return new Response("External requests disabled by local browser gate", { status: 503 });
+      },
     }));
     const runtimeUrl = String(await mf.ready);
     const db = await mf.getD1Database("DB");
@@ -235,7 +243,7 @@ export async function startSchoolBrowserServer({ singleClassroom = process.argv.
     if (response.status !== (singleClassroom ? 200 : 201) || !result.world?.id || !result.world.joinCode) throw Error(`Fixture room creation failed (${response.status})`);
     const cubeFixture = await createBrowserCubeFixture(assets), cube = cubeFixture.bytes;
     const fixtures = { runId, origin, runtimeUrl, createdAt: new Date().toISOString(),
-      ephemeralAuthenticationFixtures: true, realGoogleLoginVerified: false, externalWorkerNetworkDisabled: true,
+      ephemeralAuthenticationFixtures: true, realGoogleLoginVerified: false, externalWorkerNetworkDisabled: !liveDem, liveGsiDemOnly:liveDem,
       teacher, student: students[0], studentRelogin, otherStudent: students[1], students,
       world: result.world, inviteURL: schoolInviteURL(origin, result.world.joinCode),
       cubeFile, cube: { sha256: cubeFixture.sha256, triangles: 12, upAxis: "y", units: "m", groundPositions: cubeFixture.groundPositions },
@@ -250,7 +258,7 @@ export async function startSchoolBrowserServer({ singleClassroom = process.argv.
       miniflareVersion: require("miniflare/package.json").version, workerdVersion: require("workerd/package.json").version,
       workerBundleSha256: fixtures.workerBundleSha256, distManifestSha256: assets.manifestSha256,
       distFileCount: assets.fileCount, fixtureFile: relative(root, fixturePath),
-      temporaryUsers: students.length + 1, studentsInitiallyJoined: 0, outboundNetworkDisabled: true }, null, 2));
+      temporaryUsers: students.length + 1, studentsInitiallyJoined: 0, outboundNetworkDisabled: !liveDem, liveGsiDemOnly:liveDem }, null, 2));
     return { origin, done, dispose };
   } catch (error) { await dispose(); throw error; }
 }

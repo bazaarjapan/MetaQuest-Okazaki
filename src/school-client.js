@@ -430,7 +430,7 @@ export function createSchoolClient(options = {}) {
       if (JSON.stringify(message).length > 16000) throw new SchoolClientError("message_too_large");
       lastEditAt = now();
       return new Promise((resolve, reject) => {
-        const timer = setTimer(() => { pending.delete(requestId); reject(new SchoolClientError("edit_timeout")); refreshWorld(epoch, room, worldId).catch(() => {}); }, 12000);
+        const timer = setTimer(() => { pending.delete(requestId); reject(new SchoolClientError("edit_timeout")); refreshWorld(epoch, room, worldId).catch(() => {}); }, 30000);
         pending.set(requestId, { resolve, reject, timer });
         try { socket.send(JSON.stringify(message)); } catch { pending.delete(requestId); clearTimer(timer); reject(new SchoolClientError("connection_lost")); }
       });
