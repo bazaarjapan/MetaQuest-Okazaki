@@ -17,7 +17,7 @@ test("fresh loaded desktop enables free input without overriding remembered mode
 });
 
 test("startup cannot enable input on mobile or override interruption, modal, school or XR stops", () => {
-  for (const stop of ["mobile", "hidden", "interrupted", "dialogOpen", "xr", "xrEntering", "restoredWorld"]) {
+  for (const stop of ["mobile", "quest", "hidden", "interrupted", "dialogOpen", "xr", "xrEntering", "restoredWorld"]) {
     assert.equal(initialPCMovement({ ready: true, [stop]: true }), false, stop);
   }
   assert.equal(initialPCMovement({ ready: false }), false);

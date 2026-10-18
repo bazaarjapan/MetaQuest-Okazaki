@@ -36,6 +36,9 @@ test('manual documents implemented controls, cloud persistence and quotas',()=>{
   assert.match(manual,/ホイール/); assert.match(manual,/1\.5秒長押し/);
   assert.match(manual,/左スティック：上下＝上昇・下降、左右＝旋回/);
   assert.match(manual,/右スティック：上下＝前進・後退、左右＝横移動/);
+  assert.match(manual,/ドローン・モード2が自動で選ばれます/);
+  assert.match(manual,/2Dの全画面とVR表示は別/);
+  assert.match(manual,/小さいウィンドウでは「メニュー」→「設定」/);
   assert.match(manual,/次回も同じID・パスワード/); assert.match(manual,/全員の作品・位置が巻き戻ります/);
   assert.match(manual,new RegExp(`最大${LIMITS.students}人`));
   assert.match(manual,new RegExp(`最大${LIMITS.userAssets}ファイル`));
