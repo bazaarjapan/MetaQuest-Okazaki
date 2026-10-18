@@ -103,6 +103,7 @@ export function createVRFieldPanel(THREE, { camera, controllerHud, vrWorkshop,
     const key = JSON.stringify({ visible: mesh.visible, expanded, tab, hovered, hoveredHands,
       flashLeft: flashes.left.action, flashRight: flashes.right.action, exiting,
       progress: Math.round(progress * 100), free: view.free,
+      location: view.location,
       horizontal: Number(view.horizontalSpeed ?? 0).toFixed(1), vertical: Number(view.verticalSpeed ?? 0).toFixed(1),
       regionReady: view.regionReady, mapSecond: tab === "region" ? Math.floor(time / 1000) : 0,
       hud: tab === "observe" ? hud.renderCount : 0, workshop: tab === "workshop" ? workshop.redraws : 0 });
@@ -115,10 +116,12 @@ export function createVRFieldPanel(THREE, { camera, controllerHud, vrWorkshop,
     c.fillStyle = "rgba(8,20,35,.96)"; c.beginPath();
     c.roundRect(2, 2, canvas.width - 4, canvas.height - 4, 28); c.fill();
     c.strokeStyle = "#83cfbf"; c.lineWidth = 3; c.stroke();
-    c.textAlign = "left"; c.fillStyle = "white"; c.font = "bold 38px sans-serif";
-    c.fillText("岡崎まち フィールドノート", 40, 58, 1184);
-    c.font='20px sans-serif';c.textAlign='right';c.fillStyle='#b4cdd3';
-    c.fillText('出典：PLATEAU・国土地理院（加工）',1224,60,600);
+    c.textAlign = "left"; c.fillStyle = "white"; c.font = "bold 30px sans-serif";
+    c.fillText("岡崎まち フィールドノート", 40, 36, 650);
+    c.font = "bold 28px sans-serif"; c.fillStyle = "#b9f1dc";
+    if (view.location) c.fillText(`現在地 · JR岡崎駅から ${view.location}`, 40, 76, 1184);
+    c.font='18px sans-serif';c.textAlign='right';c.fillStyle='#b4cdd3';
+    c.fillText('出典：PLATEAU・国土地理院（加工）',1224,34,500);
 
     const drawButton = (entry, selected = false) => {
       const active = entry.enabled !== false;

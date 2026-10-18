@@ -11,6 +11,7 @@ function fixture() {
   const context = new Proxy({}, { get(target, name) {
     if (name === "roundRect") return (...values) => { currentRect = values.slice(0, 4); };
     if (name === "stroke") return () => paintEvents.push({ rect: currentRect, color: target.strokeStyle });
+    if (name === "fillText") return (text, x, y) => paintEvents.push({ text, x, y });
     return target[name] ?? (() => {});
   }, set(target, name, value) { target[name] = value; return true; } });
   const tracedThree = { ...THREE };
@@ -69,6 +70,20 @@ test("all VR UI shares one centered mesh, while PC controller preview canvases r
   f.hud.setXR(false); f.panel.update({ xr: false, time: 1100 });
   assert.ok(f.viewport.children.every((child) => !child.hidden));
   assert.equal(f.panel.getState().panelCount, 0);
+  f.cleanup();
+});
+
+test("current location updates in the existing header and follows the X visibility toggle", () => {
+  const f = fixture();
+  f.setView({ location: '東 120 m ／ 北 80 m' });
+  f.panel.update({ time: 1500 });
+  assert.ok(f.paintEvents.some(e => e.text === '現在地 · JR岡崎駅から 東 120 m ／ 北 80 m' && e.y < 94));
+  f.setView({ location: '西 100 m ／ 南 20 m' });
+  f.panel.update({ time: 1800 });
+  assert.ok(f.paintEvents.some(e => e.text?.includes('西 100 m ／ 南 20 m')));
+  assert.equal(f.camera.children.length, 1);
+  f.panel.toggleExpanded(); assert.equal(f.panel.getState().panelCount, 0);
+  f.panel.toggleExpanded(); assert.equal(f.panel.getState().panelCount, 1);
   f.cleanup();
 });
 

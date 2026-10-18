@@ -1,4 +1,5 @@
 import { createAvatarLabel } from "./avatar-label.js";
+import { createLocationHud } from "./location-hud.js";
 import * as THREE from "three";
 import "./xr-dev.js";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
@@ -36,10 +37,13 @@ import { createVRControllerPointer } from "./vr-controller-pointer.js";
 import "./style.css";
 import "./layout.css";
 import "./hotbar.css";
+import "./location-hud.css";
 
 const $ = (s) => document.querySelector(s),
   viewport = $("#viewport");
 const questBrowser = isQuestBrowser(navigator.userAgent);
+const locationHud = createLocationHud($("#current-location"), $("#current-location-detail"));
+let stationPosition = null;
 $("#device-control-note").hidden = !questBrowser;
 let activityAllowed = false;
 const activityGate = createActivityGate({ onOpen: () => schoolUI?.open(), onLock: () => {
@@ -381,6 +385,7 @@ async function loadCity() {
   catch { fieldStyle='photo';fieldUniform.value=0;$('#field-style-note').textContent='ゲーム風の地図を取得できませんでした。写真表示で利用できます。'; }
   $('#field-style').value=fieldStyle;
   const manifest = await fetchChecked("/city/manifest.json", "json");
+  stationPosition = manifest.station;
   // Detail assets are optional: the original published atlas remains a fallback.
   try { detail = await fetchChecked("/city/detail.json", "json"); } catch { detail = null; }
   for (const [i, p] of manifest.parts.entries()) {
@@ -1051,6 +1056,7 @@ const controllerHud = createControllerHud(THREE, camera, viewport, { spatial: fa
 const regionMapRect = fieldRegionMapRect;
 vrFieldPanel = createVRFieldPanel(THREE, { camera, controllerHud, vrWorkshop,
   getViewState: () => ({ free: state.free, regionReady: Boolean(regionManifest),
+    location: locationHud.getState().text,
     horizontalSpeed: flight.horizontalSpeed, verticalSpeed: flight.verticalSpeed }),
   drawMap: (context, rect) => {
     if (regionManifest) drawRegionMap(context, rect, regionManifest, userPosition(), coreBounds());
@@ -1350,6 +1356,8 @@ renderer.setAnimationLoop((time, frame) => {
   }
   controllerHud.update(renderer.xr.getSession()?.inputSources,
     { free: state.free, flight }, time);
+  locationHud.update({ time, active: state.ready && activityAllowed && !pendingXRView,
+    xr: state.xr || xrEntering, getPosition: userPosition, station: stationPosition });
   const session = renderer.xr.getSession(), panelInteractive = controllerInteractionActive(session);
   vrFieldPanel.update({ xr: state.xr, interactive: panelInteractive, time });
   let panelHover = null, leftSeen = false, rightSeen = false;
@@ -1396,6 +1404,7 @@ window.__okazaki = {
     device: { questBrowser },
     school: schoolClient.getState(),
     activityAllowed,
+    location: locationHud.getState(),
     presence: presence.getState(),
     vrWorkshop: vrWorkshop.getState(),
     workshop: workshop.getState(),

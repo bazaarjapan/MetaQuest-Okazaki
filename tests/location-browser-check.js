@@ -1,0 +1,43 @@
+// Isolated local classroom, authenticated fixture, built app. DOM input only.
+(async () => {
+  const results = [], state = () => window.__okazaki.getState();
+  const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+  const check = (ok, name) => { results.push({ ok: Boolean(ok), name }); if (!ok) throw Error(name); };
+  const hud = document.querySelector('#current-location');
+  const expected = eye => {
+    const [x,,z] = eye, east = x - 95.924560546875, south = z - 49.00273132324219;
+    if (Math.hypot(east, south) < 5) return 'JR岡崎駅付近';
+    const axis = (v, a, b, zero) => { const m = Math.round(Math.abs(v));
+      return `${m === 0 ? zero : v > 0 ? a : b} ${m < 1000 ? `${m} m` : `${(m / 1000).toFixed(2)} km`}`; };
+    return `${axis(east,'東','西','東西')} ／ ${axis(south,'南','北','南北')}`;
+  };
+  check(state().activityAllowed && !hud.hidden, 'authenticated-location-visible');
+  if (document.body.dataset.panelOpen === 'true') document.querySelector('#panel-close').click();
+  if (!state().free) document.querySelector('#free-move').click();
+  await wait(300);
+  check(state().creative.mode === 'creative', 'creative-mode');
+  check(state().location.text === expected(state().creative.eye), 'uses-character-not-third-person-camera');
+  check(getComputedStyle(hud).pointerEvents === 'none', 'HUD-never-blocks-mouse');
+  const before = state().location.text;
+  window.dispatchEvent(new KeyboardEvent('keydown', {code:'KeyW',bubbles:true}));
+  await wait(1500);
+  window.dispatchEvent(new KeyboardEvent('keyup', {code:'KeyW',bubbles:true}));
+  await wait(350);
+  check(state().location.text !== before, 'walking-updates-location');
+  check(state().location.text === expected(state().creative.eye), 'walk-position-exact');
+  window.dispatchEvent(new KeyboardEvent('keydown', {code:'F5',bubbles:true,cancelable:true}));
+  window.dispatchEvent(new KeyboardEvent('keyup', {code:'F5',bubbles:true}));
+  await wait(350);
+  check(state().location.text === expected(state().creative.eye), 'camera-view-switch-stays-character-relative');
+  document.querySelector('#simple-menu').click();
+  document.querySelector('[data-view="east"]').click();
+  document.querySelector('#panel-close').click();
+  await wait(350);
+  check(state().location.text === expected(state().creative.eye), 'viewpoint-change-updates-location');
+  const rect = hud.getBoundingClientRect();
+  const overlap = other => { const r = other.getBoundingClientRect();
+    return r.width > 0 && r.height > 0 && r.left < rect.right && r.right > rect.left && r.top < rect.bottom && r.bottom > rect.top; };
+  check(['#simple-menu','#simple-login','.map-label','#north','#status'].every(s => !overlap(document.querySelector(s))), 'top-HUD-no-overlap');
+  check(rect.left >= 0 && rect.right <= innerWidth && rect.top >= 0 && rect.bottom < innerHeight/2, 'HUD-fits-upper-screen');
+  return { passed: true, results, text: state().location.text };
+})();
