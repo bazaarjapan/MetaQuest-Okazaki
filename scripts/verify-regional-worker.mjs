@@ -13,7 +13,7 @@ catch(e){return Response.json({error:e.message,stack:e.stack},{status:500});}
 }};`,resolveDir:process.cwd(),sourcefile:'regional-gate.mjs'},bundle:true,write:false,platform:'browser',format:'esm'});
 const mf=new Miniflare(convertV4MiniflareOptions({modules:true,script:outputFiles[0].text,compatibilityDate:'2026-09-29',cf:false,
  serviceBindings:{ASSETS:assets.fetch},outboundService:async request=>{
- const u=new URL(request.url);if(u.origin!=='https://cyberjapandata.gsi.go.jp'||!/^\/xyz\/dem\/14\/\d+\/\d+\.txt$/.test(u.pathname))throw Error('Unexpected outbound request');
+ const u=new URL(request.url);if(u.origin!=='https://cyberjapandata.gsi.go.jp'||!/^\/xyz\/dem_png\/14\/\d+\/\d+\.png$/.test(u.pathname))throw Error('Unexpected outbound request');
  const r=await fetch(u.href,{redirect:'error',signal:AbortSignal.timeout(8000)});
  return new Response(await r.arrayBuffer(),{status:r.status,headers:r.headers});
  }}));

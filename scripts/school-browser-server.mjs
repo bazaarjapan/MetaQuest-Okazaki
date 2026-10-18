@@ -207,7 +207,7 @@ export async function startSchoolBrowserServer({ singleClassroom = process.argv.
       durableObjects: { SCHOOL_ROOMS: { className: "SchoolRoom", useSQLite: true } },
       serviceBindings: { ASSETS: assets.fetch },
       outboundService: async request => {
-        const url=new URL(request.url),match=url.pathname.match(/^\/xyz\/dem\/14\/(\d+)\/(\d+)\.txt$/);
+        const url=new URL(request.url),match=url.pathname.match(/^\/xyz\/dem_png\/14\/(\d+)\/(\d+)\.png$/);
         if(liveDem && request.method==='GET' && url.origin==='https://cyberjapandata.gsi.go.jp' && !url.search && match &&
           Number(match[1])>=14431 && Number(match[1])<=14445 && Number(match[2])>=6487 && Number(match[2])<=6498){
           // Only public elevation data. Never forward cookies/headers or allow OAuth/API calls.

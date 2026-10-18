@@ -2,6 +2,7 @@ import {createSurfaceIndex,placementContains,placementFootprint,placementInterse
 import {interpolateElevation,validateDemTile} from '../src/terrain-height.js';
 import {loadCorePlacement} from './placement-source.mjs';
 import {fail,sha256} from './school-common.mjs';
+import {decodeDemPng} from './dem-png.mjs';
 
 export const REGION_SOURCE_HASHES=Object.freeze({
   'buildings.json':'d7033f6448eafd98b8cf64918a2637d7efc93bcd67f415a5bb48d4429f8b6f87',
@@ -9,20 +10,6 @@ export const REGION_SOURCE_HASHES=Object.freeze({
 });
 export const REGION_PLACEMENT_BOUNDS=Object.freeze([-4818.7919921875,-12503.6240234375,20255.958984375,6905.88623046875]);
 const loaders=new WeakMap();
-export function parseDemText(text) {
-  const rows=text.trim().split(/\r?\n/);
-  if(rows.length!==256)throw Error('Invalid DEM rows');
-  const values=new Float64Array(65536);
-  for(let y=0;y<256;y++){
-    const row=rows[y].split(',');if(row.length!==256)throw Error('Invalid DEM columns');
-    for(let x=0;x<256;x++){
-      const s=row[x].trim(),value=s==='e'?NaN:Number(s);
-      if(s!=='e' && (!/^-?\d+(?:\.\d{1,2})?$/.test(s)||!Number.isFinite(value)||Math.abs(value)>10000))throw Error('Invalid DEM sample');
-      values[y*256+x]=value;
-    }
-  }
-  return values;
-}
 async function readBounded(response,max) {
   if(!response.ok || Number(response.headers.get('content-length'))>max)throw Error('Placement source unavailable');
   const reader=response.body.getReader(),chunks=[];let length=0;
@@ -45,9 +32,8 @@ export function decodeRegionMesh(data,tile) {
   if(!positions.every(Number.isFinite)||!indices.every(i=>i<n))throw Error('Invalid region coordinates');
   return {positions,indices,uv:packed?null:new Float32Array(data,n*24,n*2)};
 }
-// Identical UV interpolation and Float32 rounding to the browser's PNG DEM.
-// GSI documents text and PNG as the same samples; never substitute a zero plane.
-export async function applyDemTextHeight(mesh,tile,getDem) {
+// Identical PNG source, UV interpolation and Float32 rounding to the browser.
+export async function applyDemHeight(mesh,tile,getDem) {
   validateDemTile(tile);
   const keys=new Set();
   for(let i=0;i<mesh.uv.length;i+=2){
@@ -93,8 +79,8 @@ export function createRegionPlacementLoader(binding,{fetchImpl=fetch}={}) {
     const pending=(async()=>{
       // workerd supports manual, not redirect:error. readBounded rejects every
       // 3xx response, so elevation requests cannot follow an external redirect.
-      const response=await fetchImpl(`https://cyberjapandata.gsi.go.jp/xyz/dem/14/${key}.txt`,{redirect:'manual',signal:AbortSignal.timeout(8000)});
-      return parseDemText(new TextDecoder().decode(await readBounded(response,1024*1024)));
+      const response=await fetchImpl(`https://cyberjapandata.gsi.go.jp/xyz/dem_png/14/${key}.png`,{redirect:'manual',signal:AbortSignal.timeout(8000)});
+      return decodeDemPng(await readBounded(response,2*1024*1024));
     })();
     demCache.set(key,pending);
     try{const result=await pending;while(demCache.size>16)demCache.delete(demCache.keys().next().value);return result;}
@@ -115,7 +101,7 @@ export function createRegionPlacementLoader(binding,{fetchImpl=fetch}={}) {
       if(placementIntersects(core.bounds,box)){ground.push(core.terrain);obstacles.push(...core.obstacles);}
       for(const tile of needed){
         const mesh=decodeRegionMesh(await checked(tile.file,tile.sha256),tile);
-        if(tile.type==='terrain')await applyDemTextHeight(mesh,tile,getDem);
+        if(tile.type==='terrain')await applyDemHeight(mesh,tile,getDem);
         const index=clippedIndex(mesh,box);if(index)(tile.type==='terrain'?ground:obstacles).push(index);
       }
       return {terrain:ground,obstacles,bounds:buildings.bounds};
