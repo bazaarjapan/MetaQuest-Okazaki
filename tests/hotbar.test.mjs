@@ -60,6 +60,15 @@ test("hidden VR hotbar performs no school or workshop snapshot allocations",()=>
   for(let frame=0;frame<100;frame++) h.hotbar.update(frame*16);
   assert.equal(h.calls,0); assert.equal(h.hotbar.getState().aiming,false);
 });
+
+test('a held draft imported outside the hotbar becomes placeable, including after VR',async()=>{
+  const h=harness();h.hotbar.update(0);
+  await h.workshop.useAsset();h.workshop.getHeldDraft=()=>({});
+  h.hotbar.update(200);assert.equal(h.hotbar.pointerContext().mode,'place');
+  h.setXR(true);h.hotbar.update(400);assert.equal(h.hotbar.getState().aiming,false);
+  h.setXR(false);h.hotbar.update(600);assert.equal(h.hotbar.pointerContext().mode,'place');
+  h.setEditable(false);h.hotbar.update(800);assert.equal(h.hotbar.pointerContext(),null);
+});
 test("right click never retrieves; R requires an owned visible target and rejects repeated keys",async()=>{
   const h=harness();h.hotbar.update(0);
   h.canvas.events.pointerdown({button:2,pointerType:"mouse",clientX:400,clientY:300,preventDefault(){}});
@@ -79,6 +88,32 @@ test("R cannot retrieve through a wall, after pointer loss, or without ownership
   h.setObstacles([{distance:.1}]);h.window.events.keydown({code:"KeyR",preventDefault(){}});assert.equal(h.removals,0);
   h.setObstacles([]);h.workshop.getState().objects[0].editable=false;
   h.window.events.keydown({code:"KeyR",preventDefault(){}});assert.equal(h.removals,0);
+});
+
+const leftDown=h=>h.canvas.events.pointerdown({button:0,buttons:1,pointerId:7,pointerType:'mouse',clientX:400,clientY:300});
+test('left hold retrieves once after 800 ms and never places a draft',async()=>{
+  const h=harness();await h.selectDraft();leftDown(h);
+  h.setTime(799);h.hotbar.update(799);assert.equal(h.removals,0);assert.equal(h.commits,0);
+  h.setTime(880);h.hotbar.update(880);await new Promise(setImmediate);assert.equal(h.removals,1);
+  h.setTime(1800);h.hotbar.update(1800);assert.equal(h.removals,1);assert.equal(h.commits,0);
+});
+test('left hold cancels on release, drag, lost buttons, target change, blocked UI, auth loss and interruption',()=>{
+  for(const cancel of [h=>h.window.events.pointerup({pointerId:7,button:0}),
+    h=>h.canvas.events.pointermove({pointerId:7,buttons:1,clientX:410,clientY:300}),
+    h=>h.canvas.events.pointermove({pointerId:7,buttons:0,clientX:400,clientY:300}),
+    h=>h.canvas.events.pointercancel(),h=>h.canvas.events.lostpointercapture(),h=>h.canvas.events.pointerleave(),
+    h=>h.window.events.blur(),h=>{h.document.hidden=true;h.document.events.visibilitychange();},
+    h=>h.setMenu(true),h=>h.setXR(true),h=>h.setXRPending(true),h=>h.setPicking(true),h=>h.setEditable(false),
+    h=>h.setObstacles([{distance:.1}]),h=>{h.workshop.getState().objects[0].editable=false;},
+    h=>{h.workshop.getState().objects[0].id='different';}]) {
+    const h=harness();h.hotbar.update(0);leftDown(h);cancel(h);h.setTime(1000);h.hotbar.update(1000);
+    assert.equal(h.removals,0);assert.equal(h.commits,0);
+  }
+});
+test('left hold cannot begin on another owner or behind an obstacle',()=>{
+  for(const setup of [h=>{h.workshop.getState().objects[0].editable=false;},h=>h.setObstacles([{distance:.1}])]) {
+    const h=harness();h.hotbar.update(0);setup(h);leftDown(h);h.setTime(1000);h.hotbar.update(1000);assert.equal(h.removals,0);
+  }
 });
 
 test("wheel affects only an editable held draft; UI, XR, committed and camera gestures are safe",async()=>{

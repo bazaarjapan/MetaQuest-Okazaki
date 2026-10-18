@@ -21,7 +21,7 @@ export async function handleSchoolRequest(request, env, dependencies = {}) {
   if (path === "/api/config" && request.method === "GET") {
     let configured = true;
     try { requireConfigured(env); } catch { configured = false; }
-    return json({ configured, singleClassroom: env.SINGLE_CLASSROOM === "true", googleClientId: env.GOOGLE_CLIENT_ID ?? null, placement: "station-core", limits: LIMITS });
+    return json({ configured, singleClassroom: env.SINGLE_CLASSROOM === "true", googleClientId: env.GOOGLE_CLIENT_ID ?? null, placement: "okazaki-region", limits: LIMITS });
   }
   requireConfigured(env);
   if (request.method !== "GET" || (request.headers.get("Upgrade") ?? "").toLowerCase() === "websocket") requireOrigin(request, env);

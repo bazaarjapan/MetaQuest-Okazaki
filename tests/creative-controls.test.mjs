@@ -129,15 +129,16 @@ test("right drag also works outside flight and clears on blur/modal/XR", () => {
   assert.equal(f.control.getState().mouseSteering,false);f.control.dispose();
 });
 
-test("held STL separates left placement and right look regardless of ground; never places a drag", () => {
+test("held STL right click places, right drag looks, and left input is reserved for retrieval", () => {
   let context={mode:"place",token:"draft1"}, placements=0;
   const f=fixture({getPointerContext:()=>context,onFlightClick:()=>placements++});f.enable();
-  const down=(button=0)=>f.canvas.emit("pointerdown",{pointerType:"mouse",button,pointerId:7,clientX:100,clientY:100});
-  const move=(x,buttons=1)=>f.canvas.emit("pointermove",{pointerId:7,buttons,clientX:x,clientY:100});
-  const up=(x=100,button=0)=>f.win.emit("pointerup",{pointerId:7,button,clientX:x,clientY:100});
+  const down=(button=2)=>f.canvas.emit("pointerdown",{pointerType:"mouse",button,pointerId:7,clientX:100,clientY:100});
+  const move=(x,buttons=2)=>f.canvas.emit("pointermove",{pointerId:7,buttons,clientX:x,clientY:100});
+  const up=(x=100,button=2)=>f.win.emit("pointerup",{pointerId:7,button,clientX:x,clientY:100});
+  down(0);up(100,0);assert.equal(placements,0);assert.equal(f.control.getState().mouseSteering,false);
   down();assert.equal(placements,0);up();assert.equal(placements,1);
   f.canvas.emit("click");assert.equal(f.doc.pointerLockElement,null);
-  down();move(150);up(150);close(f.control.getState().yaw,0);assert.equal(placements,1);
+  down();move(150);up(150);assert.ok(f.control.getState().yaw<0);assert.equal(placements,1);
   context={mode:"place",token:"draft1"};down(2);move(150,2);
   context={mode:"look",token:"draft1"};move(200,2);up(200,2);
   assert.ok(f.control.getState().yaw<0);assert.equal(placements,1);
@@ -148,8 +149,8 @@ test("held STL separates left placement and right look regardless of ground; nev
 test("held STL gestures reject changed draft, cancelled input, blocked UI and pointer lock", () => {
   let context={mode:"place",token:"draft1"}, placements=0;
   const f=fixture({getPointerContext:()=>context,onFlightClick:()=>placements++});f.enable();
-  const down=()=>f.canvas.emit("pointerdown",{pointerType:"mouse",button:0,pointerId:7,clientX:100,clientY:100});
-  const up=()=>f.win.emit("pointerup",{pointerId:7,button:0,clientX:100,clientY:100});
+  const down=()=>f.canvas.emit("pointerdown",{pointerType:"mouse",button:2,pointerId:7,clientX:100,clientY:100});
+  const up=()=>f.win.emit("pointerup",{pointerId:7,button:2,clientX:100,clientY:100});
   down();context={mode:"place",token:"draft2"};up();assert.equal(placements,0);
   for(const cancel of [()=>f.win.emit("blur"),()=>f.canvas.emit("pointercancel"),
     ()=>f.control.step(0,{enabled:true,blocked:true})]) {
@@ -162,12 +163,12 @@ test("held STL gestures reject changed draft, cancelled input, blocked UI and po
 
 test("held STL flight defers a click for placement but never places a drag or cancelled gesture", () => {
   let placements=0; const f=fixture({getPointerContext:()=>({mode:"place",token:"draft"}),onFlightClick:()=>placements++});f.enable();f.key("KeyZ");
-  const down=()=>f.canvas.emit("pointerdown",{pointerType:"mouse",button:0,pointerId:7,clientX:100,clientY:100});
-  const up=(x=102)=>f.win.emit("pointerup",{pointerId:7,button:0,clientX:x,clientY:100});
+  const down=()=>f.canvas.emit("pointerdown",{pointerType:"mouse",button:2,pointerId:7,clientX:100,clientY:100});
+  const up=(x=102)=>f.win.emit("pointerup",{pointerId:7,button:2,clientX:x,clientY:100});
   down();assert.equal(placements,0);
-  f.canvas.emit("pointermove",{pointerId:7,buttons:1,clientX:102,clientY:100});
+  f.canvas.emit("pointermove",{pointerId:7,buttons:2,clientX:102,clientY:100});
   close(f.control.getState().yaw,0);up();assert.equal(placements,1);
-  down();f.canvas.emit("pointermove",{pointerId:7,buttons:1,clientX:130,clientY:100});up(130);
+  down();f.canvas.emit("pointermove",{pointerId:7,buttons:2,clientX:130,clientY:100});up(130);
   assert.equal(placements,1);
   down();f.canvas.emit("pointercancel");up();assert.equal(placements,1);
   down();f.win.emit("blur");up();assert.equal(placements,1);f.control.dispose();

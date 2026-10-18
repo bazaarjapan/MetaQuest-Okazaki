@@ -2,7 +2,7 @@ import { validatePlacement } from "../src/placement.js";
 import { LIMITS, SchoolError, fail, json, publicAvatar, sha256, validId } from "./school-common.mjs";
 import { all, assetPublic, authorizeRoomSession, first, getAsset, sessionByHash, worldPublic } from "./school-store.mjs";
 import { readAssetModel } from "./school-assets.mjs";
-import { loadCorePlacement } from "./placement-source.mjs";
+import { loadRegionalPlacement } from "./regional-placement.mjs";
 import { CLASSROOM_ID, managesWorld } from "./classroom-id.mjs";
 import { validAvatarMotion } from "../src/avatar-motion.js";
 
@@ -49,7 +49,7 @@ export class SchoolRoom {
     this.now = dependencies.now ?? (() => Date.now());
     this.makePair = dependencies.makePair ?? (() => new WebSocketPair());
     this.upgradeResponse = dependencies.upgradeResponse ?? ((client) => new Response(null, { status: 101, webSocket: client }));
-    this.loadPlacement = dependencies.loadPlacement ?? (() => loadCorePlacement(env.ASSETS));
+    this.loadPlacement = dependencies.loadPlacement ?? (candidate => loadRegionalPlacement(env.ASSETS,candidate));
     this.sessions = new Map();
     this.assetCache = new Map();
     this.tail = Promise.resolve();
@@ -327,7 +327,8 @@ export class SchoolRoom {
     if (asset.owner_id !== session.id) fail(403, "asset_owner_required");
     if (this.state.objects.reduce((sum, object) => sum + (object.id === current?.id ? 0 : object.triangles), asset.triangles) > LIMITS.worldTriangles) fail(409, "world_triangle_limit");
     const transform = validateTransform(value), model = await this.model(asset);
-    const placement = validatePlacement({ positions: model.positions, ...transform }, await this.loadPlacement());
+    const candidate={ positions: model.positions, ...transform };
+    const placement = validatePlacement(candidate, await this.loadPlacement(candidate));
     if (!placement.valid) fail(409, "invalid_placement", placement.error);
     if (placement.bounds.max.some((n, axis) => n - placement.bounds.min[axis] > LIMITS.objectMeters)) fail(409, "object_size_limit");
     if (this.state.objects.some((object) => object.id !== current?.id && overlaps(placement.bounds, object.bounds))) fail(409, "object_overlap");

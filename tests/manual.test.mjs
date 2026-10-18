@@ -32,7 +32,7 @@ test('manual is a lightweight first-party page with accessible code-native diagr
   assert.match(css,/:focus-visible/);
 });
 test('manual documents implemented controls, cloud persistence and quotas',()=>{
-  assert.match(manual,/右ドラッグ/); assert.match(manual,/左クリック/); assert.match(manual,/<kbd>R<\/kbd>/);
+  assert.match(manual,/右ドラッグ/); assert.match(manual,/右クリック/); assert.match(manual,/0.8秒長押し/); assert.match(manual,/<kbd>R<\/kbd>/);
   assert.match(manual,/ホイール/); assert.match(manual,/1\.5秒長押し/);
   assert.match(manual,/左スティック：上下＝上昇・下降、左右＝旋回/);
   assert.match(manual,/右スティック：上下＝前進・後退、左右＝横移動/);

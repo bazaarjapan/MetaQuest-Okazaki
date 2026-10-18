@@ -139,8 +139,22 @@ test("STL is uploaded first; draft commits only after server acknowledgement", a
   f.client.editObject = (...args) => new Promise((resolve) => { acknowledge = async () => resolve(await original(...args)); });
   const pending = f.workshop.commitSelected(); assert.equal(f.workshop.getState().busy, true);
   assert.equal(f.workshop.getState().committed, 0);
+  assert.ok(f.workshop.getHeldDraft(), 'keep held model until server acknowledgement');
   await acknowledge(); assert.equal(await pending, true); await f.settle();
   assert.equal(f.workshop.getState().committed, 1); assert.equal(f.workshop.getState().storage, "cloud-world");
+  assert.equal(f.workshop.getHeldDraft(),null);
+  assert.ok(f.workshop.group.children.some(mesh=>!mesh.userData.isDraft && mesh.visible),'committed mesh remains visible');
+});
+
+test('failed new placement preserves the held draft, geometry, transform and cloud original for retry',async t=>{
+  const f=await fixture(t);await f.workshop.importFiles([f.file()]);
+  const draft=f.workshop.getHeldDraft(),before=f.workshop.getState().current,original=f.client.editObject;
+  f.client.editObject=async()=>{throw Error('connection_lost');};
+  assert.equal(await f.workshop.commitSelected(),false);
+  assert.equal(f.workshop.getHeldDraft(),draft);assert.ok(draft.visible);
+  assert.deepEqual(f.workshop.getState().current,before);assert.equal(f.workshop.getState().ownAssets.length,1);
+  f.client.editObject=original;assert.equal(await f.workshop.commitSelected(),true);await f.settle();
+  assert.equal(f.workshop.getState().committed,1);
 });
 test("combined wheel transform validates the new position and scale together before commit", async t => {
   const f=await fixture(t);await f.workshop.importFiles([f.file()]);

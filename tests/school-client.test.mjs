@@ -390,7 +390,7 @@ test("ack timeout rejects and rereads state, never resubmits an ambiguous mutati
   const h = harness(); await h.join(); const ws = h.sockets[0];
   const pending = h.client.editObject("object.create", { assetId: ASSET }); await tick();
   const rejected = assert.rejects(pending, /edit_timeout/);
-  const timeout = [...h.timers.values()].find((item) => item.delay === 12000); assert.ok(timeout); timeout.fn();
+  const timeout = [...h.timers.values()].find((item) => item.delay === 30000); assert.ok(timeout); timeout.fn();
   await rejected; await tick();
   assert.equal(ws.sent.filter((item) => item.type === "object.create").length, 1); h.client.destroy();
 });

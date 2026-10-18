@@ -9,6 +9,7 @@ import {
 import { createControllerHud } from "./controller-hud.js";
 import { qualityProfile, readQuality, saveQuality } from "./quality.js";
 import { createRegionStreamer } from "./region-stream.js";
+import { createRegionalPlacementEnvironment } from "./placement-region.js";
 import {createNearField} from './near-field.js';
 import {createTerrainSampler} from './ground-sampler.js';
 import { clampToRegion, regionProfiles } from "./region-plan.js";
@@ -205,13 +206,14 @@ let xrMoveYaw = 0;
 const schoolClient = createSchoolClient();
 let schoolUI;
 let placementEnvironment = { terrain: null, obstacles: [], bounds: [-320, -381, 315, 372], terrainMeshes: [] };
+const regionalPlacementEnvironment=createRegionalPlacementEnvironment({getCore:()=>placementEnvironment,getManifest:()=>regionManifest,getMeshes:()=>regionStreamer.getMeshes()});
 const workshop = createWorkshop(THREE, { scene, domElement: renderer.domElement, camera,
-  getEnvironment: () => placementEnvironment, getViewPosition: userPosition,
+  getEnvironment: regionalPlacementEnvironment, getViewPosition: userPosition,
   schoolClient, isXR: () => state.xr,
   onRequireLogin: () => schoolUI?.open(),
   onChange: () => { renderer.shadowMap.needsUpdate = true; } });
 const hotbar = createHotbar({ workshop, client: schoolClient, scene, camera, canvas: renderer.domElement,
-  getEnvironment: () => placementEnvironment, getObstacles: () => [...city.children, ...regionStreamer.getMeshes()],
+  getEnvironment: regionalPlacementEnvironment, getObstacles: () => [...city.children.filter(mesh=>mesh!==terrainMesh), ...regionStreamer.getMeshes().filter(mesh=>mesh.userData.regionType==='building')],
   isXR: () => state.xr, isXRPending: () => xrEntering || creative?.getState().suspendedXR, menu: adaptiveUi,
   isLooking: () => creative?.getState().mouseIntent === "look",
   isCreative: () => creative?.getState().mode === "creative" });
@@ -1095,8 +1097,8 @@ for (let i = 0; i < 2; i++) {
     }
     if (workshop.getState().canEdit) {
       if (vrWorkshop.getState().picking) {
-        // Placement uses only verified station-core DEM, never roofs or a fake plane.
-        const terrainHit = controllerRaycaster.intersectObjects(placementEnvironment.terrainMeshes, false)[0];
+        // Placement uses loaded real core/regional terrain, never roofs or a fake plane.
+        const terrainHit = controllerRaycaster.intersectObjects(regionalPlacementEnvironment().terrainMeshes, false)[0];
         if (terrainHit && workshop.moveSelected(terrainHit.point.toArray()).valid) {
           Promise.resolve(vrWorkshop.activate("picked")).then(accepted => {
             if (accepted) acceptedControllerSelection(controller, source, session);
@@ -1411,7 +1413,7 @@ window.__okazaki = {
     panelVisible: panel.visible && vrFieldPanel.getState().expanded,
     vrPanel: vrFieldPanel.getState(),
     pointers: { left: controllerPointers.left.getState(), right: controllerPointers.right.getState() },
-    version: "1.10.5",
+    version: "1.10.6",
     vrReturn: { buttonVisible: vrReturnButton.getState().visible,
       holdProgress: vrReturnButton.getState().progress, exiting: xrExitPending,
       hasResume: hasVRResume, view: lastXRView ? {
