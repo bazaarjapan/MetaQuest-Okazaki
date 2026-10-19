@@ -11,6 +11,7 @@ import { createControllerHud } from "./controller-hud.js";
 import { qualityProfile, readQuality, saveQuality } from "./quality.js";
 import { createRegionStreamer } from "./region-stream.js";
 import { createRegionalPlacementEnvironment } from "./placement-region.js";
+import { findWorkLanding } from "./workshop-landing.js";
 import {createNearField} from './near-field.js';
 import {createTerrainSampler} from './ground-sampler.js';
 import { clampToRegion, regionProfiles } from "./region-plan.js";
@@ -560,20 +561,34 @@ function drawDesktopRegionMap() {
   drawRegionMap(canvas.getContext("2d"), { x: 0, y: 0, w: canvas.width, h: canvas.height },
     regionManifest, userPosition(), coreBounds());
 }
-function locateWorkshopObject(item) {
-  if (!regionManifest || state.xr || xrEntering || !schoolClient.getState().user) return false;
+let locateStreamTarget = null;
+async function locateWorkshopObject(item, stillValid = () => true) {
+  if (state.xr || xrEntering || !schoolClient.getState().user) return false;
   const target = new THREE.Vector3(...item.position);
   const mesh = workshop.group.children.find(entry => entry.userData.creationId === item.id && !entry.userData.isDraft);
   if (!mesh) return false;
-  const box = new THREE.Box3().setFromObject(mesh), size = box.getSize(new THREE.Vector3());
+  const box = new THREE.Box3().setFromObject(mesh);
   box.getCenter(target);
-  // Look down from directly above the known object, not from guessed ground.
-  const position = constrainPosition(new THREE.Vector3(target.x + 1,
-    box.max.y + Math.max(15, size.x * 1.5, size.z * 1.5), target.z + 1));
   resetFlight(flight); touchControls.releaseAll(); setFree(false);
-  state.current = "region"; setDesktopView(position, target, new THREE.Vector3(0, 1, 0), Math.PI, true);
-  adaptiveUi.close(); regionStreamer.update(userPosition(), quality.id, performance.now() + 500);
-  drawDesktopRegionMap(); drawPanel(); return true;
+  creative.clearInput({release:true}); locateStreamTarget=target;
+  try {
+    const deadline=performance.now()+15000;
+    do {
+      if(!stillValid() || state.xr || xrEntering || document.hidden) return false;
+      const occupied=workshop.group.children.filter(entry=>!entry.userData.isDraft).map(entry=>new THREE.Box3().setFromObject(entry));
+      const feet=findWorkLanding(box,userPosition(),regionalPlacementEnvironment,occupied);
+      if(feet) {
+        // Ground-relative eye position avoids falling from an overhead camera.
+        const position=new THREE.Vector3(feet[0],feet[1]+1.675,feet[2]);
+        state.current="region";setDesktopView(position,target,new THREE.Vector3(0,1,0),Math.PI,true);
+        updateLabels("region");
+        adaptiveUi.close();drawDesktopRegionMap();drawPanel();return true;
+      }
+      regionStreamer.update(target,quality.id,performance.now()+500);
+      await new Promise(resolve=>setTimeout(resolve,300));
+    } while(performance.now()<deadline);
+    return false;
+  } finally { locateStreamTarget=null; }
 }
 function visitRegionPoint(x, z) {
   if (!regionManifest || !Number.isFinite(x) || !Number.isFinite(z)) return;
@@ -791,7 +806,7 @@ function setDesktopView(position, target, up = new THREE.Vector3(0, 1, 0), maxPo
   camera.up.copy(up); camera.position.copy(position);
   controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true; controls.dampingFactor = 0.08;
-  controls.minDistance = 12; controls.maxDistance = 1100;
+  controls.minDistance = firstPerson ? .1 : 12; controls.maxDistance = 1100;
   controls.maxPolarAngle = maxPolarAngle;
   camera.position.copy(position); controls.target.copy(target); controls.update();
   camera.updateMatrixWorld(true);
@@ -1328,7 +1343,7 @@ renderer.setAnimationLoop((time, frame) => {
         `rotate(${Math.atan2(dir.x, -dir.z)}rad)`;
     }
     hotbar.update(time);
-    regionStreamer.update(userPosition(), quality.id, time);
+    regionStreamer.update(locateStreamTarget ?? userPosition(), quality.id, time);
     nearField.update({position:userPosition(),quality:quality.id,enabled:fieldStyle==='game'&&!state.qualityLoading,
       manifest:fieldManifest,core:terrainMesh,terrain:regionStreamer.getGroundMeshes(),time});
     adoptSchoolPose();

@@ -409,6 +409,27 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
     } catch (error) { if (accepts(token)) setMessage(`削除できませんでした：${explainError(error)}`); return false; }
     finally { if (operation === marker) operation = null; renderList(); onChange(); }
   }
+  async function retrieveSelected() {
+    const item=remote.get(selected), model=item && models.get(item.assetId);
+    if(!requireAccess() || busy() || !canChange(item) || !model) return false;
+    // Prepare the hand-held copy before deleting anything. Keep the placement
+    // visible until the authoritative delete ACK; failures leave it untouched.
+    const held={...item,id:crypto.randomUUID(),positions:model.positions,
+      position:[...item.position],rotation:[...item.rotation],scale:[...item.scale],
+      color:stlColor(item.color),mesh:makeMesh(model,true),baseId:null,baseKey:null,valid:false};
+    held.mesh.visible=false; held.mesh.userData.creationId=held.id;
+    held.mesh.userData.ownerId=item.ownerId; held.mesh.userData.isDraft=true;
+    held.mesh.userData.stlColor=held.color; applyTransform(held.mesh,held);
+    const token=currentToken(),marker={}; operation=marker; renderList(); let adopted=false;
+    try {
+      await schoolClient.editObject("object.delete",{id:item.id});
+      if(!accepts(token)) return false;
+      clearDraft(); draft=held; selected=held.id; adopted=true; syncObjects();
+      setMessage("色・大きさ・回転を保って手に持ちました。地面をねらい、右クリックで置き直してください。再配置するまでは下書きです。");
+      return true;
+    } catch(error) { if(accepts(token)) setMessage(`回収できませんでした：${explainError(error)}`); return false; }
+    finally { if(!adopted)disposeMesh(held.mesh); if(operation===marker)operation=null; renderList();onChange(); }
+  }
   function cancelDraft() {
     if (!requireAccess() || busy()) return false;
     const baseId = draft?.baseId; clearDraft(); selected = baseId && remote.has(baseId) ? baseId : null;
@@ -435,17 +456,24 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
     } catch (error) { if (accepts(token)) setMessage(`色を保存できませんでした：${explainError(error)}`); return false; }
     finally { if (operation === marker) operation = null; renderList(); onChange(); }
   }
-  function locateSelected() {
+  async function locateSelected() {
     const item = selectedItem();
     if (!requireAccess() || busy() || !canChange(item) || item === draft || isXR()) return false;
-    if (!onLocate(publicObject(item))) { setMessage("街の地図を読み込んでから、もう一度お試しください。"); return false; }
+    const token=currentToken(),key=objectKey(item),marker={};operation=marker;renderList();
+    const stillValid=()=>accepts(token) && !isXR() && canChange(remote.get(item.id)) && objectKey(remote.get(item.id))===key;
+    clearLocator();
+    setMessage("作品のそばの地面と建物を確認しています…");
+    try {
+    if (!await onLocate(publicObject(item),stillValid) || !stillValid()) { if(accepts(token))setMessage("安全に立てる地面を確認できませんでした。場所は移動していません。地図の読み込み後にもう一度お試しください。"); return false; }
     clearLocator(); locatedId = item.id;
     locator = new THREE.Box3Helper(new THREE.Box3().setFromObject(item.mesh).expandByScalar(.15), 0xffca28);
     locator.name = "own-work-location-marker";
     locator.material.depthTest = false; locator.material.depthWrite = false; locator.renderOrder = 999;
     scene.add(locator);
     if (dialog.open) dialog.close();
-    setMessage(`「${item.name}」を見る場所へ移動しました。作品自体の位置は変更していません。`); return true;
+    setMessage(`「${item.name}」の隣へ移動しました。作品自体の位置は変更していません。`); return true;
+    } catch(error) { if(accepts(token))setMessage(`移動できませんでした：${explainError(error)}`);return false; }
+    finally { if(operation===marker)operation=null;renderList();onChange(); }
   }
   function retryAssets() {
     if (!requireAccess() || busy()) return false;
@@ -491,7 +519,7 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
   const unsubscribe = schoolClient?.subscribe(onState) ?? (() => {});
   onState(schoolClient?.getState() ?? {}); renderList();
   return { group, open, importFiles, useAsset, selectObject, cycleOwnAsset, moveSelected, adjustSelected,
-    commitSelected, removeSelected, cancelDraft, retryAssets, paintSelected, locateSelected,
+    commitSelected, removeSelected, retrieveSelected, cancelDraft, retryAssets, paintSelected, locateSelected,
     // Rendering-only handle: avoid cloning the full classroom every frame.
     // Editing an existing placement is not holding a new inventory item.
     getHeldDraft: () => draft && !draft.baseId && canChange(draft) ? draft.mesh : null,

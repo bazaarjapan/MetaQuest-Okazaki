@@ -124,7 +124,7 @@ async function fixture(t, initial = connected()) {
 }
 test("STL color flows through draft, commit, painting and reload without moving the work", async t => {
   const f = await fixture(t); await f.workshop.importFiles([f.file()]);
-  assert.equal(f.workshop.locateSelected(), false);
+  assert.equal(await f.workshop.locateSelected(), false);
   assert.equal(await f.workshop.paintSelected("#FF8800"), true);
   assert.equal(f.workshop.getHeldDraft().userData.stlColor, "#ff8800");
   await f.workshop.commitSelected(); await f.settle();
@@ -138,7 +138,7 @@ test("STL color flows through draft, commit, painting and reload without moving 
   assert.deepEqual(f.workshop.getState().current.position, before.position);
   assert.equal(f.workshop.getState().current.color, "#22aa77");
   assert.equal(f.workshop.group.children[0].material.color.getHexString(), "22aa77");
-  assert.equal(f.workshop.locateSelected(), true); assert.equal(f.calls.located.id, before.id);
+  assert.equal(await f.workshop.locateSelected(), true); assert.equal(f.calls.located.id, before.id);
   assert.match(f.registry.get("object-location").textContent, /水平距離/);
   const saved = structuredClone(f.state()); f.client.replace({}); f.client.replace(saved); await f.settle(() => f.workshop.getState().committed === 1);
   f.workshop.selectObject(before.id);
@@ -147,7 +147,38 @@ test("STL color flows through draft, commit, painting and reload without moving 
   f.client.replace({ ...saved, user: { ...saved.user, id: "other" } }); await f.settle();
   f.workshop.selectObject(before.id);
   assert.equal(await f.workshop.paintSelected("#ffffff"), false);
-  assert.equal(f.workshop.locateSelected(), false);
+  assert.equal(await f.workshop.locateSelected(), false);
+});
+
+test('recall waits for ACK and keeps color, scale and rotation in a new held draft',async t=>{
+  const f=await fixture(t);await f.workshop.importFiles([f.file()]);
+  await f.workshop.paintSelected('#ffaa22');f.workshop.adjustSelected({scaleFactor:2});
+  f.workshop.adjustSelected({axis:'y',radians:.7});
+  await f.workshop.commitSelected();await f.settle();
+  const old=f.workshop.getState().current;
+  let ack;const edit=f.client.editObject;
+  f.client.editObject=(...args)=>new Promise(resolve=>{ack=async()=>resolve(await edit(...args));});
+  const pending=f.workshop.retrieveSelected();
+  assert.equal(f.workshop.getState().committed,1);assert.equal(f.workshop.getHeldDraft(),null);
+  await ack();assert.equal(await pending,true);await f.settle();
+  const held=f.workshop.getState().current;
+  assert.equal(f.workshop.getState().committed,0);assert.equal(held.committed,false);
+  assert.notEqual(held.id,old.id);
+  for(const field of ['color','scale','rotation'])assert.deepEqual(held[field],old[field]);
+  assert.equal(f.workshop.getHeldDraft().userData.stlColor,old.color);
+  f.client.editObject=edit;f.workshop.moveSelected([10,0,10]);
+  assert.equal(await f.workshop.commitSelected(),true);await f.settle();
+  assert.equal(f.workshop.getState().current.color,old.color);
+});
+
+test('failed recall and late recall after logout never create a stale held object',async t=>{
+  const f=await fixture(t);await f.workshop.importFiles([f.file()]);await f.workshop.commitSelected();await f.settle();
+  f.client.editObject=async()=>{throw Error('disconnected');};
+  assert.equal(await f.workshop.retrieveSelected(),false);assert.equal(f.workshop.getState().committed,1);
+  assert.equal(f.workshop.getHeldDraft(),null);
+  let ack;f.client.editObject=()=>new Promise(resolve=>{ack=resolve;});
+  const pending=f.workshop.retrieveSelected();f.client.replace({});ack({});
+  assert.equal(await pending,false);assert.equal(f.workshop.getHeldDraft(),null);assert.equal(f.workshop.group.children.length,0);
 });
 
 test("actual workshop API prevents guest imports and programmatic edit calls", async (t) => {
