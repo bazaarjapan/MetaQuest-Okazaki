@@ -62,7 +62,7 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
       if(action==="details") { workshop.open(); render(); return; }
       pending=true;
       try {
-        if(action==="locate") await workshop.locateSelected();
+        if(action==="locate") { report("作品のそばの地面と建物を確認しています…（最大15秒）"); await workshop.locateSelected(); }
         else { aiming=await workshop.retrieveSelected(); lastPreview=-Infinity; }
         report(currentState().message);
       } finally { pending=false; render(); }
@@ -338,7 +338,7 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
     if (xr) { closeActions();cancelGestures();queuedWheel=null; aiming = false; footprint.visible = false; return; }
     const state = currentState(), identity = `${state.userId}:${state.worldId}:${state.canEdit}`;
     if(actionTarget && (identity!==actionTarget.identity || !state.objects.some(o=>o.id===actionTarget.id && o.committed && o.editable) || isXRPending() || document.hidden)) closeActions();
-    if (aiming && !pending && (!state.current || state.current.committed)) aiming=false;
+    if (aiming && !pending && (!state.current || state.current.committed)) { aiming=false; report(state.message); }
     if (identity !== previousIdentity) { cancelGestures();queuedWheel=null; previousIdentity=identity; active=-1; aiming=false; footprint.visible=false; renderSignature=""; }
     // Drafts can also originate in the detailed workshop or survive leaving VR.
     // The hand-held item, not the route used to import it, enables placement.

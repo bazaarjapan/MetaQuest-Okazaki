@@ -571,10 +571,11 @@ async function locateWorkshopObject(item, stillValid = () => true) {
   box.getCenter(target);
   resetFlight(flight); touchControls.releaseAll(); setFree(false);
   creative.clearInput({release:true}); locateStreamTarget=target;
+  const departure=userPosition().clone();
   try {
     const deadline=performance.now()+15000;
     do {
-      if(!stillValid() || state.xr || xrEntering || document.hidden) return false;
+      if(!stillValid() || state.xr || xrEntering || document.hidden || state.free || userPosition().distanceTo(departure)>.01) return false;
       const occupied=workshop.group.children.filter(entry=>!entry.userData.isDraft).map(entry=>new THREE.Box3().setFromObject(entry));
       const feet=findWorkLanding(box,userPosition(),regionalPlacementEnvironment,occupied);
       if(feet) {

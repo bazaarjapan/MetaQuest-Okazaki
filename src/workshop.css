@@ -22,7 +22,7 @@
 .workshop-find button { min-height: 44px; }
 .workshop-find button:disabled { opacity: .5; cursor: not-allowed; }
 .workshop-color-note { font-size: 12px; line-height: 1.6; margin-bottom: 0; }
-#hotbar-actions { width: min(340px, calc(100vw - 32px)); box-sizing: border-box; margin: auto auto 100px; padding: 16px; border: 2px solid #52736b; border-radius: 14px; background: #f4faf6; color: #173c32; box-shadow: 0 8px 40px #0005; }
+#hotbar-actions { width: min(340px, calc(100vw - 32px)); max-height: calc(100dvh - 120px); overflow: auto; box-sizing: border-box; margin: auto auto 100px; padding: 16px; border: 2px solid #52736b; border-radius: 14px; background: #f4faf6; color: #173c32; box-shadow: 0 8px 40px #0005; }
 #hotbar-actions::backdrop { background: #102a2033; }
 #hotbar-actions strong { display: block; overflow-wrap: anywhere; margin-bottom: 12px; }
 #hotbar-actions button { display: block; width: 100%; min-height: 48px; margin-top: 8px; text-align: left; font-size: 15px; }
