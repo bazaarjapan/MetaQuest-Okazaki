@@ -42,6 +42,14 @@ function close(actual, expected, tolerance = 1e-8) {
   assert.ok(Math.abs(actual - expected) < tolerance, `${actual} != ${expected}`);
 }
 
+test('work locator can choose first person without an avatar obscuring its target',()=>{
+  const f=fixture({initialView:"back"});f.enable();
+  f.camera.position.set(20,50,20); f.camera.lookAt(19,20,19);
+  f.control.syncFromCamera({firstPerson:true});
+  assert.equal(f.control.getState().viewMode,"first"); assert.equal(f.avatar.group.visible,false);
+  assert.deepEqual(f.control.getState().pressedKeys,[]); f.control.dispose();
+});
+
 test('creative Shift descent cannot penetrate known terrain',()=>{
   const f=fixture({groundHeight:()=>30});f.enable();f.key('ShiftLeft');
   for(let i=0;i<40;i++)f.control.step(.1,{enabled:true});

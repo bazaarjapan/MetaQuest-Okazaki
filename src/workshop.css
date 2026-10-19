@@ -13,4 +13,18 @@
 .workshop-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
 #workshop-status { min-height: 3em; font-size: 13px; line-height: 1.6; padding: 10px; background: #fff3d9; border-radius: 6px; }
 #object-y { font-size: 12px; color: #526d7b; }
+.workshop-find { padding: 12px; background: #eef7ff; border: 1px solid #9dbbd2; border-radius: 10px; margin-top: 12px; }
+#object-location { font-size: 14px; line-height: 1.6; margin: 0 0 10px; }
+#object-name { font-weight: 700; overflow-wrap: anywhere; margin: 0 0 8px; }
+.workshop-color { display: flex; align-items: end; gap: 12px; margin-top: 12px; }
+.workshop-color label { display: grid; gap: 4px; font-size: 13px; }
+#workshop-dialog #object-color { width: 96px; height: 44px; padding: 3px; cursor: pointer; }
+.workshop-find button { min-height: 44px; }
+.workshop-find button:disabled { opacity: .5; cursor: not-allowed; }
+.workshop-color-note { font-size: 12px; line-height: 1.6; margin-bottom: 0; }
+#hotbar-actions { width: min(340px, calc(100vw - 32px)); max-height: calc(100dvh - 120px); overflow: auto; box-sizing: border-box; margin: auto auto 100px; padding: 16px; border: 2px solid #52736b; border-radius: 14px; background: #f4faf6; color: #173c32; box-shadow: 0 8px 40px #0005; }
+#hotbar-actions::backdrop { background: #102a2033; }
+#hotbar-actions strong { display: block; overflow-wrap: anywhere; margin-bottom: 12px; }
+#hotbar-actions button { display: block; width: 100%; min-height: 48px; margin-top: 8px; text-align: left; font-size: 15px; }
+#stl-hotbar button { -webkit-touch-callout: none; user-select: none; }
 @media (max-width: 420px) { .workshop-fields { grid-template-columns: 1fr 1fr; } .workshop-library { grid-template-columns: 1fr; } #workshop-dialog { padding: 18px; } }

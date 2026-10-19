@@ -33,6 +33,46 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
   let pointerKnown = false, renderSignature = "", queuedWheel = null;
   let retrievalHold = null, rightClick = null, consumeLeftClick = false, placementFailure = null;
   let previewToken = null, previewFootprint = false;
+  const actions = document.createElement("dialog"); actions.id = "hotbar-actions";
+  actions.setAttribute("aria-label", "設置した作品の操作");
+  const actionTitle = document.createElement("strong");
+  actions.append(actionTitle); canvas.parentElement.append(actions);
+  let actionTarget = null, longPress = null, suppressSlotClick = -1;
+  const stopLongPress = () => { if(longPress) clearTimeout(longPress.timer); longPress=null; };
+  function closeActions() { stopLongPress(); actionTarget=null; if(actions.open) actions.close(); }
+  function openActions(index) {
+    if(pending || blocked() || currentState().busy) return;
+    const state=currentState(), asset=state.ownAssets[index];
+    const item=state.objects.find(o=>o.assetId===asset?.id && o.committed && o.editable);
+    if(!state.canEdit || !item) return;
+    cancelGestures(); queuedWheel=null; document.exitPointerLock?.();
+    actionTarget={id:item.id,index,identity:identityToken()}; actionTitle.textContent=item.name ?? asset.name;
+    actions.showModal();
+  }
+  for(const [action,label] of [["locate","📍 作品のところへ移動"],["retrieve","✋ 回収して手に持つ"],["details","🎨 色・大きさ・回転を変更"]]) {
+    const button=document.createElement("button"); button.type="button"; button.dataset.action=action; button.textContent=label;
+    button.onclick=async()=>{
+      const target=actionTarget; closeActions();
+      if(!target || target.identity!==identityToken() || blocked() || pending || currentState().busy) return;
+      const item=currentState().objects.find(o=>o.id===target.id && o.committed && o.editable);
+      if(!item || !currentState().canEdit) return;
+      active=target.index;
+      if(!workshop.selectObject(item.id)) return;
+      aiming=false; footprint.visible=false;
+      if(action==="details") { workshop.open(); render(); return; }
+      pending=true;
+      try {
+        if(action==="locate") { report("作品のそばの地面と建物を確認しています…（最大15秒）"); await workshop.locateSelected(); }
+        else { aiming=await workshop.retrieveSelected(); lastPreview=-Infinity; }
+        report(currentState().message);
+      } finally { pending=false; render(); }
+    };
+    actions.append(button);
+  }
+  const closeButton=document.createElement("button"); closeButton.type="button"; closeButton.textContent="閉じる"; closeButton.onclick=closeActions; actions.append(closeButton);
+  actions.addEventListener("cancel",closeActions);
+  actions.addEventListener("click",event=>{ if(event.target!==actions) return; const r=actions.getBoundingClientRect();
+    if(event.clientX<r.left || event.clientX>r.right || event.clientY<r.top || event.clientY>r.bottom) closeActions(); });
   const identityToken = () => { const s=currentState(); return `${s.userId}:${s.worldId}:${s.canEdit}`; };
   const cancelGestures = () => { retrievalHold=null; rightClick=null; };
   const currentState = () => workshop.getState();
@@ -90,7 +130,8 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
     const placed = state.objects.find(item => item.assetId === asset.id && item.committed);
     if (placed) {
       workshop.cancelDraft(); aiming = false; footprint.visible = false;
-      report("設置済みです。自分の作品を左クリック長押し（0.8秒）で回収できます。Rキーでも回収できます。"); render(); return;
+      workshop.selectObject(placed.id); document.exitPointerLock?.();
+      report("設置済み作品を選択しました · 枠を右クリック（スマホは長押し）で移動・回収・色の変更"); render(); return;
     }
     pending = true;
     try { aiming = await workshop.useAsset(asset.id); lastPreview = -Infinity; if(aiming) document.exitPointerLock?.(); }
@@ -98,7 +139,17 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
   }
   for (let index=0; index<10; index++) {
     const button = document.createElement("button"); button.type = "button";
-    button.onclick = () => void select(index); button.setAttribute("aria-label", `${(index+1)%10} STLを追加`);
+    button.onclick = () => { if(suppressSlotClick===index) { suppressSlotClick=-1; return; } void select(index); }; button.setAttribute("aria-label", `${(index+1)%10} STLを追加`);
+    button.setAttribute("aria-haspopup","dialog");
+    button.addEventListener("contextmenu",event=>{event.preventDefault(); stopLongPress(); if(!actions.open)openActions(index);});
+    button.addEventListener("keydown",event=>{if(event.key==="ContextMenu" || (event.shiftKey && event.key==="F10")) {event.preventDefault();openActions(index);}});
+    button.addEventListener("pointerdown",event=>{
+      stopLongPress(); suppressSlotClick=-1;
+      if(event.pointerType!=="touch" || blocked()) return;
+      longPress={id:event.pointerId,x:event.clientX,y:event.clientY,timer:setTimeout(()=>{longPress=null;suppressSlotClick=index;openActions(index);},550)};
+    });
+    button.addEventListener("pointermove",event=>{if(longPress && Math.hypot(event.clientX-longPress.x,event.clientY-longPress.y)>8)stopLongPress();});
+    for(const event of ["pointerup","pointercancel","pointerleave"]) button.addEventListener(event,stopLongPress);
     slots.push(button); root.append(button);
   }
   file.onchange = async () => {
@@ -122,7 +173,7 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
       button.replaceChildren();
       const key = document.createElement("kbd"); key.textContent = String((index+1)%10);
       const name = document.createElement("span"); name.textContent = asset ? asset.name.replace(/\.stl$/i,"") : "+ STL";
-      const badge = document.createElement("small"); badge.textContent = placed ? "設置済" : asset ? "置けます" : "追加";
+      const badge = document.createElement("small"); badge.textContent = placed ? "右クリック ⋯" : asset ? "置けます" : "追加";
       button.append(key,name,badge); button.classList.toggle("selected", index===active); button.classList.toggle("placed",Boolean(placed));
       button.setAttribute("aria-pressed",String(index===active)); button.title = asset?.name ?? "STLを追加";
       button.setAttribute("aria-label",`${(index+1)%10} ${asset?.name ?? "STLを追加"} ${placed ? "設置済み" : ""}`);
@@ -251,7 +302,7 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
     queuedWheel={token,baseScale,factor,event:{clientX:event.clientX,clientY:event.clientY}};
   }, {passive:false,capture:true});
   const forgetPointer=()=>{cancelGestures();queuedWheel=null;pointerKnown=false;footprint.visible=false;if(canvas.style)canvas.style.cursor="";};
-  window.addEventListener("blur",forgetPointer);
+  window.addEventListener("blur",()=>{forgetPointer();closeActions();});
   document.addEventListener("visibilitychange",()=>{if(document.hidden)forgetPointer();});
   canvas.addEventListener("pointercancel",forgetPointer);
   canvas.addEventListener("lostpointercapture",forgetPointer);
@@ -273,9 +324,10 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
     pending=true; aiming=false; footprint.visible=false;
     try {
       workshop.selectObject(target.id);
-      const ok=await workshop.removeSelected();
+      const ok=await workshop.retrieveSelected();
       if(ok) active=currentState().ownAssets.findIndex(asset=>asset.id===target.assetId);
-      report(ok ? "ホットバーに戻しました。同じ枠を選ぶと置き直せます。" : currentState().message);
+      aiming=ok; lastPreview=-Infinity;
+      report(currentState().message);
     } finally {pending=false;render();}
   }
   function update(time) {
@@ -283,9 +335,10 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
     root.hidden = hint.hidden = crosshair.hidden = menuButton.hidden = loginButton.hidden = xr;
     // The PC UI is absent in VR. Avoid cloning classroom/geometry snapshots on
     // every headset frame and leave the draft under the VR workshop's control.
-    if (xr) { cancelGestures();queuedWheel=null; aiming = false; footprint.visible = false; return; }
+    if (xr) { closeActions();cancelGestures();queuedWheel=null; aiming = false; footprint.visible = false; return; }
     const state = currentState(), identity = `${state.userId}:${state.worldId}:${state.canEdit}`;
-    if (aiming && !pending && (!state.current || state.current.committed)) aiming=false;
+    if(actionTarget && (identity!==actionTarget.identity || !state.objects.some(o=>o.id===actionTarget.id && o.committed && o.editable) || isXRPending() || document.hidden)) closeActions();
+    if (aiming && !pending && (!state.current || state.current.committed)) { aiming=false; report(state.message); }
     if (identity !== previousIdentity) { cancelGestures();queuedWheel=null; previousIdentity=identity; active=-1; aiming=false; footprint.visible=false; renderSignature=""; }
     // Drafts can also originate in the detailed workshop or survive leaving VR.
     // The hand-held item, not the route used to import it, enables placement.
@@ -312,7 +365,10 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
       if(retrievalHold || pending) return;
     }
     if (queuedWheel || time-lastPreview>=120) { lastPreview=time; preview(); }
-    if (!aiming && !pending) footprint.visible=false;
+    if (!aiming && !pending) {
+      footprint.visible=false;
+      if (state.locatedName) report(`📍 ${state.locatedName} · 黄色い枠が作品の場所です${isCreative() ? " · F5で視点切替" : ""}`);
+    }
   }
   report("1〜0：STL選択 · 右クリック：置く · 左長押し：回収 · 右ドラッグ：見回す · ホイール：サイズ · Esc：メニュー");
   return { update, place, pointerContext, getState:()=>({active,aiming,pending,footprintVisible:footprint.visible}) };

@@ -24,7 +24,9 @@ test("wheel normalizes devices, scales proportionally, and clamps transform boun
 
 function harness() {
   class Node {
-    constructor() { this.children=[]; this.events={}; this.classList={toggle(){}}; }
+    constructor() { this.children=[]; this.events={}; this.dataset={}; this.classList={toggle(){}}; }
+    showModal(){this.open=true;}
+    close(){this.open=false;}
     append(...nodes) { this.children.push(...nodes); }
     replaceChildren(...nodes) { this.children=nodes; }
     setAttribute() {}
@@ -42,11 +44,11 @@ function harness() {
     adjustSelected({scaleFactor,position}){adjustments++;current.scale=current.scale.map(v=>v*scaleFactor);if(position)current.position=position;return {valid:true};},
     moveSelected(){moves++;return {valid:true};},
     async commitSelected(){commits++;return true;},
-    selectObject(){},async removeSelected(){removals++;return true;}};
+    selectObject(){return true;},cancelDraft(){},async retrieveSelected(){removals++;return true;}};
   class Raycaster extends THREE.Raycaster {
     intersectObjects(objects) { return objects.length ? [{object:objects[0],distance:objects[0].distance??1,point:new THREE.Vector3()}] : []; }
   }
-  const context=vm.createContext({THREE:{...THREE,Raycaster},document,window,performance:{now:()=>now}});
+  const context=vm.createContext({THREE:{...THREE,Raycaster},document,window,setTimeout,clearTimeout,performance:{now:()=>now}});
   const factory=vm.runInContext(source+"\ncreateHotbar",context);
   const hotbar=factory({workshop,client:{getState(){calls++;return {user:null};}},camera:new THREE.PerspectiveCamera(),canvas,
     scene:new THREE.Scene(),getEnvironment:()=>({terrainMeshes:ground}),getObstacles:()=>obstacles,isXR:()=>xr,isXRPending:()=>xrPending,isLooking:()=>looking,menu:{getState:()=>({open:menuOpen})}});
@@ -59,6 +61,34 @@ test("hidden VR hotbar performs no school or workshop snapshot allocations",()=>
   const h=harness(); h.setXR(true);
   for(let frame=0;frame<100;frame++) h.hotbar.update(frame*16);
   assert.equal(h.calls,0); assert.equal(h.hotbar.getState().aiming,false);
+});
+
+test('placed slot selects only; context menu actions recheck identity and ownership',async()=>{
+  const h=harness();let details=0,locates=0;
+  const state={userId:'a',worldId:'world',canEdit:true,ownAssets:[{id:'asset',name:'mine.stl'}],objects:[{id:'mine',assetId:'asset',editable:true,committed:true}]};
+  h.workshop.getState=()=>state;h.workshop.open=()=>details++;h.workshop.locateSelected=async()=>locates++;
+  h.hotbar.update(0);
+  const slot=h.canvas.parentElement.children[0].children[1],dialog=h.canvas.parentElement.children[5];
+  slot.onclick();assert.equal(details,0);assert.equal(locates,0);
+  slot.events.contextmenu({preventDefault(){}});assert.equal(dialog.open,true);
+  await dialog.children[1].onclick();assert.equal(locates,1);assert.equal(dialog.open,false);
+  slot.events.contextmenu({preventDefault(){}});state.userId='b';
+  await dialog.children[2].onclick();assert.equal(h.removals,0);
+  state.objects[0].editable=false;slot.events.contextmenu({preventDefault(){}});assert.equal(dialog.open,false);
+  state.objects[0].editable=true;slot.events.contextmenu({preventDefault(){}});
+  dialog.events.cancel();assert.equal(dialog.open,false);
+});
+
+test('touch long press opens actions, suppresses click, and movement cancels it',async()=>{
+  const h=harness();h.workshop.getState=()=>({userId:'a',worldId:'w',canEdit:true,ownAssets:[{id:'asset',name:'mine.stl'}],objects:[{id:'mine',assetId:'asset',editable:true,committed:true}]});
+  let selects=0;h.workshop.selectObject=()=>{selects++;return true;};h.hotbar.update(0);
+  const slot=h.canvas.parentElement.children[0].children[1],dialog=h.canvas.parentElement.children[5];
+  const down={pointerType:'touch',pointerId:1,clientX:10,clientY:10};
+  slot.events.pointerdown(down);slot.events.pointermove({...down,clientX:25});
+  await new Promise(r=>setTimeout(r,570));assert.ok(!dialog.open);
+  slot.events.pointerdown(down);await new Promise(r=>setTimeout(r,570));assert.equal(dialog.open,true);
+  slot.events.pointerup();slot.onclick();assert.equal(selects,0);
+  h.setXR(true);h.hotbar.update(600);assert.equal(dialog.open,false);
 });
 
 test('a held draft imported outside the hotbar becomes placeable, including after VR',async()=>{

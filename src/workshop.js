@@ -3,6 +3,7 @@ import { validatePlacement } from "./placement.js";
 import { workshopAccess, canEditWorkshopObject, createWorkshopScope, safeWorkshopTransform,
   sharedObjectOverlap } from "./workshop-access.js";
 import "./workshop.css";
+import { stlColor, validSTLColor, describeWorkLocation } from "./workshop-presentation.js";
 
 const MAX_ASSETS = 10, MAX_WORLD_TRIANGLES = 200000, MAX_CACHE_TRIANGLES = 220000;
 const degrees = (r) => r * 180 / Math.PI;
@@ -40,7 +41,7 @@ function validAsset(asset) {
     /^[a-f0-9]{64}$/.test(asset.sha256);
 }
 const assetKey = (asset) => `${asset.id}:${asset.sha256}:${asset.upAxis}:${asset.units}`;
-const objectKey = (object) => JSON.stringify([object.assetId, object.position, object.rotation, object.scale]);
+const objectKey = (object) => JSON.stringify([object.assetId, object.position, object.rotation, object.scale, stlColor(object.color)]);
 async function digest(buffer) {
   return [...new Uint8Array(await crypto.subtle.digest("SHA-256", buffer))].map((v) => v.toString(16).padStart(2, "0")).join("");
 }
@@ -49,7 +50,7 @@ async function digest(buffer) {
 // live in this group. Drafts never silently replace the authoritative world.
 export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
   getEnvironment, getViewPosition, onChange = () => {}, onRequireLogin = () => {},
-  isXR = () => false }) {
+  isXR = () => false, getStation = () => null, onLocate = () => false }) {
   const group = new THREE.Group(); group.name = "student-creations"; scene.add(group);
   const dialog = document.querySelector("#workshop-dialog");
   const q = (id) => dialog.querySelector(`#${id}`);
@@ -59,6 +60,8 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
   let state = schoolClient?.getState() ?? {}, selected = null, draft = null;
   let picking = false, operation = null, activeLoads = 0, message = "ログインして共同ワールドに参加すると作品を配置できます。";
   let syncScheduled = false, destroyed = false;
+  let locator = null, locatedId = null;
+  let colorSelectionKey = "";
   const access = () => workshopAccess(state);
   const busy = () => operation !== null;
   const ownAssets = () => (state.assets ?? []).filter((asset) => validAsset(asset) && asset.ownerId === access().userId);
@@ -90,7 +93,12 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
     const hint = document.querySelector("#canvas-hint"); if (hint) hint.textContent = "ドラッグで回転 · ホイールで拡大";
   }
   function clearDraft() { if (draft) disposeMesh(draft.mesh); draft = null; stopPick(); }
+  function clearLocator() {
+    if (locator) { locator.removeFromParent(); locator.geometry.dispose(); locator.material.dispose(); }
+    locator = null; locatedId = null;
+  }
   function clearWorld() {
+    clearLocator();
     clearDraft(); for (const item of remote.values()) disposeMesh(item.mesh);
     remote.clear(); selected = null;
     for (const model of models.values()) model.geometry.dispose();
@@ -101,7 +109,7 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
   function publicObject(item) {
     return { id: item.id, name: item.name, ownerId: item.ownerId, assetId: item.assetId,
       upAxis: item.upAxis, position: [...item.position], rotation: [...item.rotation],
-      scale: [...item.scale], triangles: item.triangles, committed: item !== draft,
+      scale: [...item.scale], color: stlColor(item.color), triangles: item.triangles, committed: item !== draft,
       valid: item === draft ? item.valid : true, editable: canChange(item) };
   }
   function renderList() {
@@ -113,6 +121,14 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
     for (const asset of ownAssets()) librarySelect.append(new Option(asset.name, asset.id));
     if ([...librarySelect.options].some((option) => option.value === previousAsset)) librarySelect.value = previousAsset;
     const item = selectedItem(), editable = canChange(item) && !busy();
+    q("object-color").disabled = !editable;
+    const colorKey = JSON.stringify([item?.id, item === draft, stlColor(item?.color)]);
+    // A classmate placing a work must not reset an open native color chooser.
+    if (colorKey !== colorSelectionKey) { colorSelectionKey = colorKey; q("object-color").value = stlColor(item?.color); }
+    q("object-paint").disabled = !editable;
+    q("object-locate").disabled = !editable || item === draft || isXR();
+    q("object-name").textContent = item ? `選択中：${item.name}` : "作品はまだ選ばれていません";
+    q("object-location").textContent = item ? `${item === draft ? "未確定のプレビュー" : "設置済み"}：${describeWorkLocation(item.position, getViewPosition(), getStation())}` : "設置済みの自分の作品を選ぶと、場所を確認できます。";
     for (const field of fields) q(`object-${field}`).disabled = !editable;
     for (const id of ["stl-files", "stl-up", "stl-units"]) q(id).disabled = !access().canEdit || busy();
     q("object-pick").disabled = !editable; q("object-remove").disabled = !editable;
@@ -219,10 +235,16 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
       if (item && item.assetId !== object.assetId) { disposeMesh(item.mesh); remote.delete(item.id); item = null; }
       if (!item) { item = { mesh: makeMesh(model) }; remote.set(object.id, item); }
       Object.assign(item, object, { name: typeof object.name === "string" ? object.name : asset.name, upAxis: asset.upAxis, positions: model.positions });
+      item.mesh.material.color.set(stlColor(item.color));
       item.mesh.name = `creation-${object.id}`; item.mesh.userData.creationId = object.id; item.mesh.userData.ownerId = object.ownerId;
       applyTransform(item.mesh, object);
     }
     if (selected && !remote.has(selected) && draft?.id !== selected) selected = null;
+    if (locator) {
+      const item = remote.get(locatedId);
+      if (!item) clearLocator();
+      else locator.box.setFromObject(item.mesh).expandByScalar(.15);
+    }
     makeCacheSpace(0, null);
   }
   function onState(next, event = "state") {
@@ -250,7 +272,7 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
     const id = crypto.randomUUID();
     draft = { id, ownerId: access().userId, assetId: asset.id, name: asset.name, upAxis: asset.upAxis,
       positions: model.positions, triangles: model.triangles, mesh: makeMesh(model, true),
-      position: seed, rotation: [0, 0, 0], scale: [factor, factor, factor], valid: false,
+      color: stlColor(), position: seed, rotation: [0, 0, 0], scale: [factor, factor, factor], valid: false,
       baseId: null, baseKey: null };
     draft.mesh.userData.creationId = id; draft.mesh.userData.ownerId = draft.ownerId; draft.mesh.userData.isDraft = true;
     selected = id; return previewDraft();
@@ -279,7 +301,8 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
     }
     draft.position = result.position ?? [...position]; draft.rotation = [...rotation]; draft.scale = [...scale];
     draft.valid = result.valid; draft.bounds = result.bounds; applyTransform(draft.mesh, draft);
-    draft.mesh.material.color.set(draft.valid ? "#37a693" : "#dc584e"); draft.mesh.material.opacity = draft.valid ? 0.8 : 0.45;
+    draft.mesh.userData.stlColor = stlColor(draft.color);
+    draft.mesh.material.color.set(draft.valid ? stlColor(draft.color) : "#dc584e"); draft.mesh.material.opacity = draft.valid ? 0.8 : 0.45;
     setMessage(draft.valid ? "配置できます。「配置を確定」で共同ワールドへ保存します。" : `配置できません：${explainError(result.error)}`);
     renderList(); return result;
   }
@@ -367,7 +390,7 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
     try {
       const ack = await schoolClient.editObject(item.baseId ? "object.update" : "object.create", {
         id: item.id, ...(item.baseId ? {} : { assetId: item.assetId }),
-        position: [...item.position], rotation: [...item.rotation], scale: [...item.scale] });
+        position: [...item.position], rotation: [...item.rotation], scale: [...item.scale], color: stlColor(item.color) });
       if (!accepts(token)) return false;
       // Only the server broadcast becomes committed, never the local preview.
       if (draft === item) clearDraft(); selected = ack.id ?? item.id;
@@ -386,6 +409,27 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
     } catch (error) { if (accepts(token)) setMessage(`削除できませんでした：${explainError(error)}`); return false; }
     finally { if (operation === marker) operation = null; renderList(); onChange(); }
   }
+  async function retrieveSelected() {
+    const item=remote.get(selected), model=item && models.get(item.assetId);
+    if(!requireAccess() || busy() || !canChange(item) || !model) return false;
+    // Prepare the hand-held copy before deleting anything. Keep the placement
+    // visible until the authoritative delete ACK; failures leave it untouched.
+    const held={...item,id:crypto.randomUUID(),positions:model.positions,
+      position:[...item.position],rotation:[...item.rotation],scale:[...item.scale],
+      color:stlColor(item.color),mesh:makeMesh(model,true),baseId:null,baseKey:null,valid:false};
+    held.mesh.visible=false; held.mesh.userData.creationId=held.id;
+    held.mesh.userData.ownerId=item.ownerId; held.mesh.userData.isDraft=true;
+    held.mesh.userData.stlColor=held.color; applyTransform(held.mesh,held);
+    const token=currentToken(),marker={}; operation=marker; renderList(); let adopted=false;
+    try {
+      await schoolClient.editObject("object.delete",{id:item.id});
+      if(!accepts(token)) return false;
+      clearDraft(); draft=held; selected=held.id; adopted=true; syncObjects();
+      setMessage("色・大きさ・回転を保って手に持ちました。地面をねらい、右クリックで置き直してください。再配置するまでは下書きです。");
+      return true;
+    } catch(error) { if(accepts(token)) setMessage(`回収できませんでした：${explainError(error)}`); return false; }
+    finally { if(!adopted)disposeMesh(held.mesh); if(operation===marker)operation=null; renderList();onChange(); }
+  }
   function cancelDraft() {
     if (!requireAccess() || busy()) return false;
     const baseId = draft?.baseId; clearDraft(); selected = baseId && remote.has(baseId) ? baseId : null;
@@ -397,6 +441,40 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
     const current = assets.findIndex((asset) => asset.id === selectedItem()?.assetId), delta = direction < 0 ? -1 : 1;
     return useAsset(assets[(current < 0 ? 0 : (current + delta + assets.length) % assets.length)].id);
   }
+  async function paintSelected(color) {
+    const item = selectedItem();
+    if (!requireAccess() || busy() || !canChange(item) || !validSTLColor(color)) return false;
+    if (item === draft) {
+      draft.color = stlColor(color); previewDraft();
+      setMessage("下書きの色を変更しました。配置を確定すると色も保存されます。"); return true;
+    }
+    const token = currentToken(), marker = {}; operation = marker; renderList();
+    try {
+      await schoolClient.editObject("object.paint", { id: item.id, color: stlColor(color) });
+      if (!accepts(token)) return false;
+      syncObjects(); setMessage("作品の色をクラウドに保存しました。設置場所は変更していません。"); return true;
+    } catch (error) { if (accepts(token)) setMessage(`色を保存できませんでした：${explainError(error)}`); return false; }
+    finally { if (operation === marker) operation = null; renderList(); onChange(); }
+  }
+  async function locateSelected() {
+    const item = selectedItem();
+    if (!requireAccess() || busy() || !canChange(item) || item === draft || isXR()) return false;
+    const token=currentToken(),key=objectKey(item),marker={};operation=marker;renderList();
+    const stillValid=()=>accepts(token) && !isXR() && canChange(remote.get(item.id)) && objectKey(remote.get(item.id))===key;
+    clearLocator();
+    setMessage("作品のそばの地面と建物を確認しています…");
+    try {
+    if (!await onLocate(publicObject(item),stillValid) || !stillValid()) { if(accepts(token))setMessage("安全に立てる地面を確認できませんでした。場所は移動していません。地図の読み込み後にもう一度お試しください。"); return false; }
+    clearLocator(); locatedId = item.id;
+    locator = new THREE.Box3Helper(new THREE.Box3().setFromObject(item.mesh).expandByScalar(.15), 0xffca28);
+    locator.name = "own-work-location-marker";
+    locator.material.depthTest = false; locator.material.depthWrite = false; locator.renderOrder = 999;
+    scene.add(locator);
+    if (dialog.open) dialog.close();
+    setMessage(`「${item.name}」の隣へ移動しました。作品自体の位置は変更していません。`); return true;
+    } catch(error) { if(accepts(token))setMessage(`移動できませんでした：${explainError(error)}`);return false; }
+    finally { if(operation===marker)operation=null;renderList();onChange(); }
+  }
   function retryAssets() {
     if (!requireAccess() || busy()) return false;
     failures.clear(); scheduleSync(); setMessage("表示できなかった作品を再読込しています…"); return true;
@@ -404,6 +482,7 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
   function open() {
     if (!requireAccess()) return false;
     if (isXR()) { setMessage("VRでは作品操作パネルを使ってください。ファイル読み込みは2Dへ戻って行います。"); return false; }
+    if (!selectedItem()) selected = [...remote.values()].find(item => canChange(item))?.id ?? null;
     stopPick(); renderList(); if (!dialog.open) dialog.showModal(); return true;
   }
   q("stl-files").addEventListener("change", (event) => { void importFiles([...event.target.files]); });
@@ -416,6 +495,8 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
     previewDraft({ position: [values.x, draft.position[1], values.z], rotation: [values.rx, values.ry, values.rz].map(radians), scale: [values.scale, values.scale, values.scale] });
   });
   q("object-apply").onclick = () => { void commitSelected(); }; q("object-remove").onclick = () => { void removeSelected(); };
+  q("object-paint").onclick = () => { void paintSelected(q("object-color").value); };
+  q("object-locate").onclick = locateSelected;
   reuse.onclick = () => { void useAsset(librarySelect.value); }; cancel.onclick = cancelDraft; retry.onclick = retryAssets;
   q("object-pick").onclick = () => {
     if (!requireAccess() || busy() || !canChange(selectedItem()) || isXR() || !beginDraft()) return;
@@ -438,7 +519,7 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
   const unsubscribe = schoolClient?.subscribe(onState) ?? (() => {});
   onState(schoolClient?.getState() ?? {}); renderList();
   return { group, open, importFiles, useAsset, selectObject, cycleOwnAsset, moveSelected, adjustSelected,
-    commitSelected, removeSelected, cancelDraft, retryAssets,
+    commitSelected, removeSelected, retrieveSelected, cancelDraft, retryAssets, paintSelected, locateSelected,
     // Rendering-only handle: avoid cloning the full classroom every frame.
     // Editing an existing placement is not holding a new inventory item.
     getHeldDraft: () => draft && !draft.baseId && canChange(draft) ? draft.mesh : null,
@@ -446,6 +527,7 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
       const objects = [...remote.values()].map((item) => draft?.id === item.id ? publicObject(draft) : publicObject(item));
       if (draft && !remote.has(draft.id)) objects.push(publicObject(draft));
       return { ...access(), busy: busy(), picking, selected, count: objects.length, committed: remote.size,
+        locatedName: remote.get(locatedId)?.name ?? null,
         triangles: objects.reduce((sum, item) => sum + item.triangles, 0), objects,
         current: selectedItem() ? publicObject(selectedItem()) : null,
         ownAssets: ownAssets().map(({ id, name, triangles }) => ({ id, name, triangles })),
