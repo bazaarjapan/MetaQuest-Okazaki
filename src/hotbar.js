@@ -90,7 +90,8 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
     const placed = state.objects.find(item => item.assetId === asset.id && item.committed);
     if (placed) {
       workshop.cancelDraft(); aiming = false; footprint.visible = false;
-      report("設置済みです。自分の作品を左クリック長押し（0.8秒）で回収できます。Rキーでも回収できます。"); render(); return;
+      workshop.selectObject(placed.id); document.exitPointerLock?.(); workshop.open();
+      report("設置済み作品の色と場所を表示しています。「この作品を見に行く」で場所を確認できます。"); render(); return;
     }
     pending = true;
     try { aiming = await workshop.useAsset(asset.id); lastPreview = -Infinity; if(aiming) document.exitPointerLock?.(); }
@@ -122,7 +123,7 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
       button.replaceChildren();
       const key = document.createElement("kbd"); key.textContent = String((index+1)%10);
       const name = document.createElement("span"); name.textContent = asset ? asset.name.replace(/\.stl$/i,"") : "+ STL";
-      const badge = document.createElement("small"); badge.textContent = placed ? "設置済" : asset ? "置けます" : "追加";
+      const badge = document.createElement("small"); badge.textContent = placed ? "場所・色" : asset ? "置けます" : "追加";
       button.append(key,name,badge); button.classList.toggle("selected", index===active); button.classList.toggle("placed",Boolean(placed));
       button.setAttribute("aria-pressed",String(index===active)); button.title = asset?.name ?? "STLを追加";
       button.setAttribute("aria-label",`${(index+1)%10} ${asset?.name ?? "STLを追加"} ${placed ? "設置済み" : ""}`);
@@ -312,7 +313,10 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
       if(retrievalHold || pending) return;
     }
     if (queuedWheel || time-lastPreview>=120) { lastPreview=time; preview(); }
-    if (!aiming && !pending) footprint.visible=false;
+    if (!aiming && !pending) {
+      footprint.visible=false;
+      if (state.locatedName) report(`📍 ${state.locatedName} · 黄色い枠が作品の場所です · F5で視点切替`);
+    }
   }
   report("1〜0：STL選択 · 右クリック：置く · 左長押し：回収 · 右ドラッグ：見回す · ホイール：サイズ · Esc：メニュー");
   return { update, place, pointerContext, getState:()=>({active,aiming,pending,footprintVisible:footprint.visible}) };

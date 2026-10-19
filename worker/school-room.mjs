@@ -5,6 +5,7 @@ import { readAssetModel } from "./school-assets.mjs";
 import { loadRegionalPlacement } from "./regional-placement.mjs";
 import { CLASSROOM_ID, managesWorld } from "./classroom-id.mjs";
 import { validAvatarMotion } from "../src/avatar-motion.js";
+import { validSTLColor, stlColor } from "../src/workshop-presentation.js";
 
 const DEFAULT_POSE = Object.freeze({ position: [195, 74.4, 105], yaw: 0 });
 const livePoseKey = (userId) => `live-pose:${userId}`;
@@ -269,7 +270,7 @@ export class SchoolRoom {
           this.broadcast({ type: "pose", participant: { ...attachment.avatar, ...attachment.pose }, revision: this.state.revision });
           return;
         }
-        if (!["object.create", "object.update", "object.delete"].includes(value.type) || !validId(value.requestId)) fail(400, "invalid_command");
+        if (!["object.create", "object.update", "object.delete", "object.paint"].includes(value.type) || !validId(value.requestId)) fail(400, "invalid_command");
         const fingerprint = await sha256(JSON.stringify(value));
         const previous = this.state.recent.find((entry) => entry.userId === session.id && entry.requestId === value.requestId);
         if (previous) {
@@ -280,7 +281,7 @@ export class SchoolRoom {
         if (!Number.isSafeInteger(value.revision) || value.revision !== this.state.revision) fail(409, "stale_revision");
         if (this.now() - attachment.lastEditAt < 250) fail(429, "edit_rate_limit");
         attachment.lastEditAt = this.now(); attachment.lastSeenAt = this.now(); socket.serializeAttachment(attachment);
-        if(value.type!=='object.delete'){
+        if(value.type==='object.create' || value.type==='object.update'){
           if(this.pendingPlacements.has(session.id))fail(429,'edit_rate_limit');
           const current=this.state.objects.find(object=>object.id===value.id);
           if(value.type==='object.update' && !current)fail(404,'object_not_found');
@@ -349,6 +350,14 @@ export class SchoolRoom {
       this.state = { ...this.state, revision: this.state.revision + 1, objects: this.state.objects.filter((object) => object.id !== current.id) };
       return current;
     }
+    if ((value.type === "object.paint" || value.color !== undefined) && !validSTLColor(value.color)) fail(400, "invalid_object_color");
+    if (value.type === "object.paint") {
+      // Appearance only: preserve every authoritative placement/ownership field.
+      const object = { ...current, color: stlColor(value.color) };
+      this.state = { ...this.state, revision: this.state.revision + 1,
+        objects: this.state.objects.map(entry => entry.id === current.id ? object : entry) };
+      return object;
+    }
     if (value.type === "object.create" && this.state.objects.length >= LIMITS.objects) fail(409, "world_object_limit");
     if (value.type === "object.create" && value.id !== undefined && (!validId(value.id) || current)) fail(409, "object_id_unavailable");
     const assetId = value.type === "object.create" ? value.assetId : current.assetId;
@@ -367,7 +376,7 @@ export class SchoolRoom {
     if (placement.bounds.max.some((n, axis) => n - placement.bounds.min[axis] > LIMITS.objectMeters)) fail(409, "object_size_limit");
     if (this.state.objects.some((object) => object.id !== current?.id && overlaps(placement.bounds, object.bounds))) fail(409, "object_overlap");
     const object = { id: current?.id ?? value.id ?? crypto.randomUUID(), ownerId: session.id, assetId,
-      name: asset.name, position: [...placement.position], rotation: transform.rotation, scale: transform.scale,
+      name: asset.name, color: stlColor(value.color ?? current?.color), position: [...placement.position], rotation: transform.rotation, scale: transform.scale,
       bounds: placement.bounds, triangles: asset.triangles };
     this.state = { ...this.state, revision: this.state.revision + 1,
       objects: [...this.state.objects.filter((entry) => entry.id !== object.id), object] };

@@ -189,7 +189,7 @@
     </footer>
     <dialog id="workshop-dialog" aria-labelledby="workshop-title">
       <button id="workshop-close" class="dialog-close">閉じる ×</button>
-      <h2 id="workshop-title">自分のSTL作品を街に置く</h2>
+      <h2 id="workshop-title">自分のSTL作品 · 色と場所</h2>
       <p class="workshop-note">下の10枠からSTLを選び、ホイールでサイズ変更、右クリックで配置、右ドラッグで見回す、左ボタン0.8秒長押し（またはR）で自分の作品を回収できます。街全体の読み込み済みの空き地へ配置できます。緑は配置可能、赤は重なりなどで配置不可、黄色は最後のプレビュー（未設置）です。ここでは単位・上方向やXYZ回転・縮尺を詳しく設定できます。</p>
       <div class="workshop-files">
         <label for="stl-files">STLを追加（複数選択可・1作品2万三角形まで）<input id="stl-files" type="file" accept=".stl" multiple></label>
@@ -199,6 +199,12 @@
         </div>
         <label for="workshop-list">作品を選ぶ<select id="workshop-list" size="3" aria-label="作品一覧"></select></label>
       </div>
+      <section class="workshop-find" aria-label="作品の色と場所">
+        <p id="object-location">設置済みの自分の作品を選んでください。</p>
+        <button id="object-locate">📍 この作品を見に行く</button>
+        <div class="workshop-color"><label for="object-color">作品の色<input id="object-color" type="color" value="#488caa"></label><button id="object-paint">この色にする</button></div>
+        <p class="workshop-color-note">STLの元の塗り分け・写真テクスチャーは読み込みません。ここで作品全体に1色を付けられます。設置済みなら色だけを保存、手持ちなら配置確定時に保存します。</p>
+      </section>
       <div class="workshop-fields">
         <label for="object-x">東西X（m）<input id="object-x" type="number" step="0.1"></label>
         <label for="object-z">南北Z（m）<input id="object-z" type="number" step="0.1"></label>

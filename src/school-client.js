@@ -416,7 +416,7 @@ export function createSchoolClient(options = {}) {
   }
   function editObject(type, data) {
     const worldId = assertRoom(), epoch = authEpoch, room = roomEpoch;
-    if (!["object.create", "object.update", "object.delete"].includes(type)) return Promise.reject(new SchoolClientError("invalid_command"));
+    if (!["object.create", "object.update", "object.delete", "object.paint"].includes(type)) return Promise.reject(new SchoolClientError("invalid_command"));
     const safeData = clone(data);
     const work = editTail.catch(() => {}).then(async () => {
       assertEpoch(epoch, room, worldId);

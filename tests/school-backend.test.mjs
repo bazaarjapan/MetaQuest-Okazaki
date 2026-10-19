@@ -331,6 +331,35 @@ test("server sync validates actual core empty ground, ignores ownership lies, sa
   assert.deepEqual(reconnect.socket.messages.find((message) => message.type === "state").objects[0], recorded);
   s.sqlite.close();
 });
+test("object colors persist across server eviction/restore; only owner can paint without terrain or transform changes", async () => {
+  const s = await setup();
+  try {
+    const teacher = await s.user("paint-teacher", "teacher"), student = await s.user("paint-student"), world = await createWorld(s.db, teacher, {}, s.now());
+    await joinWorld(s.db, student, world.join_code, s.now());
+    const asset = (await (await upload(s, world, student)).json()).asset;
+    const a = await s.connect(world.id, student), t = await s.connect(world.id, teacher);
+    const position = await unusedCoreLocation(), id = crypto.randomUUID();
+    const send = async (peer, value) => { s.advance(); await peer.room.webSocketMessage(peer.socket, JSON.stringify({ requestId: crypto.randomUUID(), revision: a.room.state.revision, ...value })); return peer.socket.messages.at(-1); };
+    assert.equal((await send(a, { type: "object.create", id, assetId: asset.id, position, rotation: [0,0,0], scale: [.5,.5,.5], color: "#FF8800" })).type, "ack");
+    assert.equal(a.room.state.objects[0].color, "#ff8800");
+    const before = structuredClone(a.room.state.objects[0]);
+    a.room.loadPlacement = async () => { throw new Error("painting must not fetch terrain"); };
+    assert.equal((await send(t, { type: "object.paint", id, color: "#ffffff" })).error, "object_owner_required");
+    assert.equal((await send(a, { type: "object.paint", id, color: "red" })).error, "invalid_object_color");
+    assert.deepEqual(a.room.state.objects[0], before);
+    assert.equal((await send(a, { type: "object.paint", id, color: "#22AA77", position: [999,999,999], ownerId: teacher.id })).type, "ack");
+    const painted = { ...before, color: "#22aa77" };
+    assert.deepEqual(a.room.state.objects[0], painted);
+    assert.equal(t.socket.messages.findLast(message => message.type === "objects").objects[0].color, painted.color);
+    const checkpoint = await (await roomRequest(s.env, world.id, teacher, "/save", "POST")).json();
+    await send(a, { type: "object.paint", id, color: "#112233" });
+    const restored = await roomRequest(s.env, world.id, teacher, "/restore", "POST", { snapshotId: checkpoint.id, revision: a.room.state.revision });
+    assert.equal(restored.status, 200); assert.deepEqual(a.room.state.objects[0], painted);
+    const woken = new SchoolRoom(s.rooms.get(world.id).ctx, s.env, { now: () => s.now() * 1000 });
+    await woken.ready; assert.deepEqual(woken.state.objects[0], painted);
+  } finally { s.sqlite.close(); }
+});
+
 test("pose finite/sequence/rate/size checks and session expiry remove ghosts", async () => {
   const s = await setup(), teacher = await s.user("teacher", "teacher"), world = await createWorld(s.db, teacher, {}, s.now()), a = await s.connect(world.id, teacher);
   await a.room.webSocketMessage(a.socket, JSON.stringify({ type: "pose", position: [0,40,0], yaw: 0, seq: 1, restoreCommit: null }));

@@ -63,6 +63,7 @@ export function createHeldSTL({ avatar, camera }) {
         color: "#e8bb74", roughness: .8, metalness: 0, side: THREE.DoubleSide }));
       mesh.name = "held-stl-model"; pivot.add(mesh);
     }
+    mesh.material.color.set(draft.userData.stlColor ?? "#488caa");
     // Camera collision may hide the body even in a front/rear view. Keep the
     // inventory indicator visible by using the same camera-mounted fallback.
     const useHand = thirdPerson && avatar.group.visible;

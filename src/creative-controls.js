@@ -174,9 +174,9 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
     }
     updateAvatar();
   }
-  function syncFromCamera() {
+  function syncFromCamera({ firstPerson = false } = {}) {
     if (disposed || xr || suspendedXR) return;
-    adopt(worldView(), viewMode); clearInput();
+    adopt(worldView(), firstPerson ? "first" : viewMode); clearInput();
     if (mode === "creative") { getControls() && (getControls().enabled = false); renderView(); }
     updateAvatar(); notify();
   }

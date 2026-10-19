@@ -213,6 +213,7 @@ let placementEnvironment = { terrain: null, obstacles: [], bounds: [-320, -381, 
 const regionalPlacementEnvironment=createRegionalPlacementEnvironment({getCore:()=>placementEnvironment,getManifest:()=>regionManifest,getMeshes:()=>regionStreamer.getMeshes()});
 const workshop = createWorkshop(THREE, { scene, domElement: renderer.domElement, camera,
   getEnvironment: regionalPlacementEnvironment, getViewPosition: userPosition,
+  getStation: () => stationPosition, onLocate: locateWorkshopObject,
   schoolClient, isXR: () => state.xr,
   onRequireLogin: () => schoolUI?.open(),
   onChange: () => { renderer.shadowMap.needsUpdate = true; } });
@@ -559,6 +560,21 @@ function drawDesktopRegionMap() {
   drawRegionMap(canvas.getContext("2d"), { x: 0, y: 0, w: canvas.width, h: canvas.height },
     regionManifest, userPosition(), coreBounds());
 }
+function locateWorkshopObject(item) {
+  if (!regionManifest || state.xr || xrEntering || !schoolClient.getState().user) return false;
+  const target = new THREE.Vector3(...item.position);
+  const mesh = workshop.group.children.find(entry => entry.userData.creationId === item.id && !entry.userData.isDraft);
+  if (!mesh) return false;
+  const box = new THREE.Box3().setFromObject(mesh), size = box.getSize(new THREE.Vector3());
+  box.getCenter(target);
+  // Look down from directly above the known object, not from guessed ground.
+  const position = constrainPosition(new THREE.Vector3(target.x + 1,
+    box.max.y + Math.max(15, size.x * 1.5, size.z * 1.5), target.z + 1));
+  resetFlight(flight); touchControls.releaseAll(); setFree(false);
+  state.current = "region"; setDesktopView(position, target, new THREE.Vector3(0, 1, 0), Math.PI, true);
+  adaptiveUi.close(); regionStreamer.update(userPosition(), quality.id, performance.now() + 500);
+  drawDesktopRegionMap(); drawPanel(); return true;
+}
 function visitRegionPoint(x, z) {
   if (!regionManifest || !Number.isFinite(x) || !Number.isFinite(z)) return;
   let height = 0;
@@ -768,7 +784,7 @@ function goTo(id) {
   updateLabels(id);
   if (panel) drawPanel();
 }
-function setDesktopView(position, target, up = new THREE.Vector3(0, 1, 0), maxPolarAngle = Math.PI * 0.485) {
+function setDesktopView(position, target, up = new THREE.Vector3(0, 1, 0), maxPolarAngle = Math.PI * 0.485, firstPerson = false) {
   // Recreate controls to discard stale orbit damping/pan and its cached up axis.
   controls.dispose();
   rig.position.set(0, 0, 0); rig.rotation.set(0, 0, 0);
@@ -779,7 +795,7 @@ function setDesktopView(position, target, up = new THREE.Vector3(0, 1, 0), maxPo
   controls.maxPolarAngle = maxPolarAngle;
   camera.position.copy(position); controls.target.copy(target); controls.update();
   camera.updateMatrixWorld(true);
-  creative?.syncFromCamera();
+  creative?.syncFromCamera({ firstPerson });
 }
 function restoreDesktopView(view) {
   const position = new THREE.Vector3().fromArray(view.position);

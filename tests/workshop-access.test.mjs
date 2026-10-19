@@ -78,6 +78,7 @@ class Element {
 const source = new TextEncoder().encode("solid part\nfacet normal 0 1 0\nouter loop\nvertex 0 0 0\nvertex 1 0 0\nvertex 0 0 1\nendloop\nendfacet\nendsolid part").buffer;
 async function fixture(t, initial = connected()) {
   const ids = ["workshop-dialog", "workshop-status", "workshop-list", "stl-files", "stl-up", "stl-units", "object-x", "object-z", "object-scale", "object-rx", "object-ry", "object-rz", "object-y", "object-pick", "object-remove", "object-apply", "workshop-close", "open-workshop", "canvas-hint"];
+  ids.push("object-color", "object-paint", "object-locate", "object-location");
   const registry = new Map(ids.map((id) => [id, new Element()])); registry.get("workshop-dialog").registry = registry;
   registry.get("stl-up").value = "y"; registry.get("stl-units").value = "m";
   const saved = { document: globalThis.document, window: globalThis.window, Option: globalThis.Option };
@@ -95,6 +96,7 @@ async function fixture(t, initial = connected()) {
     editObject: async (type, data) => {
       calls.edits++;
       if (type === "object.delete") state.objects = state.objects.filter((item) => item.id !== data.id);
+      else if (type === "object.paint") state.objects = state.objects.map(item => item.id === data.id ? { ...item, color: data.color } : item);
       else {
         const previous = state.objects.find((item) => item.id === data.id);
         state.objects = state.objects.filter((item) => item.id !== data.id);
@@ -110,7 +112,7 @@ async function fixture(t, initial = connected()) {
   const scene = new THREE.Scene();
   const workshop = createWorkshop(THREE, { scene, camera: new THREE.PerspectiveCamera(), domElement: new Element(), schoolClient: client,
     getEnvironment: () => ({ terrain: ground, obstacles: [], bounds: [-50,-50,50,50] }), getViewPosition: () => ({ x: 2, y: 5, z: 2 }),
-    onRequireLogin: () => { calls.login++; } });
+    onRequireLogin: () => { calls.login++; }, onLocate: item => { calls.located = item; return true; } });
   t.after(() => { workshop.destroy(); Object.assign(globalThis, saved); });
   await new Promise((resolve) => setImmediate(resolve));
   return { workshop, client, calls, registry, metadata, scene, state: () => state,
@@ -120,6 +122,34 @@ async function fixture(t, initial = connected()) {
       for (let i = 0; i < 100 && !predicate(); i++) await new Promise((resolve) => setTimeout(resolve, 2));
     } };
 }
+test("STL color flows through draft, commit, painting and reload without moving the work", async t => {
+  const f = await fixture(t); await f.workshop.importFiles([f.file()]);
+  assert.equal(f.workshop.locateSelected(), false);
+  assert.equal(await f.workshop.paintSelected("#FF8800"), true);
+  assert.equal(f.workshop.getHeldDraft().userData.stlColor, "#ff8800");
+  await f.workshop.commitSelected(); await f.settle();
+  const before = f.workshop.getState().current;
+  assert.equal(before.color, "#ff8800");
+  f.registry.get("object-color").value = "#22aa77";
+  f.client.emit("objects"); await f.settle();
+  assert.equal(f.registry.get("object-color").value, "#22aa77", "peer updates retain unsaved color choice");
+  assert.equal(await f.workshop.paintSelected("#22AA77"), true);
+  await f.settle();
+  assert.deepEqual(f.workshop.getState().current.position, before.position);
+  assert.equal(f.workshop.getState().current.color, "#22aa77");
+  assert.equal(f.workshop.group.children[0].material.color.getHexString(), "22aa77");
+  assert.equal(f.workshop.locateSelected(), true); assert.equal(f.calls.located.id, before.id);
+  assert.match(f.registry.get("object-location").textContent, /水平距離/);
+  const saved = structuredClone(f.state()); f.client.replace({}); f.client.replace(saved); await f.settle(() => f.workshop.getState().committed === 1);
+  f.workshop.selectObject(before.id);
+  assert.equal(f.workshop.getState().current.color, "#22aa77");
+  assert.equal(await f.workshop.paintSelected("red"), false);
+  f.client.replace({ ...saved, user: { ...saved.user, id: "other" } }); await f.settle();
+  f.workshop.selectObject(before.id);
+  assert.equal(await f.workshop.paintSelected("#ffffff"), false);
+  assert.equal(f.workshop.locateSelected(), false);
+});
+
 test("actual workshop API prevents guest imports and programmatic edit calls", async (t) => {
   const f = await fixture(t, {});
   assert.equal(f.workshop.open(), false); assert.equal(f.registry.get("workshop-dialog").open, false);
