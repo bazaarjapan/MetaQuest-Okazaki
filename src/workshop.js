@@ -127,6 +127,7 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
     if (colorKey !== colorSelectionKey) { colorSelectionKey = colorKey; q("object-color").value = stlColor(item?.color); }
     q("object-paint").disabled = !editable;
     q("object-locate").disabled = !editable || item === draft || isXR();
+    q("object-name").textContent = item ? `選択中：${item.name}` : "作品はまだ選ばれていません";
     q("object-location").textContent = item ? `${item === draft ? "未確定のプレビュー" : "設置済み"}：${describeWorkLocation(item.position, getViewPosition(), getStation())}` : "設置済みの自分の作品を選ぶと、場所を確認できます。";
     for (const field of fields) q(`object-${field}`).disabled = !editable;
     for (const id of ["stl-files", "stl-up", "stl-units"]) q(id).disabled = !access().canEdit || busy();

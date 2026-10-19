@@ -78,7 +78,7 @@ class Element {
 const source = new TextEncoder().encode("solid part\nfacet normal 0 1 0\nouter loop\nvertex 0 0 0\nvertex 1 0 0\nvertex 0 0 1\nendloop\nendfacet\nendsolid part").buffer;
 async function fixture(t, initial = connected()) {
   const ids = ["workshop-dialog", "workshop-status", "workshop-list", "stl-files", "stl-up", "stl-units", "object-x", "object-z", "object-scale", "object-rx", "object-ry", "object-rz", "object-y", "object-pick", "object-remove", "object-apply", "workshop-close", "open-workshop", "canvas-hint"];
-  ids.push("object-color", "object-paint", "object-locate", "object-location");
+  ids.push("object-color", "object-paint", "object-locate", "object-location", "object-name");
   const registry = new Map(ids.map((id) => [id, new Element()])); registry.get("workshop-dialog").registry = registry;
   registry.get("stl-up").value = "y"; registry.get("stl-units").value = "m";
   const saved = { document: globalThis.document, window: globalThis.window, Option: globalThis.Option };
