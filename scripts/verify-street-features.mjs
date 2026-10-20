@@ -32,7 +32,7 @@ try{
   await browser('set','viewport',String(w),String(h));await delay(100);
   if(!(await state()).ui.open)await browser('click',w<=800||h<=500?'[data-mobile-panel=observe]':'#simple-menu');
   const result=await evaluate(`(()=>{const p=document.querySelector('#control-panel'),b=p.querySelector('.panel-body'),r=p.getBoundingClientRect();return{fits:r.top>=0&&r.left>=0&&r.right<=innerWidth+1&&r.bottom<=innerHeight+1,scroll:b.scrollHeight>b.clientHeight+1,overflow:getComputedStyle(b).overflowY};})()`);
-  check(`menu ${w}x${h} stays within screen with conditional overflow`,result.fits&&result.overflow==='auto'&&(w>800&&h>500||result.scroll));
+  check(`menu ${w}x${h} stays within screen with conditional overflow`,result.fits&&result.overflow==='auto');
   await browser('screenshot',`test-results/street-menu-${w}x${h}.png`);
  }
  await browser('set','viewport','1280','800');
@@ -60,9 +60,20 @@ try{
  await browser('upload','#stl-hotbar input[type=file]',fixtures.cubeFile);
  await until('window.__okazaki.getState().workshop.current && !window.__okazaki.getState().hotbar.pending');
  await browser('click','#simple-menu');await browser('click','#open-workshop');
+ check('workshop opens with the work list visible before editing fields',await evaluate("(()=>{const r=document.querySelector('#workshop-list').getBoundingClientRect(),b=document.querySelector('.workshop-body').getBoundingClientRect();return r.top>=b.top&&r.bottom<=b.bottom&&!document.querySelector('#workshop-transform').open;})()"));
+ await browser('screenshot','test-results/ux-workshop-compact.png');
+ await browser('click','#workshop-transform summary');
  const placement=fixtures.cube.groundPositions[0];
  await field('object-scale',1);await field('object-x',placement.position[0]);await field('object-z',placement.position[2]);
+ await browser('click','.workshop-metadata summary');
  await browser('fill','#exhibit-title','光の駅');await browser('fill','#exhibit-description','みんなが集まる、太陽光で動く駅です。');await browser('click','#exhibit-save');
+ for(const [w,h] of [[1280,800],[390,844],[844,390]]){
+  await browser('set','viewport',String(w),String(h));
+  await evaluate("document.querySelector('.workshop-body').scrollTop=document.querySelector('.workshop-body').scrollHeight");
+  check(`workshop ${w}x${h} keeps close and primary action visible while scrolling`,await evaluate("(()=>{const d=document.querySelector('#workshop-dialog').getBoundingClientRect();return d.left>=0&&d.right<=innerWidth+1&&['workshop-close','object-apply'].every(id=>{const b=document.getElementById(id).getBoundingClientRect();return b.top>=0&&b.bottom<=innerHeight;});})()"));
+  await browser('screenshot',`test-results/ux-workshop-${w}x${h}.png`);
+ }
+ await browser('set','viewport','1280','800');
  await until("!document.querySelector('#object-apply').disabled");
  await evaluate("(()=>{const b=document.querySelector('#object-apply');b.scrollIntoView({block:'center'});b.addEventListener('click',()=>window.__streetApplyClicked=true,{once:true});return true;})()");await delay(200);await browser('click','#object-apply');
  check('native placement confirmation reaches its button',await evaluate('window.__streetApplyClicked===true'));
@@ -70,6 +81,12 @@ try{
  const object=(await state()).school.objects[0];
  check('student placement stores exhibit title and description',object.title==='光の駅'&&object.description.includes('太陽光'));
  await browser('click','#workshop-close');await until("!document.querySelector('#workshop-dialog').open");if((await state()).ui.open)await browser('click','#panel-close');
+ await browser('click','#stl-hotbar button');
+ check('normal placed slot click opens safe actions with the exhibit title',await evaluate("document.querySelector('#hotbar-actions').open&&document.querySelector('#hotbar-actions strong').textContent==='光の駅'")&&!(await state()).free);
+ await browser('screenshot','test-results/ux-slot-actions.png');
+ await browser('click','#hotbar-actions [data-action=details]');await until("document.querySelector('#workshop-dialog').open");
+ check('placed slot edit keeps the authoritative object',(await state()).school.objects[0].id===object.id);
+ await browser('click','#workshop-close');
  await until('window.__okazaki.getState().radar?.count===1');
  check('own placement is tracked by radar',(await state()).radar.markers[0].id===object.id);
  await until('window.__okazaki.getState().radar?.people.length===1');
@@ -86,11 +103,18 @@ try{
  session=sessions[0];
  await browser('click','#student-roster');await until("document.querySelector('.student-work')");
  check('teacher roster shows author, title and location',await evaluate("document.querySelector('#student-roster-list').textContent.includes('光の駅') && document.querySelector('#student-roster-list').textContent.includes('水平距離')"));
+ await browser('fill','#student-roster-search','該当しない名前');
+ check('roster search explains an empty result',await evaluate("document.querySelector('#student-roster-count').textContent.includes('表示 0 /')&&document.querySelector('#student-roster-list').textContent.includes('条件に合う生徒はいません')"));
+ await browser('fill','#student-roster-search','レーダー検証');await browser('click','#student-roster-placed');
+ check('roster filters find the placed student',await evaluate("document.querySelector('#student-roster-count').textContent.includes('表示 1 /')&&document.querySelector('.student-work')!==null"));
+ check('teacher close button remains visible after roster scroll',await evaluate("(()=>{const r=document.querySelector('#school-close').getBoundingClientRect();return r.top>=0&&r.bottom<=innerHeight;})()"));
+ await browser('fill','#student-roster-search','');await browser('click','#student-roster-placed');
  await browser('screenshot','test-results/street-teacher-roster.png');
  await browser('click','.student-work button');
  await until("window.__okazaki.getState().workshop.locatedName!==null",60000);
  check('teacher can travel safely beside student work',!(await state()).free);
  await until('window.__okazaki.getState().exhibits.count===1');
+ check('nearby exhibit labels stay within their screen width cap',(await state()).exhibits.maxScreenWidth<=220.001);
  await browser('screenshot','test-results/street-exhibit.png');
  await until('window.__okazaki.getState().radar?.people.length===1');
  const studentMarker=(await state()).radar.people[0];

@@ -166,3 +166,19 @@ test("teacher roster reflects placed work, returns only its ID and refreshes on 
   assert.equal(roster.querySelectorAll("*").find(n=>n.textContent==="生徒のホットバーへ戻す").disabled,true);
   h.ui.destroy();
 });
+
+test("teacher roster filters names and IDs, keeps filters during updates, and handles empty results",async()=>{
+  const initial={...guest,singleClassroom:true,configured:true,error:null,user:{id:"teacher",role:"teacher",name:"先生"},
+    world:{id:"room",name:"教室"},connection:"connected",objects:[{id:"a-work",ownerId:"a",name:"a.stl",position:[0,0,0]}]};
+  const h=harness(initial,async()=>initial,{students:async()=>({students:[
+    {id:"a",name:"桜",slot:1,loginId:"s-abc"},{id:"b",name:"山",slot:2,loginId:"s-def"}]})});
+  h.find("student-roster").click();await tick();
+  const query=h.find("student-roster-search"),placed=h.find("student-roster-placed"),count=h.find("student-roster-count");
+  assert.match(count.textContent,/表示 2 \/ 2人/);
+  query.value="Ｓ－ＡＢＣ";query.listeners.get("input")();assert.match(count.textContent,/表示 1 \/ 2人/);
+  query.value="山";query.listeners.get("input")();assert.match(count.textContent,/表示 1 \/ 2人/);
+  placed.checked=true;placed.listeners.get("change")();assert.match(count.textContent,/表示 0 \/ 2人/);
+  assert.ok(h.find("student-roster-list").querySelectorAll("*").some(n=>n.textContent?.includes("条件に合う生徒はいません")));
+  h.emit({...initial,objects:[...initial.objects,{id:"b-work",ownerId:"b",name:"b.stl",position:[1,0,0]}]},"objects");
+  assert.equal(query.value,"山");assert.equal(placed.checked,true);assert.match(count.textContent,/表示 1 \/ 2人/);h.ui.destroy();
+});

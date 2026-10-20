@@ -118,13 +118,13 @@ test("hidden VR hotbar performs no school or workshop snapshot allocations",()=>
   assert.equal(h.calls,0); assert.equal(h.hotbar.getState().aiming,false);
 });
 
-test('placed slot selects only; context menu actions recheck identity and ownership',async()=>{
+test('placed slot click opens actions without moving; actions recheck identity and ownership',async()=>{
   const h=harness();let details=0,locates=0;
   const state={userId:'a',worldId:'world',canEdit:true,ownAssets:[{id:'asset',name:'mine.stl'}],objects:[{id:'mine',assetId:'asset',editable:true,committed:true}]};
   h.workshop.getState=()=>state;h.workshop.open=()=>details++;h.workshop.locateSelected=async()=>locates++;
   h.hotbar.update(0);
   const slot=h.canvas.parentElement.children[0].children[1],dialog=h.canvas.parentElement.children[5];
-  slot.onclick();assert.equal(details,0);assert.equal(locates,0);
+  slot.onclick();assert.equal(details,0);assert.equal(locates,0);assert.equal(dialog.open,true);assert.equal(h.activations,0);
   slot.events.contextmenu({preventDefault(){}});assert.equal(dialog.open,true);
   await dialog.children[1].onclick();assert.equal(locates,1);assert.equal(dialog.open,false);
   slot.events.contextmenu({preventDefault(){}});state.userId='b';
@@ -132,6 +132,8 @@ test('placed slot selects only; context menu actions recheck identity and owners
   state.objects[0].editable=false;slot.events.contextmenu({preventDefault(){}});assert.equal(dialog.open,false);
   state.objects[0].editable=true;slot.events.contextmenu({preventDefault(){}});
   dialog.events.cancel();assert.equal(dialog.open,false);
+  state.objects[0].title='新しい展示名';h.hotbar.update(200);
+  assert.equal(slot.children[1].textContent,'新しい展示名');assert.match(slot.title,/クリック/);
 });
 
 test('touch long press opens actions, suppresses click, and movement cancels it',async()=>{
