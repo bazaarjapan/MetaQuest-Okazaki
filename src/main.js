@@ -221,6 +221,13 @@ const workshop = createWorkshop(THREE, { scene, domElement: renderer.domElement,
 const hotbar = createHotbar({ workshop, client: schoolClient, scene, camera, canvas: renderer.domElement,
   getEnvironment: regionalPlacementEnvironment, getObstacles: () => [...city.children.filter(mesh=>mesh!==terrainMesh), ...regionStreamer.getMeshes().filter(mesh=>mesh.userData.regionType==='building')],
   isXR: () => state.xr, isXRPending: () => xrEntering || creative?.getState().suspendedXR, menu: adaptiveUi,
+  onActivate: () => {
+    if (!activityAllowed || !state.ready || adaptiveUi.getState().mobile || questBrowser ||
+        creative?.getState().mode !== "creative" || state.xr || xrEntering || creative.getState().suspendedXR ||
+        document.hidden || workshop.getState().picking || adaptiveUi.getState().open || document.querySelector("dialog[open]")) return;
+    if (!state.free) setFree(true);
+    creative.step(0, {enabled:true, blocked:false, xr:false});
+  },
   isLooking: () => creative?.getState().mouseIntent === "look",
   isCreative: () => creative?.getState().mode === "creative" });
 const ownAvatar = createBlockAvatar(THREE);

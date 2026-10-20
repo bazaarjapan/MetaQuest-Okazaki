@@ -35,28 +35,83 @@ function harness() {
   }
   const canvas=new Node(); canvas.parentElement=new Node();
   const document=Object.assign(new Node(),{createElement:()=>new Node(),querySelector:()=>null,pointerLockElement:null});
+  canvas.focus=()=>{document.activeElement=canvas;};
   const window=new Node();
-  let xr=false, xrPending=false, picking=false, calls=0, now=0, removals=0, commits=0, current=null, canEdit=true, ground=[], obstacles=[], menuOpen=false, looking=false, adjustments=0, moves=0;
+  let xr=false, xrPending=false, picking=false, calls=0, now=0, removals=0, commits=0, current=null, canEdit=true, ground=[], obstacles=[], menuOpen=false, looking=false, adjustments=0, moves=0, activations=0, busy=false;
   const object={id:"object",assetId:"asset",editable:true,committed:true};
   const workshop={group:{children:[{userData:{creationId:"object"}}]},
-    getState(){calls++;return {userId:"student",worldId:"world",canEdit,picking,ownAssets:[{id:"new-asset",name:"test.stl"}],objects:[object],current};},
+    getState(){calls++;return {userId:"student",worldId:"world",canEdit,picking,busy,ownAssets:[{id:"new-asset",name:"test.stl"}],objects:[object],current};},
+    getHeldDraft(){return current && !current.committed ? {} : null;},
     async useAsset(){current={id:"draft",assetId:"new-asset",committed:false,editable:true,scale:[1,1,1]};return true;},
     adjustSelected({scaleFactor,position}){adjustments++;current.scale=current.scale.map(v=>v*scaleFactor);if(position)current.position=position;return {valid:true};},
     moveSelected(){moves++;return {valid:true};},
     async commitSelected(){commits++;return true;},
-    selectObject(){return true;},cancelDraft(){},async retrieveSelected(){removals++;return true;}};
+    selectObject(){return true;},cancelDraft(){current=null;return true;},async retrieveSelected(){removals++;return true;}};
   class Raycaster extends THREE.Raycaster {
     intersectObjects(objects) { return objects.length ? [{object:objects[0],distance:objects[0].distance??1,point:new THREE.Vector3()}] : []; }
   }
   const context=vm.createContext({THREE:{...THREE,Raycaster},document,window,setTimeout,clearTimeout,performance:{now:()=>now}});
   const factory=vm.runInContext(source+"\ncreateHotbar",context);
   const hotbar=factory({workshop,client:{getState(){calls++;return {user:null};}},camera:new THREE.PerspectiveCamera(),canvas,
-    scene:new THREE.Scene(),getEnvironment:()=>({terrainMeshes:ground}),getObstacles:()=>obstacles,isXR:()=>xr,isXRPending:()=>xrPending,isLooking:()=>looking,menu:{getState:()=>({open:menuOpen})}});
+    scene:new THREE.Scene(),getEnvironment:()=>({terrainMeshes:ground}),getObstacles:()=>obstacles,isXR:()=>xr,isXRPending:()=>xrPending,isLooking:()=>looking,menu:{getState:()=>({open:menuOpen})},onActivate:()=>activations++});
   return {hotbar,canvas,window,workshop,document,setGround:value=>{ground=value;},setObstacles:value=>{obstacles=value;},setEditable:value=>{canEdit=value;},
     async selectDraft(){hotbar.update(0);canvas.parentElement.children[0].children[1].onclick();await new Promise(setImmediate);},
     setMenu:value=>{menuOpen=value;},setPicking:value=>{picking=value;},setXRPending:value=>{xrPending=value;},setLooking:value=>{looking=value;},get adjustments(){return adjustments;},get moves(){return moves;},get commits(){return commits;},
+    setBusy:value=>{busy=value;},get activations(){return activations;},
     setXR:value=>{xr=value;},setTime:value=>{now=value;},get calls(){return calls;},get removals(){return removals;}};
 }
+test("selecting a saved STL restores canvas focus; same slot and Q put it away without deleting assets",async()=>{
+  const h=harness();
+  h.document.activeElement={matches:()=>true};
+  await h.selectDraft();
+  assert.equal(h.document.activeElement,h.canvas);assert.equal(h.activations,1);
+  assert.equal(h.hotbar.getState().aiming,true);
+  await h.selectDraft();h.hotbar.update(200);
+  assert.equal(h.workshop.getState().current,null);assert.equal(h.hotbar.getState().aiming,false);
+  assert.equal(h.hotbar.getState().active,-1);
+  await h.selectDraft();
+  h.window.events.keydown({code:"KeyQ",preventDefault(){}});
+  h.hotbar.update(400);
+  assert.equal(h.workshop.getState().current,null);assert.equal(h.hotbar.getState().aiming,false);
+  assert.equal(h.workshop.getState().ownAssets.length,1);assert.equal(h.removals,0);assert.equal(h.commits,0);
+});
+test("stash button clears the hand, while saving, typing, modals and XR transitions protect it",async()=>{
+  const h=harness();await h.selectDraft();
+  for(const setup of [
+    value=>h.setBusy(value),value=>h.setMenu(value),value=>h.setXRPending(value),
+    value=>h.setXR(value),value=>h.setEditable(!value),value=>{h.document.hidden=value;},
+    value=>{h.document.activeElement=value?{isContentEditable:true}:h.canvas;}
+  ]) {
+    setup(true);h.window.events.keydown({code:"KeyQ",preventDefault(){}});setup(false);
+    assert.ok(h.workshop.getHeldDraft());
+  }
+  const button=h.canvas.parentElement.children.at(-1).children[1];
+  h.document.activeElement=button;button.onclick();h.hotbar.update(200);
+  assert.equal(h.document.activeElement,h.canvas);assert.equal(h.workshop.getHeldDraft(),null);
+});
+test("a delayed selection never resumes input after the user leaves the window",async()=>{
+  const h=harness();let finish;
+  h.workshop.useAsset=()=>new Promise(resolve=>{finish=resolve;});
+  await h.selectDraft();assert.equal(h.activations,1);
+  h.window.events.blur();h.document.hidden=true;
+  finish(true);await new Promise(setImmediate);
+  assert.equal(h.activations,1);
+});
+test("app hotbar activation preserves ongoing movement and never resumes mobile or XR input",async()=>{
+  const main=await readFile(new URL("../src/main.js",import.meta.url),"utf8");
+  const callback=main.match(/onActivate: \(\) => \{([\s\S]*?)\r?\n  \},\r?\n  isLooking:/)?.[1];
+  assert.ok(callback,"actual app activation callback");
+  let resumes=0,steps=0,mobile=false,suspendedXR=false;
+  const context={activityAllowed:true,state:{ready:true,free:true,xr:false},questBrowser:false,xrEntering:false,
+    adaptiveUi:{getState:()=>({mobile,open:false})},creative:{getState:()=>({mode:"creative",suspendedXR}),step:()=>steps++},
+    document:{hidden:false,querySelector:()=>null},workshop:{getState:()=>({picking:false})},setFree:()=>resumes++};
+  const activate=vm.runInNewContext(`()=>{${callback}}`,context);
+  activate();assert.equal(resumes,0);assert.equal(steps,1);
+  context.state.free=false;activate();assert.equal(resumes,1);assert.equal(steps,2);
+  mobile=true;activate();mobile=false;suspendedXR=true;activate();
+  suspendedXR=false;context.document.hidden=true;activate();
+  assert.equal(resumes,1);assert.equal(steps,2);
+});
 test("hidden VR hotbar performs no school or workshop snapshot allocations",()=>{
   const h=harness(); h.setXR(true);
   for(let frame=0;frame<100;frame++) h.hotbar.update(frame*16);

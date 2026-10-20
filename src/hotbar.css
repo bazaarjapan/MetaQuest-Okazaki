@@ -6,6 +6,9 @@
 #stl-hotbar span { display:block; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-size:11px; }
 #stl-hotbar small { font-size:10px; display:block; margin-top:4px; }
 #hotbar-hint { position:absolute; bottom:96px; left:50%; transform:translateX(-50%); max-width:90%; width:max-content; font-size:12px; padding:6px 10px; color:white; background:#19302cdd; border-radius:5px; z-index:7; pointer-events:none; }
+#held-item-controls { position:absolute; bottom:146px; left:50%; transform:translateX(-50%); width:max-content; max-width:94%; display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:8px; padding:6px 10px; border-radius:8px; color:white; background:#19302cee; font-size:12px; z-index:8; }
+#held-item-controls[hidden] { display:none; }
+#stash-held-item { min-height:40px; background:#fff4c3; color:#1f3d3e; white-space:nowrap; }
 #placement-crosshair { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); color:white; text-shadow:0 0 3px #000; font-size:28px; pointer-events:none; }
 #simple-menu, #simple-login { position:absolute; top:12px; z-index:8; background:#fffef3ed; }
 #simple-menu { right:14px; } #simple-login { right:140px; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -28,6 +31,7 @@ body[data-panel-open=true] #control-panel { display:flex; }
  #stl-hotbar { bottom:65px; gap:2px; width:96%; }
  #stl-hotbar button { height:58px; }
  #hotbar-hint { bottom:137px; font-size:10px; }
+ #held-item-controls { bottom:230px; font-size:12px; }
  #simple-menu,#simple-login { top:48px; font-size:11px; padding:6px; }
  #simple-login { left:10px; right:auto; max-width:50%; }
 }
