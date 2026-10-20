@@ -6,6 +6,17 @@ import {makeRoute,sampleRoute,routeTravel,nearestRoutePoint,createAmbientTraffic
 import {trafficSignalState,createStreetScenery} from '../src/street-scenery.js';
 import {createSurfaceIndex} from '../src/placement.js';
 import {readSoundSettings,movementSoundProfile,createMovementAudio} from '../src/movement-audio.js';
+import {createCitySky} from '../src/city-atmosphere.js';
+
+test('day and evening sky replace the cached equirectangular texture and release its old resources',()=>{
+  const stops=[],context={createLinearGradient:()=>({addColorStop:(at,color)=>stops.push([at,color])}),fillRect(){}};
+  const scene=new THREE.Scene();scene.background=new THREE.Color();scene.fog=new THREE.Fog(0xffffff);
+  const sky=createCitySky(THREE,scene,{createElement:()=>({getContext:()=>context})});
+  sky.set(true);const evening=scene.background;let disposed=0;evening.addEventListener('dispose',()=>disposed++);
+  assert.equal(scene.fog.color.getHexString(),'e9b4a1');sky.set(false);
+  assert.notEqual(scene.background,evening);assert.equal(disposed,1);assert.equal(scene.fog.color.getHexString(),'dce9ee');
+  assert.ok(stops.some(([,color])=>color==='#8db4cf'));sky.dispose();
+});
 
 test('junctions require three distinct branches; duplicate roads and seams do not create signals',()=>{
   const road=(line,width=12)=>({line,width});

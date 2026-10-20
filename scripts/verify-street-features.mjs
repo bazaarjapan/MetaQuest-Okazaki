@@ -63,7 +63,8 @@ try{
  await until('window.__okazaki.getState().creative.grounded && !window.__okazaki.getState().creative.flying',90000);
  const stepsBefore=(await state()).audio.steps;await key('KeyW');await until(`window.__okazaki.getState().audio.steps>${stepsBefore}`,60000);await key('KeyW','keyup');
  check('grounded walking emits footsteps',(await state()).audio.steps>stepsBefore);
- await browser('click','#simple-menu');await until("window.__okazaki.getState().ui.open && window.__okazaki.getState().audio.mode==='silent'");
+ await evaluate("document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',code:'Escape',bubbles:true,cancelable:true}))");
+ await until("window.__okazaki.getState().ui.open && !window.__okazaki.getState().creative.pointerLocked && window.__okazaki.getState().audio.mode==='silent'");
  check('menu opening silences movement audio',(await state()).audio.jetGain===0);
  await browser('click','#tab-settings');await browser('click','#movement-sound');
  check('sound can be muted',(await state()).audio.enabled===false);
