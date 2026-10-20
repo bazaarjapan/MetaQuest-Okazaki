@@ -1,13 +1,21 @@
 import * as THREE from "three";
 import { exhibitTitle } from "./workshop-presentation.js";
 
+export function exhibitLabelWidth(depth, projectionY, viewportHeight, maxPixels=220) {
+  if (![depth,projectionY,viewportHeight,maxPixels].every(Number.isFinite) ||
+      depth<=0 || projectionY<=0 || viewportHeight<=0 || maxPixels<=0) return 0;
+  return Math.min(6,2*depth*maxPixels/(projectionY*viewportHeight));
+}
 // Only nearby exhibits need labels; textures are reused until their text changes.
 export function createExhibitLabels(scene) {
   const labels=new Map();let last=-Infinity;
+  const eye=new THREE.Vector3(),forward=new THREE.Vector3(),offset=new THREE.Vector3();
+  let maxScreenWidth=0;
   const dispose=entry=>{entry.sprite.removeFromParent();entry.texture.dispose();entry.sprite.material.dispose();};
   return {
-    update({objects,position,time,enabled=true}){
-      if(time-last<400)return;last=time;
+    update({objects,position,time,enabled=true,camera=null,viewportHeight=0,maxPixels=220}){
+      if(time-last>=400 || !enabled){
+      last=time;
       const nearby=enabled?objects.filter(o=>o.bounds&&Math.hypot(o.position[0]-position.x,o.position[2]-position.z)<100)
         .sort((a,b)=>Math.hypot(a.position[0]-position.x,a.position[2]-position.z)-Math.hypot(b.position[0]-position.x,b.position[2]-position.z)).slice(0,12):[];
       const ids=new Set(nearby.map(o=>o.id));
@@ -32,8 +40,17 @@ export function createExhibitLabels(scene) {
         }
         entry.sprite.position.set((object.bounds.min[0]+object.bounds.max[0])/2,object.bounds.max[1]+1.3,(object.bounds.min[2]+object.bounds.max[2])/2);
       }
+      }
+      maxScreenWidth=0;
+      if(camera){camera.getWorldPosition(eye);camera.getWorldDirection(forward);}
+      for(const {sprite} of labels.values()){
+        const depth=camera?offset.copy(sprite.position).sub(eye).dot(forward):0;
+        const width=camera?exhibitLabelWidth(depth,camera.projectionMatrix.elements[5],viewportHeight,maxPixels):6;
+        sprite.visible=enabled&&width>0;sprite.scale.set(width,width/4,1);
+        if(camera&&depth>0)maxScreenWidth=Math.max(maxScreenWidth,width*camera.projectionMatrix.elements[5]*viewportHeight/(2*depth));
+      }
     },
-    getState:()=>({count:labels.size}),
+    getState:()=>({count:labels.size,maxScreenWidth}),
     dispose(){for(const entry of labels.values())dispose(entry);labels.clear();}
   };
 }

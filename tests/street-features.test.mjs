@@ -5,6 +5,16 @@ import {sceneryCandidates,sceneryLimits,createStreetScenery} from '../src/street
 import {validExhibitText} from '../src/workshop-presentation.js';
 import * as THREE from 'three';
 import {createSurfaceIndex} from '../src/placement.js';
+import {exhibitLabelWidth} from '../src/exhibit-labels.js';
+test('exhibit labels cap their projected width at close range and preserve the world size limit',()=>{
+ for(const height of [320,720,1400])for(const fov of [35,60,90])for(const depth of [.05,1,4,20,100]){
+  const camera=new THREE.PerspectiveCamera(fov,1,0.01,1000),projectionY=camera.projectionMatrix.elements[5];
+  const width=exhibitLabelWidth(depth,projectionY,height,220);
+  const projected=width*projectionY*height/(2*depth);
+  assert.ok(projected<=220+1e-8);assert.ok(width<=6&&width>0);
+ }
+ assert.equal(exhibitLabelWidth(-1,1,720),0);assert.equal(exhibitLabelWidth(1,1,0),0);
+});
 test('radar rotates relative to heading and clamps distant items without losing their distance',()=>{
  const origin={x:10,z:20};
  assert.deepEqual(radarPoint(origin,[10,999,-80],0,100),{x:0,y:-76,distance:100,edge:false});

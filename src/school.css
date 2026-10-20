@@ -1,6 +1,11 @@
 .school-dialog { box-sizing: border-box; width: min(610px, calc(100vw - 24px)); max-height: min(85dvh, 760px); padding: 20px; border: 1px solid #486274; border-radius: 14px; background: #102330; color: #f2f6fa; overflow-y: auto; box-shadow: 0 12px 50px #0008; }
 .school-dialog::backdrop { background: #04101bcc; }
-.school-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.school-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  position: sticky; top: -20px; z-index: 2; margin: -20px -20px 0; padding: 20px; background: #102330; border-bottom: 1px solid #385567; }
+.student-roster-filters { display: grid; gap: 10px; padding: 12px; border: 1px solid #647e92; border-radius: 8px; }
+.student-roster-filters[hidden] { display: none; }
+.student-roster-toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.school-dialog .student-roster-toggle input { width: 20px; min-height: 20px; }
 .school-heading h2 { font-size: 1.2rem; margin: 0; }
 .school-dialog h3 { font-size: 1rem; margin: 0 0 10px; }
 .school-dialog button, .school-dialog input, .school-dialog select { font: inherit; box-sizing: border-box; }
@@ -28,6 +33,7 @@
 .school-restore-confirm[hidden] { display: none; }
 .school-restore-confirm button { margin-right: 6px; margin-top: 8px; }
 @media(max-width: 480px) { .school-dialog { padding: 14px; max-height: 90dvh; }.school-section { padding: 10px; }.school-actions { flex-direction: column; }.school-section > button { justify-self: stretch; }.school-heading { gap: 8px; }.school-heading h2 { font-size: 1.1rem; } }
+@media(max-width: 480px) { .school-heading { top: -14px; margin: -14px -14px 0; padding: 14px; } }
 .school-dialog { z-index: 1001; }
 #login-gate { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 24px; background: rgba(12,32,46,.92); color: #173447; }
 #login-gate[hidden] { display: none; }

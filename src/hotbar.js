@@ -46,7 +46,7 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
     const item=state.objects.find(o=>o.assetId===asset?.id && o.committed && o.editable);
     if(!state.canEdit || !item) return;
     cancelGestures(); queuedWheel=null; document.exitPointerLock?.();
-    actionTarget={id:item.id,index,identity:identityToken()}; actionTitle.textContent=item.name ?? asset.name;
+    actionTarget={id:item.id,index,identity:identityToken()}; actionTitle.textContent=item.title?.trim() || item.name || asset.name;
     actions.showModal();
   }
   for(const [action,label] of [["locate","📍 作品のところへ移動"],["retrieve","✋ 回収して手に持つ"],["details","🎨 色・大きさ・回転を変更"]]) {
@@ -151,13 +151,13 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
     if (asset && state.current?.assetId===asset.id && workshop.getHeldDraft?.()) { stash(); return; }
     active = index; queuedWheel=null;
     if (!asset) { document.exitPointerLock?.(); file.click(); render(); return; }
-    activate();
     const placed = state.objects.find(item => item.assetId === asset.id && item.committed);
     if (placed) {
       workshop.cancelDraft(); aiming = false; footprint.visible = false;
       workshop.selectObject(placed.id); document.exitPointerLock?.();
-      report("設置済み作品を選択しました · 枠を右クリック（スマホは長押し）で移動・回収・色の変更"); render(); return;
+      report("設置済み作品 · 移動・回収・編集を選んでください"); render(); openActions(index); return;
     }
+    activate();
     pending = true;
     try { aiming = await workshop.useAsset(asset.id); lastPreview = -Infinity; if(aiming) document.exitPointerLock?.(); }
     finally { pending = false; render(); }
@@ -198,17 +198,18 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
     const stashLabel = desktopKeys ? "手持ちをしまう Q" : "手持ちをしまう";
     if (stashButton.textContent !== stashLabel) stashButton.textContent = stashLabel;
     loginButton.textContent = user ? `${user.namePending ? "名前を決める" : user.name} · ログイン中` : "ログイン";
-    const signature = JSON.stringify([active, state.canEdit, state.ownAssets, state.objects.filter(item=>item.committed).map(item=>item.assetId)]);
+    const signature = JSON.stringify([active, state.canEdit, state.ownAssets, state.objects.filter(item=>item.committed).map(item=>[item.assetId,item.title])]);
     if (signature === renderSignature) return; renderSignature = signature;
     slots.forEach((button,index) => {
-      const asset = state.ownAssets[index], placed = asset && state.objects.some(item=>item.committed && item.assetId===asset.id);
+      const asset = state.ownAssets[index], placed = asset && state.objects.find(item=>item.committed && item.assetId===asset.id);
       button.replaceChildren();
       const key = document.createElement("kbd"); key.textContent = String((index+1)%10);
-      const name = document.createElement("span"); name.textContent = asset ? asset.name.replace(/\.stl$/i,"") : "+ STL";
-      const badge = document.createElement("small"); badge.textContent = placed ? "右クリック ⋯" : asset ? "置けます" : "追加";
+      const displayName = placed?.title?.trim() || asset?.name;
+      const name = document.createElement("span"); name.textContent = asset ? displayName.replace(/\.stl$/i,"") : "+ STL";
+      const badge = document.createElement("small"); badge.textContent = placed ? "配置済み ⋯" : asset ? "置けます" : "追加";
       button.append(key,name,badge); button.classList.toggle("selected", index===active); button.classList.toggle("placed",Boolean(placed));
-      button.setAttribute("aria-pressed",String(index===active)); button.title = asset?.name ?? "STLを追加";
-      button.setAttribute("aria-label",`${(index+1)%10} ${asset?.name ?? "STLを追加"} ${placed ? "設置済み" : ""}`);
+      button.setAttribute("aria-pressed",String(index===active)); button.title = placed ? `${displayName} · クリックで移動・回収・編集` : asset?.name ?? "STLを追加";
+      button.setAttribute("aria-label",`${(index+1)%10} ${displayName ?? "STLを追加"} ${placed ? "設置済み・操作を開く" : ""}`);
     });
   }
   function preview(event) {

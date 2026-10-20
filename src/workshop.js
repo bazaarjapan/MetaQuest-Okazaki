@@ -74,13 +74,13 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
   label.append(librarySelect); library.append(label);
   const reuse = document.createElement("button"); reuse.id = "object-reuse"; reuse.textContent = "選んだSTLを使う"; library.append(reuse);
   q("workshop-list").parentElement.before(library);
-  const cancel = document.createElement("button"); cancel.id = "object-cancel"; cancel.textContent = "下書きを取り消す";
+  const cancel = document.createElement("button"); cancel.id = "object-cancel"; cancel.textContent = "変更を取り消す";
   const retry = document.createElement("button"); retry.id = "object-retry"; retry.textContent = "表示できない作品を再読込";
   q("object-remove").after(cancel, retry);
 
   function requireAccess(prompt = true) {
     if (access().canEdit && !destroyed) return true;
-    setMessage(!access().userId ? "作品の配置・編集には、生徒はID・パスワード、先生はGoogleでログインしてください。閲覧とVR体験はログインなしで利用できます。" :
+    setMessage(!access().userId ? "街の操作・作品の配置には、生徒はID・パスワード、先生はGoogleでログインしてください。" :
       "共同ワールドに参加し、接続が完了してから作品を配置してください。");
     if (prompt) onRequireLogin(); return false;
   }
@@ -121,6 +121,7 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
     for (const asset of ownAssets()) librarySelect.append(new Option(asset.name, asset.id));
     if ([...librarySelect.options].some((option) => option.value === previousAsset)) librarySelect.value = previousAsset;
     const item = selectedItem(), editable = canChange(item) && !busy();
+    library.hidden = !ownAssets().length;
     q("object-color").disabled = !editable;
     const colorKey = JSON.stringify([item?.id, item === draft, stlColor(item?.color)]);
     // A classmate placing a work must not reset an open native color chooser.
@@ -141,9 +142,14 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
     for (const field of fields) q(`object-${field}`).disabled = !editable;
     for (const id of ["stl-files", "stl-up", "stl-units"]) q(id).disabled = !access().canEdit || busy();
     q("object-pick").disabled = !editable; q("object-remove").disabled = !editable;
+    q("object-remove").textContent = item === draft && !draft?.baseId ? "手持ちをしまう" : "ホットバーへ戻す";
+    q("object-remove").title = "配置を解除します。保存済みのSTL原本は残り、また使えます。";
     q("object-apply").disabled = !editable || !draft?.valid;
+    q("object-apply").textContent = draft?.baseId ? "変更を保存" : "配置を確定";
     cancel.disabled = !draft || busy(); reuse.disabled = !access().canEdit || busy() || !ownAssets().length;
+    cancel.hidden = !draft?.baseId;
     retry.disabled = !access().canEdit || busy() || !failures.size;
+    retry.hidden = !failures.size;
     q("workshop-status").textContent = message + (failures.size ? ` ${failures.size}種類のSTLを表示できていません。「再読込」で再試行できます。` : "");
     if (!item) { q("object-y").textContent = "作品を選んでください。配置先は実地形で検証します。"; return; }
     q("object-x").value = item.position[0].toFixed(2); q("object-z").value = item.position[2].toFixed(2);
@@ -415,8 +421,8 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
     const token = currentToken(), marker = {}; operation = marker; renderList();
     try {
       await schoolClient.editObject("object.delete", { id: item.id }); if (!accepts(token)) return false;
-      clearDraft(); selected = null; syncObjects(); setMessage("サーバーで作品の配置を削除しました。保存済みSTLや元の街は削除していません。"); return true;
-    } catch (error) { if (accepts(token)) setMessage(`削除できませんでした：${explainError(error)}`); return false; }
+      clearDraft(); selected = null; syncObjects(); setMessage("作品をホットバーへ戻しました。保存済みのSTLはまた配置できます。"); return true;
+    } catch (error) { if (accepts(token)) setMessage(`配置を解除できませんでした：${explainError(error)}`); return false; }
     finally { if (operation === marker) operation = null; renderList(); onChange(); }
   }
   async function retrieveSelected() {
@@ -508,7 +514,10 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
     if (!requireAccess()) return false;
     if (isXR()) { setMessage("VRでは作品操作パネルを使ってください。ファイル読み込みは2Dへ戻って行います。"); return false; }
     if (!selectedItem()) selected = [...remote.values()].find(item => canChange(item))?.id ?? null;
-    stopPick(); renderList(); if (!dialog.open) dialog.showModal(); return true;
+    const importPanel=q("workshop-import"),body=q("workshop-body");
+    if(importPanel)importPanel.open=!ownAssets().length;
+    stopPick(); renderList(); if (!dialog.open) dialog.showModal();
+    if(body)body.scrollTop=0;return true;
   }
   q("stl-files").addEventListener("change", (event) => { void importFiles([...event.target.files]); });
   q("workshop-list").addEventListener("change", (event) => selectObject(event.target.value));

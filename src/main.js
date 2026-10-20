@@ -1388,7 +1388,8 @@ renderer.setAnimationLoop((time, frame) => {
     nearField.update({position:userPosition(),quality:quality.id,enabled:fieldStyle==='game'&&!state.qualityLoading,
       manifest:fieldManifest,core:terrainMesh,terrain:regionStreamer.getGroundMeshes(),time});
     streetScenery.update({position:userPosition(),quality:quality.id,enabled:fieldStyle==="game"&&!state.qualityLoading,time,objects:schoolState.objects});
-    exhibitLabels.update({objects:schoolState.objects,position:userPosition(),time,enabled:activityAllowed});
+    exhibitLabels.update({objects:schoolState.objects,position:userPosition(),time,enabled:activityAllowed,
+      camera:state.xr?null:camera,viewportHeight:viewport.clientHeight,maxPixels:Math.min(220,viewport.clientWidth*.4)});
     radar.update({position:userPosition(),yaw:creative.getState().mode==="creative"?creative.getState().yaw:
       new THREE.Euler().setFromQuaternion(camera.getWorldQuaternion(new THREE.Quaternion()),"YXZ").y,
       objects:schoolState.objects,participants:schoolState.connection==="connected"?schoolState.participants:[],

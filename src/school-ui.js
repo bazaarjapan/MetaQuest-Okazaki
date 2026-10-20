@@ -209,6 +209,16 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
     if (issuedCredentials.length) output.value = credentialText();
     const note = element("p", "パスワードは発行・再発行した時だけ表示します。各生徒に自分の1行だけを安全に渡してください。再発行しても名前・作品は残ります。", "school-note");
     const roster = element("div"); roster.id = "student-roster-list";
+    const filters = element("div", undefined, "student-roster-filters"); filters.hidden = true;
+    const search = inputField("名前・IDで生徒を検索", { type: "search", id: "student-roster-search" });
+    search.input.placeholder = "名前またはIDを入力";
+    const placedLabel = element("label", undefined, "student-roster-toggle"), placedOnly = element("input");
+    placedOnly.type = "checkbox"; placedOnly.id = "student-roster-placed";
+    placedLabel.append(placedOnly, element("span", "作品を配置している生徒だけ"));
+    const countSummary = element("p", undefined, "school-note"); countSummary.id = "student-roster-count"; countSummary.setAttribute("role", "status");
+    filters.append(search.label, placedLabel, countSummary);
+    search.input.addEventListener("input", () => updateRoster());
+    placedOnly.addEventListener("change", () => updateRoster());
     let students = null, rosterKey = "";
     const showSecrets = result => {
       // Socket arrival may rerender the dialog during issuance. Keep this one
@@ -223,15 +233,20 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
       const owner = state.user?.id, world = state.world?.id;
       const result = await client.students();
       if (!roster.isConnected || state.user?.id !== owner || state.world?.id !== world) return;
-      students = result.students; rosterKey = ""; updateRoster();
+      students = result.students; filters.hidden = false; rosterKey = ""; updateRoster();
     }
     updateRoster = () => {
       if (!students || !roster.isConnected) return;
-      const key = JSON.stringify([state.world?.id, state.connection, state.objects]);
+      const query = search.input.value.trim().normalize("NFKC").toLocaleLowerCase("ja");
+      const key = JSON.stringify([state.world?.id, state.connection, state.objects, query, placedOnly.checked]);
       if (key === rosterKey) return;
       rosterKey = key; roster.replaceChildren();
-      roster.append(element("p", `発行済み ${students.length} / 30人 · 配置はリアルタイム更新`));
-      for (const student of students) {
+      const placedOwners = new Set(state.objects.map(item => item.ownerId));
+      const visible = students.filter(student => (!query || `${student.name} ${student.loginId}`.normalize("NFKC").toLocaleLowerCase("ja").includes(query)) &&
+        (!placedOnly.checked || placedOwners.has(student.id)));
+      countSummary.textContent = `表示 ${visible.length} / ${students.length}人 · 発行済み ${students.length} / 30人 · 配置はリアルタイム更新`;
+      if (!visible.length) roster.append(element("p", students.length ? "条件に合う生徒はいません。検索文字や絞り込みを変えてください。" : "まだ生徒IDを発行していません。", "school-note"));
+      for (const student of visible) {
         const row = element("section", undefined, "student-placement-row");
         row.dataset.studentId = student.id;
         row.append(element("h4", `${student.slot}. ${student.name} (${student.loginId})`), command("パスワード再発行", () => {
@@ -266,7 +281,7 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
     section.append(count.label, command("ID・パスワードを発行", () => perform(async () => {
       showSecrets(await client.students("issue", { count: Number(count.input.value) })); await refreshRoster();
     }, "発行しました。表示された情報を控えてください。"), "student-issue"), note, output,
-    command("生徒一覧を確認", () => perform(refreshRoster), "student-roster"), roster);
+    command("生徒一覧を確認・更新", () => perform(refreshRoster), "student-roster"), filters, roster);
     content.append(section);
   }
   function renderRoom() {
