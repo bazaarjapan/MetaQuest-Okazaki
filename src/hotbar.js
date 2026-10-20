@@ -1,7 +1,7 @@
 import * as THREE from "three";
 
 export const hotbarSlot = code => /^Digit[0-9]$/.test(code) ? (Number(code.at(-1)) + 9) % 10 : -1;
-const typing = target => target?.matches?.("input,textarea,select,[contenteditable=true]");
+const typing = target => target?.isContentEditable || target?.matches?.("input,textarea,select,[contenteditable=true]");
 
 // Normalize wheels and trackpads, preserve proportions, and stay within the
 // workshop/server transform limits. Ctrl/Meta wheel belongs to browser zoom.
@@ -16,7 +16,7 @@ export function placementScaleFactor(event, scale) {
   return Math.max(lower,Math.min(upper,desired));
 }
 
-export function createHotbar({ workshop, client, camera, canvas, scene, getEnvironment, getObstacles = () => [], isXR, isXRPending = () => false, menu, isLooking = () => false, isCreative = () => true }) {
+export function createHotbar({ workshop, client, camera, canvas, scene, getEnvironment, getObstacles = () => [], isXR, isXRPending = () => false, menu, isLooking = () => false, isCreative = () => true, onActivate = () => {} }) {
   const root = document.createElement("div"); root.id = "stl-hotbar"; root.setAttribute("aria-label", "自分のSTL 10枠");
   const hint = document.createElement("div"); hint.id = "hotbar-hint"; hint.setAttribute("role", "status");
   const crosshair = document.createElement("div"); crosshair.id = "placement-crosshair"; crosshair.textContent = "+";
@@ -73,6 +73,13 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
   actions.addEventListener("cancel",closeActions);
   actions.addEventListener("click",event=>{ if(event.target!==actions) return; const r=actions.getBoundingClientRect();
     if(event.clientX<r.left || event.clientX>r.right || event.clientY<r.top || event.clientY>r.bottom) closeActions(); });
+  const heldControls = document.createElement("div"); heldControls.id = "held-item-controls"; heldControls.hidden = true;
+  const heldHelp = document.createElement("span");
+  heldHelp.textContent = "持ったまま WASD：移動 · F5：視点切替";
+  const stashButton = document.createElement("button"); stashButton.type = "button"; stashButton.id = "stash-held-item";
+  stashButton.textContent = "手持ちをしまう Q"; stashButton.title = "保存済みSTLは枠からまた選べます。未確定の色・大きさ・回転は戻ります。";
+  stashButton.onclick = () => stash();
+  heldControls.append(heldHelp, stashButton); canvas.parentElement.append(heldControls);
   const identityToken = () => { const s=currentState(); return `${s.userId}:${s.worldId}:${s.canEdit}`; };
   const cancelGestures = () => { retrievalHold=null; rightClick=null; };
   const currentState = () => workshop.getState();
@@ -80,6 +87,22 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
   const blocked = () => isXR() || isXRPending() || document.hidden || menu.getState().open || Boolean(document.querySelector("dialog[open]")) || currentState().picking;
   const draftToken = state => `${state.userId}:${state.worldId}:${state.current?.id}`;
   function report(text) { if (hint.textContent !== text) hint.textContent = text; }
+  function activate() {
+    // Only a deliberate UI action resumes input. Never resume from an async
+    // import/asset completion after blur, a modal, or an XR transition.
+    if (blocked()) return;
+    canvas.focus?.({ preventScroll: true }); onActivate();
+  }
+  function stash() {
+    const state = currentState();
+    if (blocked() || pending || state.busy || !state.canEdit || !workshop.getHeldDraft?.()) return false;
+    if (!workshop.cancelDraft()) return false;
+    cancelGestures(); queuedWheel=null; placementFailure=null; previewToken=null; previewFootprint=false;
+    aiming=false; active=-1; footprint.visible=false;
+    if(canvas.style) canvas.style.cursor="";
+    report("手持ちをしまいました · 保存済みSTLは下の枠からまた選べます");
+    activate(); render(); return true;
+  }
   function cast(event) {
     if (!locked()) {
       if (event) {
@@ -120,13 +143,15 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
     return currentState().objects.find(item => item.id === hit.object.userData.creationId && item.editable && item.committed) ?? null;
   }
   async function select(index) {
-    if (pending || blocked()) return;
+    if (pending || blocked() || currentState().busy) return;
     cancelGestures(); placementFailure=null;
     const state = currentState();
     if (!state.canEdit) { loginButton.click(); return; }
-    active = index; queuedWheel=null;
     const asset = state.ownAssets[index];
+    if (asset && state.current?.assetId===asset.id && workshop.getHeldDraft?.()) { stash(); return; }
+    active = index; queuedWheel=null;
     if (!asset) { document.exitPointerLock?.(); file.click(); render(); return; }
+    activate();
     const placed = state.objects.find(item => item.assetId === asset.id && item.committed);
     if (placed) {
       workshop.cancelDraft(); aiming = false; footprint.visible = false;
@@ -154,6 +179,7 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
   }
   file.onchange = async () => {
     if (pending || !file.files?.length) return;
+    activate();
     const files = [...file.files]; file.value = ""; pending = true;
     try {
       await workshop.importFiles(files);
@@ -165,6 +191,12 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
   };
   function render() {
     const state = currentState(), user = client.getState().user;
+    heldControls.hidden = isXR() || isXRPending() || !state.canEdit || !workshop.getHeldDraft?.();
+    stashButton.disabled = pending || state.busy || blocked();
+    const desktopKeys = isCreative() && !menu.getState().mobile;
+    heldHelp.hidden = !desktopKeys;
+    const stashLabel = desktopKeys ? "手持ちをしまう Q" : "手持ちをしまう";
+    if (stashButton.textContent !== stashLabel) stashButton.textContent = stashLabel;
     loginButton.textContent = user ? `${user.namePending ? "名前を決める" : user.name} · ログイン中` : "ログイン";
     const signature = JSON.stringify([active, state.canEdit, state.ownAssets, state.objects.filter(item=>item.committed).map(item=>item.assetId)]);
     if (signature === renderSignature) return; renderSignature = signature;
@@ -311,7 +343,8 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
   });
   canvas.addEventListener("contextmenu", event=>event.preventDefault());
   window.addEventListener("keydown",event=>{
-    if (typing(event.target) || event.repeat || event.ctrlKey || event.metaKey || event.altKey || blocked()) return;
+    if (typing(event.target) || typing(document.activeElement) || event.repeat || event.ctrlKey || event.metaKey || event.altKey || blocked()) return;
+    if (event.code==="KeyQ" && isCreative()) { if(stash()) event.preventDefault(); return; }
     if (event.code==="KeyR") { if(isCreative() && currentState().canEdit) { event.preventDefault(); void retrieve(); } return; }
     const index=hotbarSlot(event.code); if (index<0) return;
     event.preventDefault(); void select(index);
@@ -333,6 +366,7 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
   function update(time) {
     const xr = isXR();
     root.hidden = hint.hidden = crosshair.hidden = menuButton.hidden = loginButton.hidden = xr;
+    if (xr) heldControls.hidden = true;
     // The PC UI is absent in VR. Avoid cloning classroom/geometry snapshots on
     // every headset frame and leave the draft under the VR workshop's control.
     if (xr) { closeActions();cancelGestures();queuedWheel=null; aiming = false; footprint.visible = false; return; }

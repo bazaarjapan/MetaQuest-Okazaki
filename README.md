@@ -192,6 +192,10 @@ GitHubへのCloudflare Secrets登録は不要です。認証情報はCodexの公
 
 ## 検証
 
+### STL手持ち操作の回帰確認（Issue #62）
+
+`npm run build` の後に `node scripts/verify-held-controls.mjs` を実行すると、一時的な共同教室と専用Chromeを起動し、実際の枠クリック→W移動→F5視点切替→Q・ボタン・同じ枠で解除を確認します。390px表示とIWERでのVR往復も含みます。ポート4173・4174を空けて実行してください。結果と画像はGit管理外の `test-results/held-controls*` に保存し、終了時に専用ブラウザーと一時サーバーを停止します。Google実認証・本番公開・Quest実機の確認は含みません。
+
 ### 1.7のローカル共同教室ブラウザー検証
 
 通常の`npm run dev`は街の開発画面で、クラウド共同教室の代わりにはなりません。実際のWorkerコード・dist・一時SQLite D1/R2/DOを使うローカル試験は、ビルド後に次を実行します。
