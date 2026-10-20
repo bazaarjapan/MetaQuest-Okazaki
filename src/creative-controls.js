@@ -77,7 +77,7 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
   let mode = "drone", viewMode = "first", yaw = 0, pitch = 0, roll = 0;
   let enabled = false, blocked = false, xr = false, suspendedXR = false;
   let flying = true, verticalVelocity = 0, jumpQueued = false;
-  let wingFlight = false, wingSpeed = 0, fastClimb = false, animation = "idle";
+  let wingFlight = false, wingSpeed = 0, fastClimb = false, animation = "idle", groundedState = false;
   let lastSpace = -Infinity, elapsed = 0, moving = false, groundAvailable = false;
   let disposed = false, pointerError = null;
   const listeners = [];
@@ -455,6 +455,7 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
     let finalFloor=height;
     if(anchor.x!==proposedX||anchor.z!==proposedZ)try{finalFloor=groundHeight(anchor.x,anchor.z);}catch{finalFloor=null;}
     if(typeof finalFloor==='number'&&Number.isFinite(finalFloor)&&anchor.y<finalFloor){anchor.y=finalFloor;verticalVelocity=0;}
+    groundedState=groundAvailable&&Number.isFinite(finalFloor)&&Math.abs(anchor.y-finalFloor)<.03;
     moving = anchor.distanceToSquared(previousAnchor) > 1e-12;
     animation = !moving ? "idle" : wingFlight ? (boosting ? "boost" : "glide") :
       Math.hypot(anchor.x - previousAnchor.x, anchor.z - previousAnchor.z) > 1e-6 ? (sprint ? "run" : "walk") : "idle";
@@ -476,7 +477,7 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
   }
   function getState() {
     return { mode, viewMode, anchor: anchor.toArray(), eye: eyePosition().toArray(),
-      yaw, pitch, flying, wingFlight, wingSpeed, fastClimb, animation, enabled, blocked, xr, suspendedXR, moving,
+      yaw, pitch, flying, wingFlight, wingSpeed, fastClimb, animation, grounded:groundedState, enabled, blocked, xr, suspendedXR, moving,
       pointerLocked: locked(), mouseSteering: Boolean(mouseDrag), mouseIntent: mouseDrag && !mouseDrag.dragged && mouseDrag.canPlace ? "place" : mouseDrag?.intent ?? null, pointerError, groundAvailable, pressedKeys: [...keys],
       sprinting: keys.has("ControlLeft") || keys.has("ControlRight") || fastMovementKeys.size > 0, cameraDistance, disposed };
   }

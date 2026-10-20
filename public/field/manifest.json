@@ -1,17 +1,17 @@
 {
   "version": 1,
-  "generatedAt": "2026-10-17T14:44:35.798Z",
+  "generatedAt": "2026-10-20T13:11:59.363Z",
   "source": "国土地理院最適化ベクトルタイル",
   "sourceUrl": "https://cyberjapandata.gsi.go.jp/xyz/optimal_bvmap-v1/optimal_bvmap-v1.pmtiles",
   "attributionUrl": "https://github.com/gsi-cyberjapan/optimal_bvmap",
   "sourceDate": "2026-07-01 (provider metadata, latest may differ)",
   "featureCodeUrl": "https://maps.gsi.go.jp/help/pdf/vector/optbv_featurecodes.pdf",
-  "processing": "道路中心線と幅員・鉄道中心線・水域・河川中心線をゲーム風に描画。幅員不明時は幅員区分の代表値。色・草模様・道路標示・枕木は装飾。トンネル・地下水路・枯れ川は非表示。橋の高さは再現しない。",
+  "processing": "道路中心線と幅員・鉄道中心線・水域・河川中心線をゲーム風に描画。分岐方向から交差点の横断歩道・停止線を生成。幅員不明時は幅員区分の代表値。色・有機的な草模様・川岸・水面・道路標示・枕木は装飾。トンネル・地下水路・枯れ川は非表示。橋の高さは再現しない。",
   "geography": "既存PLATEAU地形と同じ北向きMercator UV。元の地形・建築形状・写真は保持。",
   "core": {
     "file": "station.webp",
-    "bytes": 688908,
-    "sha256": "9ed9c5289b97bae31fe0a92d58f48a35c6dc486edf2388db428505e454b78935",
+    "bytes": 975052,
+    "sha256": "83ea08fc8fadf7140b984a612a89a63d1d3e91f14c78e11795f616cb98a4a89a",
     "width": 3072,
     "height": 2048,
     "counts": {
@@ -20,14 +20,15 @@
       "RdCL": 3648,
       "RailCL": 33,
       "BldA": 64,
-      "TpgphArea": 0
+      "TpgphArea": 0,
+      "crossings": 615
     }
   },
   "profiles": {
     "high": {
       "file": "station.webp",
-      "bytes": 688908,
-      "sha256": "9ed9c5289b97bae31fe0a92d58f48a35c6dc486edf2388db428505e454b78935",
+      "bytes": 975052,
+      "sha256": "83ea08fc8fadf7140b984a612a89a63d1d3e91f14c78e11795f616cb98a4a89a",
       "width": 3072,
       "height": 2048,
       "counts": {
@@ -36,30 +37,31 @@
         "RdCL": 3648,
         "RailCL": 33,
         "BldA": 64,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 615
       }
     },
     "performance": {
       "file": "station-performance.webp",
       "width": 768,
       "height": 512,
-      "bytes": 137364,
-      "sha256": "265784b78ff826824f418b6479eeb996e7aab29fc117cc7d11d35230e0bef29f"
+      "bytes": 164702,
+      "sha256": "83522d711fceb5069a9d19775155241c0b5027984612679fbfdd0c7e1252f7d4"
     },
     "balanced": {
       "file": "station-balanced.webp",
       "width": 1536,
       "height": 1024,
-      "bytes": 308290,
-      "sha256": "002f3a22b881692afef2fb8d11c8c9f72c2452b0344448c6bb06e2801949d386"
+      "bytes": 407128,
+      "sha256": "e4c0cd42d1a3878fee0abe36de910f8ac23b4364e99a1d4580c20ae7097d9528"
     }
   },
   "near": {
     "core": [
       {
         "file": "near-core-0-0.webp",
-        "bytes": 56372,
-        "sha256": "800da1ce21cacabfd34a28abb4202441265999654a1899db7ffe3dca53948113",
+        "bytes": 79202,
+        "sha256": "fe47c3fc8d7645658ad3c1041d76c66264c7f6bd9bdd200e740bca0d2b4f2dd2",
         "width": 1024,
         "height": 1024,
         "counts": {
@@ -68,7 +70,8 @@
           "RdCL": 1649,
           "RailCL": 14,
           "BldA": 24,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 21
         },
         "rect": [
           0,
@@ -79,8 +82,8 @@
       },
       {
         "file": "near-core-1-0.webp",
-        "bytes": 42726,
-        "sha256": "0699cb45bef91e0426c6e1329cb88320c512e643cb9c834c3a2d39512f855161",
+        "bytes": 64420,
+        "sha256": "41fe77e93e68bf1bf9d5e1f86dda226b11741b3a83e6a2012d786fa295ffe121",
         "width": 1024,
         "height": 1024,
         "counts": {
@@ -89,7 +92,8 @@
           "RdCL": 1649,
           "RailCL": 14,
           "BldA": 24,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 19
         },
         "rect": [
           0.16666666666666666,
@@ -100,8 +104,8 @@
       },
       {
         "file": "near-core-2-0.webp",
-        "bytes": 75098,
-        "sha256": "ee09106026c1d8ff2ab76ea91205f865e6376402c996feb47dbdf72ce1cab2a9",
+        "bytes": 118686,
+        "sha256": "f62914f23c1ea0c04c5be6924bbfc992a5b1be41e97d8f7a53f0900768c3eec6",
         "width": 1024,
         "height": 1024,
         "counts": {
@@ -110,7 +114,8 @@
           "RdCL": 1999,
           "RailCL": 19,
           "BldA": 40,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 49
         },
         "rect": [
           0.3333333333333333,
@@ -121,8 +126,8 @@
       },
       {
         "file": "near-core-3-0.webp",
-        "bytes": 99558,
-        "sha256": "073a4bf8bc3a991eacb87e945e1236f475dc63048fe4b7ceaa253fec775f22d5",
+        "bytes": 161134,
+        "sha256": "1ac93cfe1be59929dffb3a357813714660b583b3ea7296961b5e2f6bef3bfd6b",
         "width": 1024,
         "height": 1024,
         "counts": {
@@ -131,7 +136,8 @@
           "RdCL": 1999,
           "RailCL": 19,
           "BldA": 40,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 44
         },
         "rect": [
           0.5,
@@ -142,8 +148,8 @@
       },
       {
         "file": "near-core-4-0.webp",
-        "bytes": 53280,
-        "sha256": "b509fb1f991caa9a2db33134333815b1e64604d2027e2384755c7a654efa29c6",
+        "bytes": 86672,
+        "sha256": "316e39585790d545ed644546acc3899978a317c7b90361843193855954a156c6",
         "width": 1024,
         "height": 1024,
         "counts": {
@@ -152,7 +158,8 @@
           "RdCL": 1999,
           "RailCL": 19,
           "BldA": 40,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 40
         },
         "rect": [
           0.6666666666666666,
@@ -163,8 +170,8 @@
       },
       {
         "file": "near-core-5-0.webp",
-        "bytes": 47568,
-        "sha256": "b7bdcdaa7a5a613e59534429650fe40b72697771b074af5d7f4dc45b23baa833",
+        "bytes": 76010,
+        "sha256": "9c1faf901bf5573f109efc5675a132f18fd9394c86330f62dd2ee5d21289910e",
         "width": 1024,
         "height": 1024,
         "counts": {
@@ -173,7 +180,8 @@
           "RdCL": 1999,
           "RailCL": 19,
           "BldA": 40,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 49
         },
         "rect": [
           0.8333333333333334,
@@ -184,8 +192,8 @@
       },
       {
         "file": "near-core-0-1.webp",
-        "bytes": 50146,
-        "sha256": "bb647628f76e2b21da8df44f552b8b2c18a46ebaa61818ac2863189ef0a96120",
+        "bytes": 69644,
+        "sha256": "12b45c501caba902a28655c2ff8508408da757e1b63168d102015eca111c6cf0",
         "width": 1024,
         "height": 1024,
         "counts": {
@@ -194,7 +202,8 @@
           "RdCL": 1649,
           "RailCL": 14,
           "BldA": 24,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 11
         },
         "rect": [
           0,
@@ -205,8 +214,8 @@
       },
       {
         "file": "near-core-1-1.webp",
-        "bytes": 61184,
-        "sha256": "429c3bebf7db868212c3bbc258888d6d1f0b6b095c77d764fc8cb5ff3b646bb4",
+        "bytes": 81656,
+        "sha256": "9260f56f043469c1c0ccf3bcea135b70aec0293315b388da2f1517f9f183dcc3",
         "width": 1024,
         "height": 1024,
         "counts": {
@@ -215,7 +224,8 @@
           "RdCL": 1649,
           "RailCL": 14,
           "BldA": 24,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 13
         },
         "rect": [
           0.16666666666666666,
@@ -226,8 +236,8 @@
       },
       {
         "file": "near-core-2-1.webp",
-        "bytes": 57106,
-        "sha256": "905712b372e455d67c10b9d247325b729196340755cc5b00153360c6153c068a",
+        "bytes": 90494,
+        "sha256": "8b983e28a30195db397cba3a139d3acf43280ce19b20d85346fed4ba108c90dd",
         "width": 1024,
         "height": 1024,
         "counts": {
@@ -236,7 +246,8 @@
           "RdCL": 1999,
           "RailCL": 19,
           "BldA": 40,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 48
         },
         "rect": [
           0.3333333333333333,
@@ -247,8 +258,8 @@
       },
       {
         "file": "near-core-3-1.webp",
-        "bytes": 76122,
-        "sha256": "1ee20822aa0d501da8fbe7161ab32f48ed09a9d471d485cde34e22270b85827c",
+        "bytes": 117116,
+        "sha256": "1ce36af3edfbe017c7cd55a8ec9f006d2f0a69469a23d31bb59be6597e03f7b2",
         "width": 1024,
         "height": 1024,
         "counts": {
@@ -257,7 +268,8 @@
           "RdCL": 1999,
           "RailCL": 19,
           "BldA": 40,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 56
         },
         "rect": [
           0.5,
@@ -268,8 +280,8 @@
       },
       {
         "file": "near-core-4-1.webp",
-        "bytes": 53692,
-        "sha256": "79bd882d6dfb3f050766f4320db30ce46cf9a91d91319da6bfec5f99c2a8c90b",
+        "bytes": 90460,
+        "sha256": "f68df4a085bbc0ceea0338dea1022a52fa4ba2a6926c16001f34f64096e20bbb",
         "width": 1024,
         "height": 1024,
         "counts": {
@@ -278,7 +290,8 @@
           "RdCL": 1999,
           "RailCL": 19,
           "BldA": 40,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 36
         },
         "rect": [
           0.6666666666666666,
@@ -289,8 +302,8 @@
       },
       {
         "file": "near-core-5-1.webp",
-        "bytes": 47580,
-        "sha256": "fdc3a20e7eceec0f7332512448cd579c504b6a5e2a493c5926b5e1a427ee1ca1",
+        "bytes": 73478,
+        "sha256": "e04279a6c0881253b03d193664ab47df0ffecb4fdb8c526737f128cd240cd92c",
         "width": 1024,
         "height": 1024,
         "counts": {
@@ -299,7 +312,8 @@
           "RdCL": 1999,
           "RailCL": 19,
           "BldA": 40,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 29
         },
         "rect": [
           0.8333333333333334,
@@ -310,8 +324,8 @@
       },
       {
         "file": "near-core-0-2.webp",
-        "bytes": 54208,
-        "sha256": "50815ce94fae112ea9ce00ee1cf8700cafe1783595a0957c931ffe704c9ceb14",
+        "bytes": 71932,
+        "sha256": "347dbfb0f91dd73c6280b53af3f581dd89e6286b300c4b765de2a003a5e5e59c",
         "width": 1024,
         "height": 1024,
         "counts": {
@@ -320,7 +334,8 @@
           "RdCL": 1649,
           "RailCL": 14,
           "BldA": 24,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 8
         },
         "rect": [
           0,
@@ -331,8 +346,8 @@
       },
       {
         "file": "near-core-1-2.webp",
-        "bytes": 70162,
-        "sha256": "7267b52db43a27edaae6b4dc29035d07f26480045b8e1ca8ea5c49baa6ca1a0c",
+        "bytes": 98064,
+        "sha256": "ca3544aadf535bbc455ada5841c372e01d5ecb3e93f930f10688e109a0e52f62",
         "width": 1024,
         "height": 1024,
         "counts": {
@@ -341,7 +356,8 @@
           "RdCL": 1649,
           "RailCL": 14,
           "BldA": 24,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 22
         },
         "rect": [
           0.16666666666666666,
@@ -352,8 +368,8 @@
       },
       {
         "file": "near-core-2-2.webp",
-        "bytes": 55548,
-        "sha256": "893fcc2362754369efe54272741396d2dac188df5bdc8c77770d0e352e1740cc",
+        "bytes": 86204,
+        "sha256": "be6d976e702b6b61540fe788474566c84cd83e285812fb529b8f1c627f8e1912",
         "width": 1024,
         "height": 1024,
         "counts": {
@@ -362,7 +378,8 @@
           "RdCL": 1999,
           "RailCL": 19,
           "BldA": 40,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 40
         },
         "rect": [
           0.3333333333333333,
@@ -373,8 +390,8 @@
       },
       {
         "file": "near-core-3-2.webp",
-        "bytes": 69132,
-        "sha256": "3e7e682c1427a31cb44bb6f668b24679c673242d473304d2100d1765aee39656",
+        "bytes": 136992,
+        "sha256": "282542d8d4534926f1365e2528b8ff2577ee4b18103bf9f242cf6b514a2f6493",
         "width": 1024,
         "height": 1024,
         "counts": {
@@ -383,7 +400,8 @@
           "RdCL": 1999,
           "RailCL": 19,
           "BldA": 40,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 29
         },
         "rect": [
           0.5,
@@ -394,8 +412,8 @@
       },
       {
         "file": "near-core-4-2.webp",
-        "bytes": 45432,
-        "sha256": "506af1f2a008f1afe3763617163b6e8b0527eacd62fa3ecb2b7b8262d145ad14",
+        "bytes": 75248,
+        "sha256": "f40f6fd051c107de0244be75d6edb7eb32238c5450a2326838c2d9e6f485faa2",
         "width": 1024,
         "height": 1024,
         "counts": {
@@ -404,7 +422,8 @@
           "RdCL": 1999,
           "RailCL": 19,
           "BldA": 40,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 28
         },
         "rect": [
           0.6666666666666666,
@@ -415,8 +434,8 @@
       },
       {
         "file": "near-core-5-2.webp",
-        "bytes": 48934,
-        "sha256": "fa0c9b66d32dfa409541da6b3f9f8090c1f8f49002c8c6361bcffd2584721c9a",
+        "bytes": 74440,
+        "sha256": "f0e74c0ffbe0d8c1ac3a507e6f7d7eabc5a777038fa4d762ef5a9f0f2479d2bf",
         "width": 1024,
         "height": 1024,
         "counts": {
@@ -425,7 +444,8 @@
           "RdCL": 1999,
           "RailCL": 19,
           "BldA": 40,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 38
         },
         "rect": [
           0.8333333333333334,
@@ -436,8 +456,8 @@
       },
       {
         "file": "near-core-0-3.webp",
-        "bytes": 70370,
-        "sha256": "50ea14809ed060ab7199a3a44da8c4f2051f5de09baefe4416650baae28c1c8c",
+        "bytes": 96182,
+        "sha256": "810f4559c8a63d7ce49dfd581ce4f618238176d279e339423408223c5172f1a7",
         "width": 1024,
         "height": 1024,
         "counts": {
@@ -446,7 +466,8 @@
           "RdCL": 1649,
           "RailCL": 14,
           "BldA": 24,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 19
         },
         "rect": [
           0,
@@ -457,8 +478,8 @@
       },
       {
         "file": "near-core-1-3.webp",
-        "bytes": 53656,
-        "sha256": "351ea3644de96015345e1494713068d16945ded90fdba5263bca39ce72c39644",
+        "bytes": 89930,
+        "sha256": "88d50a7ef03ee9c267038c3368b2c3f72e807a85aa16a19294ef97dd3d9cad7d",
         "width": 1024,
         "height": 1024,
         "counts": {
@@ -467,7 +488,8 @@
           "RdCL": 1649,
           "RailCL": 14,
           "BldA": 24,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 57
         },
         "rect": [
           0.16666666666666666,
@@ -478,8 +500,8 @@
       },
       {
         "file": "near-core-2-3.webp",
-        "bytes": 55296,
-        "sha256": "23e263ec1878737ff0583d5d58d5f2deea76eae1b64eb73af9fc9519efe57dbc",
+        "bytes": 86348,
+        "sha256": "9dd5cdaf70efebfb7ea06597af2e6713c4b00ac9a5649fc4334ef43b995873ed",
         "width": 1024,
         "height": 1024,
         "counts": {
@@ -488,7 +510,8 @@
           "RdCL": 1999,
           "RailCL": 19,
           "BldA": 40,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 36
         },
         "rect": [
           0.3333333333333333,
@@ -499,8 +522,8 @@
       },
       {
         "file": "near-core-3-3.webp",
-        "bytes": 72514,
-        "sha256": "7cb0f6075147cfb5b1efd6254fc041988448664b1939abf14f508a290cd26144",
+        "bytes": 123864,
+        "sha256": "e0a3294f0c0f57b479d535ece01ce07360ec17a3fadf102e4bbcbd08037d5713",
         "width": 1024,
         "height": 1024,
         "counts": {
@@ -509,7 +532,8 @@
           "RdCL": 1999,
           "RailCL": 19,
           "BldA": 40,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 10
         },
         "rect": [
           0.5,
@@ -520,8 +544,8 @@
       },
       {
         "file": "near-core-4-3.webp",
-        "bytes": 39300,
-        "sha256": "f3b9bc56f8baf21c619100fbdf5c839dc95ce2dd320fd517617c30eff255256a",
+        "bytes": 89468,
+        "sha256": "1c27ffe45d5c78e9d63db58a57045a1076292ddcc2dd929076bb52029c7aa040",
         "width": 1024,
         "height": 1024,
         "counts": {
@@ -530,7 +554,8 @@
           "RdCL": 1999,
           "RailCL": 19,
           "BldA": 40,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 39
         },
         "rect": [
           0.6666666666666666,
@@ -541,8 +566,8 @@
       },
       {
         "file": "near-core-5-3.webp",
-        "bytes": 49452,
-        "sha256": "f54c62e9fc7503dd3a1594e6447edb21bb27c38e1941bd5cbeb8d73198d28782",
+        "bytes": 125710,
+        "sha256": "7db92f4f0d3da315e82714a0a207975d05c4d9d6eedac50ab10f0ad01ed06e98",
         "width": 1024,
         "height": 1024,
         "counts": {
@@ -551,7 +576,8 @@
           "RdCL": 1999,
           "RailCL": 19,
           "BldA": 40,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 45
         },
         "rect": [
           0.8333333333333334,
@@ -564,8 +590,8 @@
     "region": {
       "g-14-14432-6487": {
         "file": "near-g-14-14432-6487.webp",
-        "bytes": 533522,
-        "sha256": "de3e442a59bec7bd60365b0df8b5ec82b15bd8b757d941813551de68eab2711b",
+        "bytes": 652786,
+        "sha256": "ce0350b69ebb0349c50ae1ac50c428fa56925e74ab37bd639f55cfeb27be5e13",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -574,13 +600,14 @@
           "RdCL": 815,
           "RailCL": 5,
           "BldA": 27,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 319
         }
       },
       "g-14-14431-6487": {
         "file": "near-g-14-14431-6487.webp",
-        "bytes": 613072,
-        "sha256": "7200af598014520de4b61b6ca8877ca38884b467d98fde26b811a4fcae3b1db2",
+        "bytes": 754480,
+        "sha256": "e07d0c0450870e88435f3a82d9a22146bf2f99fb3990190c3407701b35de9a71",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -589,13 +616,14 @@
           "RdCL": 971,
           "RailCL": 3,
           "BldA": 60,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 376
         }
       },
       "g-14-14433-6487": {
         "file": "near-g-14-14433-6487.webp",
-        "bytes": 654332,
-        "sha256": "c91882cccb637386c02a7af989c7f293b931c0d042cebc6f28917bad6642a088",
+        "bytes": 823702,
+        "sha256": "d5868a064f14a4cc481269e5bd7d80a2242ff3bf2ae36da3d82913f5810687fa",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -604,13 +632,14 @@
           "RdCL": 1231,
           "RailCL": 21,
           "BldA": 35,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 501
         }
       },
       "g-14-14435-6487": {
         "file": "near-g-14-14435-6487.webp",
-        "bytes": 376440,
-        "sha256": "dc803bf75bb1c8e9da1455c5bd141036ac054bf76e000d290106110a451a26de",
+        "bytes": 467940,
+        "sha256": "b22b60eff51d454cb2fcbf31d3a4a1bfeb7283b6466ddb4d5861278e23cc3d1a",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -619,13 +648,14 @@
           "RdCL": 520,
           "RailCL": 0,
           "BldA": 6,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 202
         }
       },
       "g-14-14436-6487": {
         "file": "near-g-14-14436-6487.webp",
-        "bytes": 278276,
-        "sha256": "dd5ea2e49da1ab4cd07c8f130e7e51895aacc02b9f19bb8e6b135aecfaf8a59d",
+        "bytes": 349376,
+        "sha256": "a8d7547774a6e5a647de87fd7a9b45c5994ecbf1aa0ed689c4186dbc06bfa5e9",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -634,13 +664,14 @@
           "RdCL": 313,
           "RailCL": 0,
           "BldA": 9,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 106
         }
       },
       "g-14-14434-6487": {
         "file": "near-g-14-14434-6487.webp",
-        "bytes": 652724,
-        "sha256": "6e418aa885eb2f10857eb3506d40283a254580e7e71f55f8afa298ae300c5b57",
+        "bytes": 827192,
+        "sha256": "d4db6d1a644557f6c712c6de0b03003e2ca9175bf78ba645d68d8830071f9ea3",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -649,13 +680,14 @@
           "RdCL": 1244,
           "RailCL": 0,
           "BldA": 29,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 499
         }
       },
       "g-14-14437-6487": {
         "file": "near-g-14-14437-6487.webp",
-        "bytes": 210538,
-        "sha256": "c15d847f131af08651a847b2c26a89d46da8b3c6fdf1d029580e49f0e90fee64",
+        "bytes": 262982,
+        "sha256": "fc40a4cdc7c4b9765348e36218d215ed17b044b6072a59a9f6646e0a85248966",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -664,13 +696,14 @@
           "RdCL": 128,
           "RailCL": 0,
           "BldA": 1,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 22
         }
       },
       "g-14-14438-6487": {
         "file": "near-g-14-14438-6487.webp",
-        "bytes": 225664,
-        "sha256": "6f6286cdf02f7b021cc1492c4a3636056bbd0373562a999789d750e8dc4c7d37",
+        "bytes": 271364,
+        "sha256": "08c175a0bccd380d18f51dbed808ab1faf58134fd1638bec1704e73ff87b0500",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -679,28 +712,14 @@
           "RdCL": 167,
           "RailCL": 0,
           "BldA": 1,
-          "TpgphArea": 0
-        }
-      },
-      "g-14-14439-6487": {
-        "file": "near-g-14-14439-6487.webp",
-        "bytes": 258662,
-        "sha256": "42867c664af785884b1d76a7ed9add7a0a72e7826716ddc84bffc2845a89bde2",
-        "width": 2048,
-        "height": 2048,
-        "counts": {
-          "WA": 16,
-          "RvrCL": 175,
-          "RdCL": 204,
-          "RailCL": 0,
-          "BldA": 4,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 55
         }
       },
       "g-14-14440-6487": {
         "file": "near-g-14-14440-6487.webp",
-        "bytes": 175430,
-        "sha256": "a12bd7355126dc874d48921b9f8026f76d287e75dc54c745b026583b2a7d4b60",
+        "bytes": 216734,
+        "sha256": "7f0a757d77bc7c8d7dc6a0b96c5b85f262a6b3064decd48af751153e80a866a3",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -709,13 +728,30 @@
           "RdCL": 97,
           "RailCL": 0,
           "BldA": 0,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 0
+        }
+      },
+      "g-14-14439-6487": {
+        "file": "near-g-14-14439-6487.webp",
+        "bytes": 312384,
+        "sha256": "07a6b1143643c04b5bc65f251e44c3c4b7af51f800fad414d8c97e523a8929f9",
+        "width": 2048,
+        "height": 2048,
+        "counts": {
+          "WA": 16,
+          "RvrCL": 175,
+          "RdCL": 204,
+          "RailCL": 0,
+          "BldA": 4,
+          "TpgphArea": 0,
+          "crossings": 24
         }
       },
       "g-14-14441-6487": {
         "file": "near-g-14-14441-6487.webp",
-        "bytes": 267696,
-        "sha256": "d704b0f08735f56e8dacf96be353ef202c436c907c13857ca957e1bacd797900",
+        "bytes": 328400,
+        "sha256": "bb09fea2bc1d7c4b31d3f6c133e47109892c220521c093d30c3d38b725827b88",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -724,13 +760,14 @@
           "RdCL": 229,
           "RailCL": 0,
           "BldA": 6,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 61
         }
       },
       "g-14-14442-6487": {
         "file": "near-g-14-14442-6487.webp",
-        "bytes": 143124,
-        "sha256": "c0c3acdaebd82d26395086bc960770296f855cd87090a600c0f8568eaf21aa56",
+        "bytes": 177378,
+        "sha256": "991b1a86525aab5b4ead822cfbce7e156c69f5d1411e73abc0a715d2f634a812",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -739,13 +776,14 @@
           "RdCL": 71,
           "RailCL": 0,
           "BldA": 0,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 12
         }
       },
       "g-14-14443-6487": {
         "file": "near-g-14-14443-6487.webp",
-        "bytes": 236898,
-        "sha256": "590dfd822ff7fd44b0e13259853e9e8cfa2769004812b4c0eb3f10624f03ef3a",
+        "bytes": 295000,
+        "sha256": "9ad9dde737d465ee448990d32304fb5c6e7f12ff26878a685b366190a25022ac",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -754,13 +792,14 @@
           "RdCL": 189,
           "RailCL": 0,
           "BldA": 1,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 49
         }
       },
       "g-14-14444-6487": {
         "file": "near-g-14-14444-6487.webp",
-        "bytes": 192480,
-        "sha256": "6685344bcf374e4c59f5688674138eba10513913b125e2cdc335c3eef0c5e445",
+        "bytes": 236516,
+        "sha256": "20b04897a3bf3d41932d61342ab334fac0ef3f76555e96080a50bbc0b7032f7c",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -769,13 +808,14 @@
           "RdCL": 124,
           "RailCL": 0,
           "BldA": 1,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 25
         }
       },
       "g-14-14432-6488": {
         "file": "near-g-14-14432-6488.webp",
-        "bytes": 471692,
-        "sha256": "1479aa14cc00daf8bd04b21a839c5c615591b5ccab169a1d3223c62fe355e903",
+        "bytes": 568838,
+        "sha256": "a6862cad463f3c4188bc3b39eb8c8cecbe3090b6ef32f36e69d69055aea1ce6e",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -784,13 +824,14 @@
           "RdCL": 509,
           "RailCL": 0,
           "BldA": 43,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 152
         }
       },
       "g-14-14431-6488": {
         "file": "near-g-14-14431-6488.webp",
-        "bytes": 591236,
-        "sha256": "4a57f0c62913ce7418930e8a0cdfcb1d5135c4edafb485c5265b7936b22572ec",
+        "bytes": 735364,
+        "sha256": "121df1bbe19880154380d96af5328471806f516d9949b0e103557d9e4932247d",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -799,13 +840,14 @@
           "RdCL": 1029,
           "RailCL": 8,
           "BldA": 40,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 362
         }
       },
       "g-14-14433-6488": {
         "file": "near-g-14-14433-6488.webp",
-        "bytes": 622972,
-        "sha256": "56e9c7b15dcfae94c1f7c0445e24f0f473b8fab499be8e0a5d53d2ba2bdaa686",
+        "bytes": 767722,
+        "sha256": "fe04fa011bead2051f96a32f53a28667f87530eeb3637d800e400c21fa1beb8c",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -814,13 +856,14 @@
           "RdCL": 947,
           "RailCL": 17,
           "BldA": 34,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 307
         }
       },
       "g-14-14435-6488": {
         "file": "near-g-14-14435-6488.webp",
-        "bytes": 312916,
-        "sha256": "ce996a1af2af7496cc4014a1f5e1fcebf7e1121b533bfb22644679e07f2f3f80",
+        "bytes": 403256,
+        "sha256": "bcc90c334f76c4f69e10513fbbef6ea00bcaa93392a1232729e8271312651811",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -829,13 +872,14 @@
           "RdCL": 624,
           "RailCL": 0,
           "BldA": 16,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 385
         }
       },
       "g-14-14436-6488": {
         "file": "near-g-14-14436-6488.webp",
-        "bytes": 169442,
-        "sha256": "553a730c606dd0aa1a8b1deb65c34a134e213c609e19d7e034e2ba0a09697062",
+        "bytes": 208048,
+        "sha256": "6034898a7f9094dacb754adeda7d3e10ca79f3ec31dadecd3539b68f898a42af",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -844,13 +888,14 @@
           "RdCL": 178,
           "RailCL": 0,
           "BldA": 6,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 39
         }
       },
       "g-14-14434-6488": {
         "file": "near-g-14-14434-6488.webp",
-        "bytes": 573108,
-        "sha256": "b01ee86117289848e6770069897bff984b7f642447a51d7bd3eceee6fb4c3d36",
+        "bytes": 713486,
+        "sha256": "888151ed3d259d9152487836da9df367298599eeffcfd7c18cb6d40521d13694",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -859,13 +904,14 @@
           "RdCL": 961,
           "RailCL": 0,
           "BldA": 18,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 275
         }
       },
       "g-14-14437-6488": {
         "file": "near-g-14-14437-6488.webp",
-        "bytes": 173210,
-        "sha256": "77a5f4efc2a6d4bfe8bba6a760d0a849d1355b0c5df38892819ade4499a0c36f",
+        "bytes": 208038,
+        "sha256": "06e29edec0c25540d3da94bf7988f7c37f946a7f77ab40ff1976f1d28dd109c6",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -874,13 +920,14 @@
           "RdCL": 123,
           "RailCL": 0,
           "BldA": 0,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 26
         }
       },
       "g-14-14438-6488": {
         "file": "near-g-14-14438-6488.webp",
-        "bytes": 223418,
-        "sha256": "b0317d8291a3ac43f807e1fc5036f41e1b6742e51f43ed748500b467ada4c647",
+        "bytes": 277734,
+        "sha256": "8ec782d9c952e3e0e4193f06ecf963a576de75cd4888d41bd868d20385fdbf7a",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -889,13 +936,14 @@
           "RdCL": 179,
           "RailCL": 0,
           "BldA": 0,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 16
         }
       },
       "g-14-14439-6488": {
         "file": "near-g-14-14439-6488.webp",
-        "bytes": 173492,
-        "sha256": "bb655967447d104dc2dd7659481835c910c0d460a06fd64b5162d6a60b6a0a63",
+        "bytes": 215008,
+        "sha256": "54f0af486f4a05eb6dd3ff403e88cbbb3144a6cc244a04be00e2a38951fe91d8",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -904,13 +952,14 @@
           "RdCL": 107,
           "RailCL": 0,
           "BldA": 4,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 22
         }
       },
       "g-14-14441-6488": {
         "file": "near-g-14-14441-6488.webp",
-        "bytes": 109856,
-        "sha256": "9314051dbbf9378bb394580f3860b6971f83108aec8e75ce3b456692476a7364",
+        "bytes": 137384,
+        "sha256": "2da6764e9aa5613c14d54decffde49cbc6ca929e317d7bc9081af23529513528",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -919,28 +968,14 @@
           "RdCL": 79,
           "RailCL": 0,
           "BldA": 9,
-          "TpgphArea": 0
-        }
-      },
-      "g-14-14440-6488": {
-        "file": "near-g-14-14440-6488.webp",
-        "bytes": 302342,
-        "sha256": "98efd0596bc7ad054b94b24142f244384dcf96bad071aaaf484042748f1d8fc8",
-        "width": 2048,
-        "height": 2048,
-        "counts": {
-          "WA": 43,
-          "RvrCL": 181,
-          "RdCL": 277,
-          "RailCL": 0,
-          "BldA": 3,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 5
         }
       },
       "g-14-14442-6488": {
         "file": "near-g-14-14442-6488.webp",
-        "bytes": 157644,
-        "sha256": "7cb6a3cc3c137d0b661eb993a7f2775de16b03bdee28c47213265838d7dd812d",
+        "bytes": 188562,
+        "sha256": "0d31294bfb000d47ec8ba79945fd0d2ad807e85798d91d985ee47e06c6f12dc0",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -949,13 +984,30 @@
           "RdCL": 99,
           "RailCL": 0,
           "BldA": 0,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 15
+        }
+      },
+      "g-14-14440-6488": {
+        "file": "near-g-14-14440-6488.webp",
+        "bytes": 365068,
+        "sha256": "ed8ed5e54ec4091772cd41302ae3dad8641525e13aeb56ecb82ea6cfb8d06521",
+        "width": 2048,
+        "height": 2048,
+        "counts": {
+          "WA": 43,
+          "RvrCL": 181,
+          "RdCL": 277,
+          "RailCL": 0,
+          "BldA": 3,
+          "TpgphArea": 0,
+          "crossings": 71
         }
       },
       "g-14-14443-6488": {
         "file": "near-g-14-14443-6488.webp",
-        "bytes": 197256,
-        "sha256": "f03b108af54ffe34d5aae5a1a6e7b93f3d2a1613e5d41e2e9385a59466731bf9",
+        "bytes": 246466,
+        "sha256": "5863fee6209e9858e82cd15346dfb807aa70aa859462fa7722c5132afc2b5e6a",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -964,13 +1016,14 @@
           "RdCL": 125,
           "RailCL": 0,
           "BldA": 0,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 30
         }
       },
       "g-14-14444-6488": {
         "file": "near-g-14-14444-6488.webp",
-        "bytes": 175120,
-        "sha256": "fbfeccb8258a3e7b851411945585ffe765436ca3696312eac545498e159386b2",
+        "bytes": 220640,
+        "sha256": "b34af87a7f12c35240e0fd1bac3b50e34a2c2697ec145ad59cfb5dfca4b64e5f",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -979,13 +1032,14 @@
           "RdCL": 80,
           "RailCL": 0,
           "BldA": 2,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 0
         }
       },
       "g-14-14431-6489": {
         "file": "near-g-14-14431-6489.webp",
-        "bytes": 633482,
-        "sha256": "369b7886b8c1bc53923ff1309924cb6b3bf3bf18aafcb37a44d8b6a871841e10",
+        "bytes": 797778,
+        "sha256": "7948cd687d2368bc24fd790d563e2b4f7e131b81aa92afda49eb31096ee1cd0d",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -994,13 +1048,14 @@
           "RdCL": 1081,
           "RailCL": 0,
           "BldA": 58,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 296
         }
       },
       "g-14-14432-6489": {
         "file": "near-g-14-14432-6489.webp",
-        "bytes": 533804,
-        "sha256": "68a095a669003463eb723c03287d0a249657f4e3b5037300c0f35ec678d4c7db",
+        "bytes": 649994,
+        "sha256": "c963d45b434c04e6b7f97b4b1247e59e8a8032e016cb531d975e3df4e5be1821",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1009,13 +1064,14 @@
           "RdCL": 818,
           "RailCL": 10,
           "BldA": 56,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 231
         }
       },
       "g-14-14433-6489": {
         "file": "near-g-14-14433-6489.webp",
-        "bytes": 608962,
-        "sha256": "67747832194df94acff6b35f4063aa17320ed4ac0c06b0f8423be7de303579a1",
+        "bytes": 756430,
+        "sha256": "9c7c2d0f2ed4556aa52056e634a2d2a8d3c0f3b02b6c2b42b4a3a646997222aa",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1024,13 +1080,14 @@
           "RdCL": 1055,
           "RailCL": 26,
           "BldA": 25,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 275
         }
       },
       "g-14-14435-6489": {
         "file": "near-g-14-14435-6489.webp",
-        "bytes": 262336,
-        "sha256": "a7c09e51da475f022a19276373fde3abf964386c88bac9b64f84a12c4365813c",
+        "bytes": 328348,
+        "sha256": "5e5e70f414625755691821375abab2d71f2380c6e8eb95a045e81fe0599b6003",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1039,13 +1096,14 @@
           "RdCL": 344,
           "RailCL": 0,
           "BldA": 21,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 189
         }
       },
       "g-14-14436-6489": {
         "file": "near-g-14-14436-6489.webp",
-        "bytes": 145324,
-        "sha256": "645b3d27cdac3d8a9868b8351673c59cb52d72f39d83706d93c47665bc6606e5",
+        "bytes": 178800,
+        "sha256": "9d003d01fb44c48211d036ed3676cc92891fe256b0cc5c67ff77b24738438da7",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1054,13 +1112,14 @@
           "RdCL": 127,
           "RailCL": 0,
           "BldA": 4,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 44
         }
       },
       "g-14-14434-6489": {
         "file": "near-g-14-14434-6489.webp",
-        "bytes": 573646,
-        "sha256": "4d7cbd5a85e51cc163bb813d1a7c4a25d37e3b48c2a2326eeedec08167d8217d",
+        "bytes": 737206,
+        "sha256": "f4927ce4977e08925a032224df71c94f3a303230ea2a84e44d72c68802762496",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1069,13 +1128,14 @@
           "RdCL": 1080,
           "RailCL": 0,
           "BldA": 22,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 496
         }
       },
       "g-14-14438-6489": {
         "file": "near-g-14-14438-6489.webp",
-        "bytes": 173640,
-        "sha256": "16e680e36865ff5d18c604e47583f49e97cb6d7619027e30546420129d72c6d5",
+        "bytes": 213294,
+        "sha256": "209315dbe04682cff8a1f1526864022fe56f30659258d8d7bc24b3f930751b23",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1084,13 +1144,14 @@
           "RdCL": 99,
           "RailCL": 0,
           "BldA": 0,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 18
         }
       },
       "g-14-14437-6489": {
         "file": "near-g-14-14437-6489.webp",
-        "bytes": 209338,
-        "sha256": "7752a7e292333f6b0570cbd4340aaac5f55d102823f706e383ad2eac6f043b70",
+        "bytes": 260202,
+        "sha256": "b0dfdfe05f978ccbb2c14397b49a4bd3a773d1eca59be5a24f4356691c65c16a",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1099,13 +1160,14 @@
           "RdCL": 195,
           "RailCL": 0,
           "BldA": 1,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 52
         }
       },
       "g-14-14439-6489": {
         "file": "near-g-14-14439-6489.webp",
-        "bytes": 148392,
-        "sha256": "06ea4a09d7dfae12b98fff8845d7d9cb4a1544ee181159edb1d22deced7af6c5",
+        "bytes": 165116,
+        "sha256": "bbac29ad46d8b58bd92be29b3543924f965c9e45797517d73bc0cfcd571f969d",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1114,28 +1176,14 @@
           "RdCL": 103,
           "RailCL": 0,
           "BldA": 1,
-          "TpgphArea": 0
-        }
-      },
-      "g-14-14441-6489": {
-        "file": "near-g-14-14441-6489.webp",
-        "bytes": 186792,
-        "sha256": "d2a025bbaec682baecee04b661c59484f9d9d29969e5b43ff36ab7d55bba3636",
-        "width": 2048,
-        "height": 2048,
-        "counts": {
-          "WA": 17,
-          "RvrCL": 73,
-          "RdCL": 157,
-          "RailCL": 0,
-          "BldA": 0,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 21
         }
       },
       "g-14-14440-6489": {
         "file": "near-g-14-14440-6489.webp",
-        "bytes": 213270,
-        "sha256": "2ff1eaaab16471a92bb25b9f595df6cb7cc7fe231def9b6865a7cef2b5c6ad65",
+        "bytes": 262786,
+        "sha256": "ffa593811d0133c3002e416343b5efeef1c2dfcef0167c5405455a2066aaebbf",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1144,13 +1192,30 @@
           "RdCL": 147,
           "RailCL": 0,
           "BldA": 2,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 31
+        }
+      },
+      "g-14-14441-6489": {
+        "file": "near-g-14-14441-6489.webp",
+        "bytes": 230996,
+        "sha256": "79b2145538d23899981bc382d1c6bb33211a63bd04caa64702d5bb84d1c00515",
+        "width": 2048,
+        "height": 2048,
+        "counts": {
+          "WA": 17,
+          "RvrCL": 73,
+          "RdCL": 157,
+          "RailCL": 0,
+          "BldA": 0,
+          "TpgphArea": 0,
+          "crossings": 12
         }
       },
       "g-14-14442-6489": {
         "file": "near-g-14-14442-6489.webp",
-        "bytes": 173412,
-        "sha256": "4a15da620294af156e16c9886994cfd3a252cb8d788ae36ec9d71647165d9e7c",
+        "bytes": 205046,
+        "sha256": "0f88ee39cb4eb134a39d7bdc43c38da83c15a0bc472aaa38f6cf926aba8e4d10",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1159,13 +1224,14 @@
           "RdCL": 115,
           "RailCL": 0,
           "BldA": 0,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 15
         }
       },
       "g-14-14443-6489": {
         "file": "near-g-14-14443-6489.webp",
-        "bytes": 130194,
-        "sha256": "143454179f4b496755c453a80fe8d718b0c6d244ba63be0dadbc6cff1dfc89f6",
+        "bytes": 150560,
+        "sha256": "d584dbd67bb076c81fabe757d0f246ba293bfe929108874c09881772e363d346",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1174,13 +1240,14 @@
           "RdCL": 73,
           "RailCL": 0,
           "BldA": 1,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 7
         }
       },
       "g-14-14444-6489": {
         "file": "near-g-14-14444-6489.webp",
-        "bytes": 143194,
-        "sha256": "66a7fc0f48a7de6670c6937157e78d14bdf24ba8e8987f6864ce30119723e21c",
+        "bytes": 175830,
+        "sha256": "3697edd8f09db89c4224290534f8e6a872b7ae125afe3d554f37e27bae4745aa",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1189,13 +1256,14 @@
           "RdCL": 64,
           "RailCL": 0,
           "BldA": 0,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 21
         }
       },
       "g-14-14431-6490": {
         "file": "near-g-14-14431-6490.webp",
-        "bytes": 659300,
-        "sha256": "0d59f28c8deb11f86e723bc198868153cdab942d43db0ce12aca0ff9a193202b",
+        "bytes": 838056,
+        "sha256": "a8c752cf1635685c76e9e7b5c33d92439002ca69fdbc8f16593692a845674480",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1204,13 +1272,14 @@
           "RdCL": 1219,
           "RailCL": 12,
           "BldA": 63,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 608
         }
       },
       "g-14-14432-6490": {
         "file": "near-g-14-14432-6490.webp",
-        "bytes": 585290,
-        "sha256": "b94cdf15070bd49d9617f75c3055a308841e48b5aca0e2de6fa88b55a3e37e0c",
+        "bytes": 742950,
+        "sha256": "1ef2a46bc3b7e4b37c8d2636cdc917694f03e5c019172062447284e157a52880",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1219,13 +1288,14 @@
           "RdCL": 1099,
           "RailCL": 2,
           "BldA": 57,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 484
         }
       },
       "g-14-14433-6490": {
         "file": "near-g-14-14433-6490.webp",
-        "bytes": 621414,
-        "sha256": "ad1bbfe84b8f4dc8129433911a2aa0d0fcad3c49ea226767ee3eaa61d8cdf272",
+        "bytes": 800652,
+        "sha256": "e39199be3f9af4b20bad4a83d6bb1456d77bd0d97cb72dfb4a4f41053348962f",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1234,13 +1304,14 @@
           "RdCL": 1176,
           "RailCL": 7,
           "BldA": 56,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 605
         }
       },
       "g-14-14436-6490": {
         "file": "near-g-14-14436-6490.webp",
-        "bytes": 206696,
-        "sha256": "b3661991c08c55eeb37f414184d780aa20ca3d7daf210e538b91a166d1dd2fc7",
+        "bytes": 263016,
+        "sha256": "dc39d53d195a1670c76d792dac93927560b5b3e1472e655481fe0ff9d7cdb2d7",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1249,13 +1320,14 @@
           "RdCL": 334,
           "RailCL": 0,
           "BldA": 4,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 122
         }
       },
       "g-14-14435-6490": {
         "file": "near-g-14-14435-6490.webp",
-        "bytes": 556946,
-        "sha256": "dc8c27f29c2d0f9fbd5391bd46308835a2e7929a0939d3f843c5ce029b5d39cb",
+        "bytes": 718868,
+        "sha256": "ac11beb2710bb6f11bdc6a7b1d2107916dcaa9cae553d04f82568273c33373ea",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1264,13 +1336,14 @@
           "RdCL": 1383,
           "RailCL": 0,
           "BldA": 17,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 560
         }
       },
       "g-14-14437-6490": {
         "file": "near-g-14-14437-6490.webp",
-        "bytes": 173570,
-        "sha256": "be51dd961e04f6eb2b6aab6a2d8b27d55fa0d10aa8da730dde6be33477ef5a62",
+        "bytes": 215368,
+        "sha256": "c3dbb4b20ea6becb465388e0bd8ede5a1cdc3dd7837c6065622afb66b9cd1c34",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1279,28 +1352,14 @@
           "RdCL": 154,
           "RailCL": 0,
           "BldA": 0,
-          "TpgphArea": 0
-        }
-      },
-      "g-14-14434-6490": {
-        "file": "near-g-14-14434-6490.webp",
-        "bytes": 652420,
-        "sha256": "1648d649eaf2a713a1dfa9f0dcd0c9dd4f141d1525141d533934ae6f008ecde2",
-        "width": 2048,
-        "height": 2048,
-        "counts": {
-          "WA": 36,
-          "RvrCL": 17,
-          "RdCL": 1883,
-          "RailCL": 6,
-          "BldA": 57,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 48
         }
       },
       "g-14-14438-6490": {
         "file": "near-g-14-14438-6490.webp",
-        "bytes": 156026,
-        "sha256": "3327f7233035274f832e3da8b7488b837171d2164ac63ccbc9651c819bde0053",
+        "bytes": 190344,
+        "sha256": "67cfe42ca4687fa872a8df2cadad4f1fc775707302d7adfeea72ad435add4f6b",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1309,13 +1368,30 @@
           "RdCL": 104,
           "RailCL": 0,
           "BldA": 5,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 12
+        }
+      },
+      "g-14-14434-6490": {
+        "file": "near-g-14-14434-6490.webp",
+        "bytes": 885728,
+        "sha256": "55fc1e46b4fb448e13f477cf6765c859c044e8b6463917b1aa7862903471f3e5",
+        "width": 2048,
+        "height": 2048,
+        "counts": {
+          "WA": 36,
+          "RvrCL": 17,
+          "RdCL": 1883,
+          "RailCL": 6,
+          "BldA": 57,
+          "TpgphArea": 0,
+          "crossings": 1361
         }
       },
       "g-14-14439-6490": {
         "file": "near-g-14-14439-6490.webp",
-        "bytes": 203792,
-        "sha256": "0278715d1ecab85530fc95660d66cea44ba04ad9c38e8c41fa5131d544de6b85",
+        "bytes": 241840,
+        "sha256": "d259ba31e3cfbb5e4f98521a384616b23ee5d2027f82135fa104ccb5c34aeb2b",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1324,13 +1400,14 @@
           "RdCL": 119,
           "RailCL": 0,
           "BldA": 16,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 38
         }
       },
       "g-14-14440-6490": {
         "file": "near-g-14-14440-6490.webp",
-        "bytes": 164614,
-        "sha256": "8d3ec06ca20478bd0400250faf3fa661ae13827078d211600aafd4e334127363",
+        "bytes": 205152,
+        "sha256": "d268ec8966376a4e2a071f1210e1c575fa7866b53bb969b7a0136f6a45b4fc1c",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1339,13 +1416,14 @@
           "RdCL": 102,
           "RailCL": 0,
           "BldA": 0,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 14
         }
       },
       "g-14-14442-6490": {
         "file": "near-g-14-14442-6490.webp",
-        "bytes": 160326,
-        "sha256": "86c945fd8fceb8658d7492235f9a24b47ace133eaca66118dfe3b13bf08a02b1",
+        "bytes": 200450,
+        "sha256": "0e37c97757ace8f21d6ac0c99566a7e9c508acb54008dcdd5d903f870c099fe6",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1354,13 +1432,14 @@
           "RdCL": 61,
           "RailCL": 0,
           "BldA": 0,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 6
         }
       },
       "g-14-14441-6490": {
         "file": "near-g-14-14441-6490.webp",
-        "bytes": 233526,
-        "sha256": "838bf313537d4f4ba3ffc6d2b2bbd018085f01088b101a25a616e05584bb0087",
+        "bytes": 283220,
+        "sha256": "2e96017df55d1dd0bb489ba3f71f9a2699fd7a5012230f887973720cc744216d",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1369,13 +1448,14 @@
           "RdCL": 162,
           "RailCL": 0,
           "BldA": 2,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 38
         }
       },
       "g-14-14443-6490": {
         "file": "near-g-14-14443-6490.webp",
-        "bytes": 156080,
-        "sha256": "54c835e4581ae9a338e93ef8598e6f22b6583c54246b126eeb68589033088f4a",
+        "bytes": 191636,
+        "sha256": "30912e309f07a75a013976e7ab95fd0dc2c99045482cbce6d0ae94c938c7a59c",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1384,13 +1464,14 @@
           "RdCL": 92,
           "RailCL": 0,
           "BldA": 0,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 19
         }
       },
       "g-14-14444-6490": {
         "file": "near-g-14-14444-6490.webp",
-        "bytes": 204422,
-        "sha256": "89aaed57a33efc17994d635410d296d633ded10c9e3dbbb66af0c90bfa72cd8e",
+        "bytes": 241936,
+        "sha256": "b4b55b58e8d1913000b8a393722b5b2c20638cdde0647656c20e4d41f14da471",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1399,13 +1480,14 @@
           "RdCL": 123,
           "RailCL": 0,
           "BldA": 3,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 38
         }
       },
       "g-14-14431-6491": {
         "file": "near-g-14-14431-6491.webp",
-        "bytes": 540032,
-        "sha256": "4f58d4a6015bf4442421f3e96928cc83e5b5fc452e6d49de135eaafa012beb78",
+        "bytes": 689002,
+        "sha256": "f23f669734028407ab2f0de39f1b83b50ebb1ceff1696d160023d48c86934a06",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1414,13 +1496,14 @@
           "RdCL": 1120,
           "RailCL": 15,
           "BldA": 31,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 506
         }
       },
       "g-14-14432-6491": {
         "file": "near-g-14-14432-6491.webp",
-        "bytes": 658278,
-        "sha256": "47cc2e67123592a53fceac1a1e9ddf6086de3c4988a26e6de9cd089346059634",
+        "bytes": 830518,
+        "sha256": "3e24acb74307563c37cbad6f789d0d7dfd30183287bccea34b0efac04150db9f",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1429,13 +1512,14 @@
           "RdCL": 1327,
           "RailCL": 16,
           "BldA": 32,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 354
         }
       },
       "g-14-14433-6491": {
         "file": "near-g-14-14433-6491.webp",
-        "bytes": 655052,
-        "sha256": "45912a07b888802f7f0bb26b338cbf174be09bf5999fc2e306d4560c2295def7",
+        "bytes": 855616,
+        "sha256": "8bb888767f2b40d66b1da089afeb674ec5c38a2b49bced3e7cb6f9ed93394537",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1444,13 +1528,14 @@
           "RdCL": 1582,
           "RailCL": 16,
           "BldA": 31,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 666
         }
       },
       "g-14-14436-6491": {
         "file": "near-g-14-14436-6491.webp",
-        "bytes": 136818,
-        "sha256": "304670cb90eb1e44a006582e1f4ec5bde3deb39924d019c4d24b7eb647b2786a",
+        "bytes": 172136,
+        "sha256": "9eeca437d4a5de8d44f00b052fe17d10188588ae8e5bf076120c8f6260d3bc70",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1459,13 +1544,14 @@
           "RdCL": 150,
           "RailCL": 0,
           "BldA": 0,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 13
         }
       },
       "g-14-14435-6491": {
         "file": "near-g-14-14435-6491.webp",
-        "bytes": 579634,
-        "sha256": "a4a58f44e2c92f5b2b468eac1599a4a342067fb735136608a654df09163fbbb3",
+        "bytes": 766002,
+        "sha256": "efe68f6111bc062cdf3c587c82f1fe54dcc3fb69a99cbe7a0f1f172c764ac331",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1474,28 +1560,14 @@
           "RdCL": 1591,
           "RailCL": 0,
           "BldA": 19,
-          "TpgphArea": 0
-        }
-      },
-      "g-14-14434-6491": {
-        "file": "near-g-14-14434-6491.webp",
-        "bytes": 685942,
-        "sha256": "c69a215d3821e95ca307ef2843e5c573ddfbbaa1f18371dc7e4853132c11a05f",
-        "width": 2048,
-        "height": 2048,
-        "counts": {
-          "WA": 42,
-          "RvrCL": 18,
-          "RdCL": 2111,
-          "RailCL": 9,
-          "BldA": 47,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 675
         }
       },
       "g-14-14437-6491": {
         "file": "near-g-14-14437-6491.webp",
-        "bytes": 236938,
-        "sha256": "604a7a18302fe7c726c0b3f624cd0a58384567179f11d9123dac071d9d86b966",
+        "bytes": 294532,
+        "sha256": "39e394cc2828bc4497ba8ee45cfd936f44d9cd1e95aef13c40643082dc935f6e",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1504,28 +1576,30 @@
           "RdCL": 340,
           "RailCL": 0,
           "BldA": 5,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 135
         }
       },
-      "g-14-14439-6491": {
-        "file": "near-g-14-14439-6491.webp",
-        "bytes": 164210,
-        "sha256": "41467ba4461fd951dc111c9c031fcfa0335230f447d02684e4bea73883a92908",
+      "g-14-14434-6491": {
+        "file": "near-g-14-14434-6491.webp",
+        "bytes": 939052,
+        "sha256": "f41bd3885ede3c6a263098129ebbafa4adeaa1b7a1a05d97a6d2cc990a411f17",
         "width": 2048,
         "height": 2048,
         "counts": {
-          "WA": 18,
-          "RvrCL": 60,
-          "RdCL": 111,
-          "RailCL": 0,
-          "BldA": 1,
-          "TpgphArea": 0
+          "WA": 42,
+          "RvrCL": 18,
+          "RdCL": 2111,
+          "RailCL": 9,
+          "BldA": 47,
+          "TpgphArea": 0,
+          "crossings": 1289
         }
       },
       "g-14-14438-6491": {
         "file": "near-g-14-14438-6491.webp",
-        "bytes": 196748,
-        "sha256": "f39e5c21646978fb6146cdb072e8bca874821005fd25954d0fed11602355abc7",
+        "bytes": 240364,
+        "sha256": "53e1311bdb57ab7b7fd33c3c13abad746b12a17f81b11135829ce4bf1170d8a5",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1534,13 +1608,30 @@
           "RdCL": 205,
           "RailCL": 0,
           "BldA": 3,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 28
+        }
+      },
+      "g-14-14439-6491": {
+        "file": "near-g-14-14439-6491.webp",
+        "bytes": 203850,
+        "sha256": "0c523c5237a46b388b7f5d985b8c5f2078128ea7e9c9bc28adfed568afbdcf6a",
+        "width": 2048,
+        "height": 2048,
+        "counts": {
+          "WA": 18,
+          "RvrCL": 60,
+          "RdCL": 111,
+          "RailCL": 0,
+          "BldA": 1,
+          "TpgphArea": 0,
+          "crossings": 6
         }
       },
       "g-14-14440-6491": {
         "file": "near-g-14-14440-6491.webp",
-        "bytes": 134360,
-        "sha256": "d6537224e206232223a42ec7400e202bed2c4f9bbc662a0e14ced85c1dd911ad",
+        "bytes": 165498,
+        "sha256": "6c09a9b56f7b602f9ffedab9eda87478762f5f5173fa31cdef29ee32d32917cb",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1549,13 +1640,14 @@
           "RdCL": 73,
           "RailCL": 0,
           "BldA": 0,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 12
         }
       },
       "g-14-14441-6491": {
         "file": "near-g-14-14441-6491.webp",
-        "bytes": 138788,
-        "sha256": "41d8566c58fd305e502bc6d0811ea880b1372b0a271f209d8fa2b282c999898e",
+        "bytes": 174934,
+        "sha256": "1e95f62934d0f2ebefc1aa9adcbe8c956362b880c3fae7368b511f618150f0f1",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1564,13 +1656,14 @@
           "RdCL": 107,
           "RailCL": 0,
           "BldA": 1,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 13
         }
       },
       "g-14-14442-6491": {
         "file": "near-g-14-14442-6491.webp",
-        "bytes": 157664,
-        "sha256": "d8ecf46623758653b4f711094327359d0316074852311f61ec8aa128cf1683cf",
+        "bytes": 191440,
+        "sha256": "4aba5c0e9c9a7370e046fdf5a6024c6710b423150c29c9eef9096b0d40d7d041",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1579,13 +1672,14 @@
           "RdCL": 73,
           "RailCL": 0,
           "BldA": 0,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 6
         }
       },
       "g-14-14443-6491": {
         "file": "near-g-14-14443-6491.webp",
-        "bytes": 137636,
-        "sha256": "aa9c93d86d57572fc339b9b16294d81a4c287eec4f62fee8bb7e45e8a910c9aa",
+        "bytes": 170790,
+        "sha256": "e93e155c86bc3913b360e7b6a2d9661eea54dcbd63de4192119c8b99abd4d15a",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1594,13 +1688,14 @@
           "RdCL": 46,
           "RailCL": 0,
           "BldA": 0,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 3
         }
       },
       "g-14-14444-6491": {
         "file": "near-g-14-14444-6491.webp",
-        "bytes": 138870,
-        "sha256": "f812a6bef494bc339000af85d206da4e8f473bca16d27205b3ac2715d16aa38d",
+        "bytes": 165622,
+        "sha256": "58cb7ed373f379caf1d4ec32d220d70bce912b2b824356b3efc0d9ab1329ce19",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1609,43 +1704,14 @@
           "RdCL": 64,
           "RailCL": 0,
           "BldA": 0,
-          "TpgphArea": 0
-        }
-      },
-      "g-14-14431-6492": {
-        "file": "near-g-14-14431-6492.webp",
-        "bytes": 709506,
-        "sha256": "cff8923a140f5d6b92bc9603b3c238a6dcb1c4699ba095c9c3d20df155c6d59e",
-        "width": 2048,
-        "height": 2048,
-        "counts": {
-          "WA": 54,
-          "RvrCL": 125,
-          "RdCL": 1564,
-          "RailCL": 21,
-          "BldA": 23,
-          "TpgphArea": 0
-        }
-      },
-      "g-14-14433-6492": {
-        "file": "near-g-14-14433-6492.webp",
-        "bytes": 608978,
-        "sha256": "a47f6a90c4a5e47bc83f79e32b36a85873955c0d65ec9ee9c13068f6892d0048",
-        "width": 2048,
-        "height": 2048,
-        "counts": {
-          "WA": 62,
-          "RvrCL": 264,
-          "RdCL": 1003,
-          "RailCL": 29,
-          "BldA": 35,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 15
         }
       },
       "g-14-14432-6492": {
         "file": "near-g-14-14432-6492.webp",
-        "bytes": 634554,
-        "sha256": "bd79c305f308f1e04fdf4fb800ad755944e42c036c1b9aaf964855bb7634bb29",
+        "bytes": 782172,
+        "sha256": "481eed0e2e26310b4939fb29d524e6e196688d1a244c86f3139ab53626819542",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1654,13 +1720,46 @@
           "RdCL": 982,
           "RailCL": 23,
           "BldA": 16,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 347
+        }
+      },
+      "g-14-14431-6492": {
+        "file": "near-g-14-14431-6492.webp",
+        "bytes": 920038,
+        "sha256": "bb7af85571f8e53581927b7e8994ad58e1b025c2ec18b766fde44e631db414bf",
+        "width": 2048,
+        "height": 2048,
+        "counts": {
+          "WA": 54,
+          "RvrCL": 125,
+          "RdCL": 1564,
+          "RailCL": 21,
+          "BldA": 23,
+          "TpgphArea": 0,
+          "crossings": 672
+        }
+      },
+      "g-14-14433-6492": {
+        "file": "near-g-14-14433-6492.webp",
+        "bytes": 766194,
+        "sha256": "08934ec193cad3f305063558bd8585d629f81d2f4c41019a7c7fb15d1fcb20a9",
+        "width": 2048,
+        "height": 2048,
+        "counts": {
+          "WA": 62,
+          "RvrCL": 264,
+          "RdCL": 1003,
+          "RailCL": 29,
+          "BldA": 35,
+          "TpgphArea": 0,
+          "crossings": 445
         }
       },
       "g-14-14436-6492": {
         "file": "near-g-14-14436-6492.webp",
-        "bytes": 339684,
-        "sha256": "8a750431bd32993510ab7e347aeefb42ccb43bdea6975b65b48a525da49f4062",
+        "bytes": 432006,
+        "sha256": "eb5fbab02127eadba71dd4bd946df897dd122f8a3c4e539481e6133dd835825f",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1669,28 +1768,14 @@
           "RdCL": 535,
           "RailCL": 0,
           "BldA": 19,
-          "TpgphArea": 0
-        }
-      },
-      "g-14-14434-6492": {
-        "file": "near-g-14-14434-6492.webp",
-        "bytes": 668386,
-        "sha256": "352f0b81c760791c7b35882d9940fe28992bfc8eb181eeef00cdb00cfe988e8b",
-        "width": 2048,
-        "height": 2048,
-        "counts": {
-          "WA": 23,
-          "RvrCL": 3,
-          "RdCL": 1953,
-          "RailCL": 21,
-          "BldA": 40,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 198
         }
       },
       "g-14-14437-6492": {
         "file": "near-g-14-14437-6492.webp",
-        "bytes": 104016,
-        "sha256": "1d17a7ae6db0f104f9296a298a2b5f46dd6e904caaabe80fd6b4740332fdef9b",
+        "bytes": 129732,
+        "sha256": "0d64ddd1c408c3dab74e705b57f3433d73976262ff7443f48445109b32de5b7e",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1699,13 +1784,30 @@
           "RdCL": 70,
           "RailCL": 0,
           "BldA": 4,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 26
+        }
+      },
+      "g-14-14434-6492": {
+        "file": "near-g-14-14434-6492.webp",
+        "bytes": 910526,
+        "sha256": "74b988017d30dfbf528fa7dc6e9f8096b0a612926e757b5739b4aea93392e356",
+        "width": 2048,
+        "height": 2048,
+        "counts": {
+          "WA": 23,
+          "RvrCL": 3,
+          "RdCL": 1953,
+          "RailCL": 21,
+          "BldA": 40,
+          "TpgphArea": 0,
+          "crossings": 1279
         }
       },
       "g-14-14435-6492": {
         "file": "near-g-14-14435-6492.webp",
-        "bytes": 670610,
-        "sha256": "4bf4f949c4b8dd07faa42cfbdeaa6b2fc9c4e614a6a61381ad4bae674a5a85b6",
+        "bytes": 895996,
+        "sha256": "6409105e3e1535829dbcd62140b8e302c621ad95e231b6edd655c20633d6c95f",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1714,28 +1816,14 @@
           "RdCL": 1776,
           "RailCL": 3,
           "BldA": 48,
-          "TpgphArea": 0
-        }
-      },
-      "g-14-14439-6492": {
-        "file": "near-g-14-14439-6492.webp",
-        "bytes": 119122,
-        "sha256": "3e76a1b5bb2e15840b8aaf78608d01882e013bd633f787f03fabc0005d5c9b80",
-        "width": 2048,
-        "height": 2048,
-        "counts": {
-          "WA": 10,
-          "RvrCL": 41,
-          "RdCL": 50,
-          "RailCL": 0,
-          "BldA": 2,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 762
         }
       },
       "g-14-14438-6492": {
         "file": "near-g-14-14438-6492.webp",
-        "bytes": 184538,
-        "sha256": "3139bb6056615365d3297c22a54da69e973f2d743084c4886e0f2a13df5c6698",
+        "bytes": 228446,
+        "sha256": "e632af03abfd8abc32bd325277593fecb649806605f83b20c4a58addb6831cfa",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1744,13 +1832,14 @@
           "RdCL": 170,
           "RailCL": 0,
           "BldA": 1,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 26
         }
       },
       "g-14-14440-6492": {
         "file": "near-g-14-14440-6492.webp",
-        "bytes": 95750,
-        "sha256": "1213e9b57108a4e6b6c800cbe6607a2b2bb7af90e7175ff7ed19dcbac4cb2125",
+        "bytes": 112160,
+        "sha256": "86e6234f3d830c809a49570c2c151d3ab534b07e4a8326eaddfc06dc9b4d1655",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1759,28 +1848,30 @@
           "RdCL": 30,
           "RailCL": 0,
           "BldA": 1,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 6
         }
       },
-      "g-14-14442-6492": {
-        "file": "near-g-14-14442-6492.webp",
-        "bytes": 83550,
-        "sha256": "8f1baedeb30ca4178194e604a242cab62c59cc0303252dcd2677ff26fde2eca2",
+      "g-14-14439-6492": {
+        "file": "near-g-14-14439-6492.webp",
+        "bytes": 148858,
+        "sha256": "5ae34f1d906cbecf532285a01b4c38ab3ef6af29b347a107de45aea027103403",
         "width": 2048,
         "height": 2048,
         "counts": {
-          "WA": 6,
-          "RvrCL": 54,
-          "RdCL": 25,
+          "WA": 10,
+          "RvrCL": 41,
+          "RdCL": 50,
           "RailCL": 0,
-          "BldA": 0,
-          "TpgphArea": 0
+          "BldA": 2,
+          "TpgphArea": 0,
+          "crossings": 0
         }
       },
       "g-14-14441-6492": {
         "file": "near-g-14-14441-6492.webp",
-        "bytes": 152860,
-        "sha256": "90d056a9aa5ecf2f0a7d92551d105b05a4cd448c3d481273e34bd3e374075be3",
+        "bytes": 190164,
+        "sha256": "760f4f99350321a7b25c6bada70355d536cbcedf572266a197ddf91e722f131f",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1789,13 +1880,30 @@
           "RdCL": 94,
           "RailCL": 0,
           "BldA": 1,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 3
+        }
+      },
+      "g-14-14442-6492": {
+        "file": "near-g-14-14442-6492.webp",
+        "bytes": 98594,
+        "sha256": "4173120f591f7b93837b17a3add8ea51510cbebdca9ad52286dac0df0bef5175",
+        "width": 2048,
+        "height": 2048,
+        "counts": {
+          "WA": 6,
+          "RvrCL": 54,
+          "RdCL": 25,
+          "RailCL": 0,
+          "BldA": 0,
+          "TpgphArea": 0,
+          "crossings": 0
         }
       },
       "g-14-14443-6492": {
         "file": "near-g-14-14443-6492.webp",
-        "bytes": 117884,
-        "sha256": "d1114d8d7d6da74ba701694f97e61a43e207f59a7b22b87eb9217daba3c01e38",
+        "bytes": 139806,
+        "sha256": "49ea0f6a65f265aa3942e7f5a0f5d8c6744904b3d2a16f665c26d8339bed5916",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1804,13 +1912,14 @@
           "RdCL": 30,
           "RailCL": 0,
           "BldA": 0,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 3
         }
       },
       "g-14-14444-6492": {
         "file": "near-g-14-14444-6492.webp",
-        "bytes": 178348,
-        "sha256": "c42bec04b13d18daf97aa44e0acb51771ae2fa98301d5e887a377af8c1c6234f",
+        "bytes": 220248,
+        "sha256": "c87eefd9d41773f58ff72a8a44b23c2d70854d0a6dd620f2038fa2eff47b18f4",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1819,28 +1928,14 @@
           "RdCL": 54,
           "RailCL": 0,
           "BldA": 0,
-          "TpgphArea": 0
-        }
-      },
-      "g-14-14431-6493": {
-        "file": "near-g-14-14431-6493.webp",
-        "bytes": 638482,
-        "sha256": "81b4df17ff3a614c963eb355a0ab13fcd4addca169d67c9da3e1f060faa57c7f",
-        "width": 2048,
-        "height": 2048,
-        "counts": {
-          "WA": 67,
-          "RvrCL": 209,
-          "RdCL": 961,
-          "RailCL": 32,
-          "BldA": 24,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 9
         }
       },
       "g-14-14432-6493": {
         "file": "near-g-14-14432-6493.webp",
-        "bytes": 499606,
-        "sha256": "7391d861a50c2c9989f5660412de91eac97ece03d997ba207a788f4a3882ee13",
+        "bytes": 615178,
+        "sha256": "997bd586df513a00e8e7407d8b2962890b96adb4f98555d3e79c2ec7b66f41f2",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1849,13 +1944,30 @@
           "RdCL": 678,
           "RailCL": 0,
           "BldA": 35,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 135
+        }
+      },
+      "g-14-14431-6493": {
+        "file": "near-g-14-14431-6493.webp",
+        "bytes": 792440,
+        "sha256": "dfabd0d0774ae6196971a93e3dd4727e64b2aaf13adc3a492b927818d7b0a3d8",
+        "width": 2048,
+        "height": 2048,
+        "counts": {
+          "WA": 67,
+          "RvrCL": 209,
+          "RdCL": 961,
+          "RailCL": 32,
+          "BldA": 24,
+          "TpgphArea": 0,
+          "crossings": 255
         }
       },
       "g-14-14433-6493": {
         "file": "near-g-14-14433-6493.webp",
-        "bytes": 666870,
-        "sha256": "55a5f7a43101abb1ac18abb777c605de358b9dea006a5f4df8bcb4e4396eeab1",
+        "bytes": 846842,
+        "sha256": "bac6a0a4d4e64b6310094ecdf745df29d3297d31853c1c63794019711119d1a2",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1864,13 +1976,14 @@
           "RdCL": 1649,
           "RailCL": 14,
           "BldA": 24,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 678
         }
       },
       "g-14-14435-6493": {
         "file": "near-g-14-14435-6493.webp",
-        "bytes": 612678,
-        "sha256": "f13870553c00bd3ba2bf17134a72b36551120026eb14589a157f24e6648a25c8",
+        "bytes": 801154,
+        "sha256": "ba5ac3e1192381b0179235c44368ce8a333deb916ef4573ea30f690cd23b25d7",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1879,28 +1992,14 @@
           "RdCL": 1615,
           "RailCL": 17,
           "BldA": 44,
-          "TpgphArea": 0
-        }
-      },
-      "g-14-14434-6493": {
-        "file": "near-g-14-14434-6493.webp",
-        "bytes": 706844,
-        "sha256": "38516637e98873a3587c76196c42f1c56015cca0cf858c3746529f45beb9eb37",
-        "width": 2048,
-        "height": 2048,
-        "counts": {
-          "WA": 23,
-          "RvrCL": 16,
-          "RdCL": 1999,
-          "RailCL": 19,
-          "BldA": 40,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 692
         }
       },
       "g-14-14436-6493": {
         "file": "near-g-14-14436-6493.webp",
-        "bytes": 505324,
-        "sha256": "c37ce4c21a95cfc621c19c4f10ccddfc86118321d3f487f226d608c53645c618",
+        "bytes": 630536,
+        "sha256": "2f0557614a7c7baa92b882c936116309722898ad345380433cbb3f48ea104105",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1909,13 +2008,30 @@
           "RdCL": 942,
           "RailCL": 4,
           "BldA": 44,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 326
+        }
+      },
+      "g-14-14434-6493": {
+        "file": "near-g-14-14434-6493.webp",
+        "bytes": 953850,
+        "sha256": "5fd8ab689ef89f749f3027f38d355065b242ff49f5073497b6b341f8d0315cfe",
+        "width": 2048,
+        "height": 2048,
+        "counts": {
+          "WA": 23,
+          "RvrCL": 16,
+          "RdCL": 1999,
+          "RailCL": 19,
+          "BldA": 40,
+          "TpgphArea": 0,
+          "crossings": 1397
         }
       },
       "g-14-14437-6493": {
         "file": "near-g-14-14437-6493.webp",
-        "bytes": 269934,
-        "sha256": "35fad3033703ce7e58f9c1bf4e5cd8d89691b8c395703e16bacabe2ae36bc392",
+        "bytes": 335530,
+        "sha256": "8b1419618b071ef8bc3ee9a88690e7e86b7d910cbed23178fdb901816a243098",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1924,13 +2040,14 @@
           "RdCL": 292,
           "RailCL": 0,
           "BldA": 13,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 76
         }
       },
       "g-14-14438-6493": {
         "file": "near-g-14-14438-6493.webp",
-        "bytes": 220004,
-        "sha256": "be5b88a03d8c98679e5eebcdf9eb086a84e95944f1a268965d5b28a38e86d8ec",
+        "bytes": 275540,
+        "sha256": "4ae10bab0d68ba30e7825bda9d096be9d4e95a55d5db3cccf1b220bf965d42ca",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1939,13 +2056,14 @@
           "RdCL": 195,
           "RailCL": 0,
           "BldA": 1,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 36
         }
       },
       "g-14-14439-6493": {
         "file": "near-g-14-14439-6493.webp",
-        "bytes": 230950,
-        "sha256": "1289cde546982afe9a824f1def334abe86ebfd45ecd8ae0c7dbecfb0093c462e",
+        "bytes": 285134,
+        "sha256": "13121c96fc8a2c98014c981eafa442efda059a0f18857c5ca60872b19257aac8",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1954,13 +2072,14 @@
           "RdCL": 169,
           "RailCL": 0,
           "BldA": 5,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 43
         }
       },
       "g-14-14440-6493": {
         "file": "near-g-14-14440-6493.webp",
-        "bytes": 156204,
-        "sha256": "e84b3d78ae80ecf9a47820dad07463d321aa311cebb2945e5758d20580d0a549",
+        "bytes": 190956,
+        "sha256": "620ee8df74f1c86fa1a30b1df03193fe71f0e2e0841551a1c214c9f19b040c78",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1969,13 +2088,14 @@
           "RdCL": 101,
           "RailCL": 0,
           "BldA": 1,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 18
         }
       },
       "g-14-14441-6493": {
         "file": "near-g-14-14441-6493.webp",
-        "bytes": 126602,
-        "sha256": "e862dbf7f485ea40c77556d5d141d0e466e0439187d1da8e891727c6253bd1de",
+        "bytes": 155372,
+        "sha256": "d02c73321bc75a3adba2c516be6e559e738399aabaf6f20bbbe84f5f8590d6f7",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1984,13 +2104,14 @@
           "RdCL": 126,
           "RailCL": 0,
           "BldA": 1,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 29
         }
       },
       "g-14-14442-6493": {
         "file": "near-g-14-14442-6493.webp",
-        "bytes": 159670,
-        "sha256": "c9bf74bac70e1ebc505f1c007aa01861a86eb8469534dc9fef62d5ff6140b4d8",
+        "bytes": 200004,
+        "sha256": "23bb9b49935ab892004cd15a0788b5e55f9de5d9820020cf45f1aa4a01c1ebf2",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -1999,28 +2120,14 @@
           "RdCL": 68,
           "RailCL": 0,
           "BldA": 0,
-          "TpgphArea": 0
-        }
-      },
-      "g-14-14444-6493": {
-        "file": "near-g-14-14444-6493.webp",
-        "bytes": 48246,
-        "sha256": "275adcd8ff364a195c966805eda9a30891c04fe5019bc3180ceaf515d02ebc4e",
-        "width": 2048,
-        "height": 2048,
-        "counts": {
-          "WA": 4,
-          "RvrCL": 47,
-          "RdCL": 10,
-          "RailCL": 0,
-          "BldA": 0,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 12
         }
       },
       "g-14-14443-6493": {
         "file": "near-g-14-14443-6493.webp",
-        "bytes": 170526,
-        "sha256": "97a0ab96135bce5e17c010c0780c94a23951ee0bac86b5e12e9ff9ee67965c9e",
+        "bytes": 209942,
+        "sha256": "2b3defe284a647436a76da6d5b91d2d6df1a4b5886a39016824cbf2c8f011886",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2029,13 +2136,30 @@
           "RdCL": 111,
           "RailCL": 0,
           "BldA": 0,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 18
+        }
+      },
+      "g-14-14444-6493": {
+        "file": "near-g-14-14444-6493.webp",
+        "bytes": 57788,
+        "sha256": "e0614764abbcb477ac60c5b7cf2a322dd736bbf077f0f23f2b19d2b42deac7c6",
+        "width": 2048,
+        "height": 2048,
+        "counts": {
+          "WA": 4,
+          "RvrCL": 47,
+          "RdCL": 10,
+          "RailCL": 0,
+          "BldA": 0,
+          "TpgphArea": 0,
+          "crossings": 0
         }
       },
       "g-14-14431-6494": {
         "file": "near-g-14-14431-6494.webp",
-        "bytes": 593654,
-        "sha256": "ab1326beb628e369533c403db0294d85957ed747fbd7b76964e82911ef805957",
+        "bytes": 761868,
+        "sha256": "3aaa1a71a68c2db9f3aea4d034bd2e6164eea58cb12a2eb485d55b6d499bb96e",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2044,13 +2168,14 @@
           "RdCL": 1031,
           "RailCL": 16,
           "BldA": 25,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 375
         }
       },
       "g-14-14432-6494": {
         "file": "near-g-14-14432-6494.webp",
-        "bytes": 593200,
-        "sha256": "baaaf2fbef9e8751657dbe47d9450a486fa1027b4f9a7f62a6f86a1cc03db414",
+        "bytes": 737610,
+        "sha256": "e20eb5ae2c3e3bcf5e1274825d8e523fa81275931e9e103be047324ca109f602",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2059,13 +2184,14 @@
           "RdCL": 845,
           "RailCL": 18,
           "BldA": 62,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 449
         }
       },
       "g-14-14433-6494": {
         "file": "near-g-14-14433-6494.webp",
-        "bytes": 588812,
-        "sha256": "31911d2fde2f9f2af94e96b49e1726324495e3e22e087478a1def6b909cb6c4d",
+        "bytes": 753068,
+        "sha256": "610c27d732745ef377fabdd713e9b754cc8ffcffd6ef64123a7305bf7311501f",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2074,13 +2200,14 @@
           "RdCL": 1271,
           "RailCL": 0,
           "BldA": 25,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 585
         }
       },
       "g-14-14435-6494": {
         "file": "near-g-14-14435-6494.webp",
-        "bytes": 395570,
-        "sha256": "8b0e95aa24449b0518902f60f37a57e7acf71dc7f9837140d04bf13f108191a6",
+        "bytes": 513264,
+        "sha256": "6a363b99b88f5e50000a794034c6adebacb129c86d0a523e1e3383fbab2a2446",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2089,13 +2216,14 @@
           "RdCL": 820,
           "RailCL": 0,
           "BldA": 21,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 475
         }
       },
       "g-14-14436-6494": {
         "file": "near-g-14-14436-6494.webp",
-        "bytes": 475478,
-        "sha256": "ae1db4bcd8b000661e184c67c83828b2d4ecab1e7d416455e8130240c5f3c0a0",
+        "bytes": 601682,
+        "sha256": "596d829af14d27314839e112f774421e3c55ddbbafc45bbc617c1b7bb5ccb0f5",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2104,13 +2232,14 @@
           "RdCL": 931,
           "RailCL": 12,
           "BldA": 17,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 288
         }
       },
       "g-14-14434-6494": {
         "file": "near-g-14-14434-6494.webp",
-        "bytes": 654434,
-        "sha256": "cbdf2aa7c3f3a5463b03655bac3fe7e06c2e81350a7fb87ff1f2c12d1fd63d0f",
+        "bytes": 862638,
+        "sha256": "06d755161b4a4b23e92667a95b47a63484911829b7963c14a9c35f88b3e18c8f",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2119,13 +2248,14 @@
           "RdCL": 1870,
           "RailCL": 7,
           "BldA": 23,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 937
         }
       },
       "g-14-14438-6494": {
         "file": "near-g-14-14438-6494.webp",
-        "bytes": 155658,
-        "sha256": "375918e6abf9b11ee1f910f03bc04cac79e779816b786749940b0f4180a0a7f2",
+        "bytes": 186522,
+        "sha256": "0f0ee4c5ae87dec2c3cac2c0f84e4c5204bf2dcea2baf07155211449e8ff959b",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2134,13 +2264,14 @@
           "RdCL": 126,
           "RailCL": 0,
           "BldA": 18,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 61
         }
       },
       "g-14-14437-6494": {
         "file": "near-g-14-14437-6494.webp",
-        "bytes": 376418,
-        "sha256": "d9d6fe503a6e5795f1b313475075c15aff144a7cfd17aa200b4d9a79981a5921",
+        "bytes": 457594,
+        "sha256": "96b55dc0e44d8e5344b5ff7407fe863e17cd402e2f604830a4ca035acc9bc9d6",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2149,13 +2280,14 @@
           "RdCL": 464,
           "RailCL": 16,
           "BldA": 22,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 131
         }
       },
       "g-14-14441-6494": {
         "file": "near-g-14-14441-6494.webp",
-        "bytes": 123168,
-        "sha256": "5b4e0f84efae7e4e1e8947ad28706ed4f1c41618a5d58e4b5d84bb842fae94b1",
+        "bytes": 150038,
+        "sha256": "fe6d01f863accd7d8c02beed44a91b9293257f263d94d3d4743c886a14448d5b",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2164,13 +2296,14 @@
           "RdCL": 72,
           "RailCL": 0,
           "BldA": 0,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 12
         }
       },
       "g-14-14439-6494": {
         "file": "near-g-14-14439-6494.webp",
-        "bytes": 392788,
-        "sha256": "b94fb77ed7473d3c63ec796e8d9370cdaec83b306ac482380fa6676c155e06db",
+        "bytes": 483080,
+        "sha256": "6873f26335959d8545d1e5b596c4e042b1a9f61d783329c4ad8822c644185556",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2179,13 +2312,14 @@
           "RdCL": 470,
           "RailCL": 0,
           "BldA": 29,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 171
         }
       },
       "g-14-14440-6494": {
         "file": "near-g-14-14440-6494.webp",
-        "bytes": 383686,
-        "sha256": "345a691fd0a449ae6483803475a6361152993fd6739bceabfe74b19e2e97bc88",
+        "bytes": 470610,
+        "sha256": "a5f90fe424f0a87edbd342058ae71b832648a0e1bd3ddcfb7838e73022b45019",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2194,13 +2328,14 @@
           "RdCL": 458,
           "RailCL": 0,
           "BldA": 12,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 116
         }
       },
       "g-14-14442-6494": {
         "file": "near-g-14-14442-6494.webp",
-        "bytes": 110858,
-        "sha256": "f7254c2ccde083dc6b8cb905d255c5bd0a656729463204d97844a723cc6768b4",
+        "bytes": 137580,
+        "sha256": "7d595d5408da9d42c7a24f987c36e5e249e1949d5b835d91ce63a8b83e0043e8",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2209,13 +2344,14 @@
           "RdCL": 39,
           "RailCL": 0,
           "BldA": 0,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 3
         }
       },
       "g-14-14443-6494": {
         "file": "near-g-14-14443-6494.webp",
-        "bytes": 143080,
-        "sha256": "f2d90ec0bcc70908147fad0ba37a476654a8a214dc776a29569886b4fb2dee76",
+        "bytes": 176900,
+        "sha256": "b22dd5b844bacc25b36280e7f9edad07cc84ced35297f13f75502fed4f32610a",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2224,13 +2360,14 @@
           "RdCL": 78,
           "RailCL": 0,
           "BldA": 1,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 15
         }
       },
       "g-14-14444-6494": {
         "file": "near-g-14-14444-6494.webp",
-        "bytes": 88208,
-        "sha256": "b9ef3f8644d1d32f082b73e6f658cf33fbdd71afabd3dd7ee99d9296732ba17d",
+        "bytes": 112650,
+        "sha256": "481c617ae3ea362559629b4f9ad13815d8f7961983694359c4106a56e0d765c0",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2239,13 +2376,14 @@
           "RdCL": 38,
           "RailCL": 0,
           "BldA": 0,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 0
         }
       },
       "g-14-14431-6495": {
         "file": "near-g-14-14431-6495.webp",
-        "bytes": 565220,
-        "sha256": "90ebbf2021d7bfb7fba92eedd4de9e89f0a4a6240654a1922b0aa00d83dcadf3",
+        "bytes": 707976,
+        "sha256": "c861772ec35e68dad2a77a67f3d2705297452c2fd5e1d4d6782331e94586b5fa",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2254,13 +2392,14 @@
           "RdCL": 700,
           "RailCL": 0,
           "BldA": 40,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 170
         }
       },
       "g-14-14432-6495": {
         "file": "near-g-14-14432-6495.webp",
-        "bytes": 606598,
-        "sha256": "c7444700e9b1c0e4018436d03b2c9d762696540415ddead5a94e745a4bdd0ac2",
+        "bytes": 755338,
+        "sha256": "4b1d4df9768cd6ea7c3f5067b9277854d61bd0bd713f07e63aac87fadc6fe74d",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2269,13 +2408,14 @@
           "RdCL": 952,
           "RailCL": 13,
           "BldA": 26,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 364
         }
       },
       "g-14-14433-6495": {
         "file": "near-g-14-14433-6495.webp",
-        "bytes": 573350,
-        "sha256": "60f4222d64e29549a553d61204307cb72e03a236d23dda963741ed3475cff6ac",
+        "bytes": 720896,
+        "sha256": "d3aea8c794667b572e1bfb5afc3fb25c385fe9eb9eb6dd6a8be079048993f829",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2284,28 +2424,14 @@
           "RdCL": 1001,
           "RailCL": 9,
           "BldA": 13,
-          "TpgphArea": 0
-        }
-      },
-      "g-14-14435-6495": {
-        "file": "near-g-14-14435-6495.webp",
-        "bytes": 364722,
-        "sha256": "cba9ec8dfe5d7213e29c41220a19c88577414d4a53f58b9ba3c49e870f98cee9",
-        "width": 2048,
-        "height": 2048,
-        "counts": {
-          "WA": 58,
-          "RvrCL": 194,
-          "RdCL": 371,
-          "RailCL": 0,
-          "BldA": 15,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 281
         }
       },
       "g-14-14436-6495": {
         "file": "near-g-14-14436-6495.webp",
-        "bytes": 244988,
-        "sha256": "05e6a9daf990cd8f653a95c26a0642b3132336dad72332aaf57c82f5f51800c8",
+        "bytes": 297462,
+        "sha256": "aabccbd0900f100c9bb3a589300ccd1fba9ff2bd5266afe92923a362c51c6b1f",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2314,13 +2440,30 @@
           "RdCL": 253,
           "RailCL": 0,
           "BldA": 13,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 61
+        }
+      },
+      "g-14-14435-6495": {
+        "file": "near-g-14-14435-6495.webp",
+        "bytes": 444760,
+        "sha256": "a724f5e720ef2fc3ebfb237c450e8f909d9677fd2a30ff80061f999c3dccb3e2",
+        "width": 2048,
+        "height": 2048,
+        "counts": {
+          "WA": 58,
+          "RvrCL": 194,
+          "RdCL": 371,
+          "RailCL": 0,
+          "BldA": 15,
+          "TpgphArea": 0,
+          "crossings": 118
         }
       },
       "g-14-14434-6495": {
         "file": "near-g-14-14434-6495.webp",
-        "bytes": 601432,
-        "sha256": "489a168d8bf1cf4b02c1da727f228e19ac8a9d1a5e54e92b6a346258ba5e93af",
+        "bytes": 750582,
+        "sha256": "2fdcf8282506fc6c11d261f5f64d18be5ef004b26db35cdb4a3b85af9301f77e",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2329,13 +2472,14 @@
           "RdCL": 914,
           "RailCL": 9,
           "BldA": 15,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 362
         }
       },
       "g-14-14437-6495": {
         "file": "near-g-14-14437-6495.webp",
-        "bytes": 300046,
-        "sha256": "f4fc3383116759be710bde9d9d933fff57b511c18513bbe137ba69daf7350ddf",
+        "bytes": 357714,
+        "sha256": "d006031c50a2b92b097ab227592f67319408ff868269a10ad75165d51cb6a319",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2344,13 +2488,14 @@
           "RdCL": 332,
           "RailCL": 3,
           "BldA": 13,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 65
         }
       },
       "g-14-14439-6495": {
         "file": "near-g-14-14439-6495.webp",
-        "bytes": 271600,
-        "sha256": "3ea11d2a89870878544fd53c181c91666bed2e7dc51d3c9783147f924e89756f",
+        "bytes": 330574,
+        "sha256": "38219788e4e2676e5d1893d790ae162678b3cf1dfb850df7a2eaddd1f93cd525",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2359,28 +2504,14 @@
           "RdCL": 328,
           "RailCL": 4,
           "BldA": 6,
-          "TpgphArea": 0
-        }
-      },
-      "g-14-14438-6495": {
-        "file": "near-g-14-14438-6495.webp",
-        "bytes": 477948,
-        "sha256": "c4597c317784abf81ebb4e45c0e8492e51a20a88becb3a1c0177fe09bad95656",
-        "width": 2048,
-        "height": 2048,
-        "counts": {
-          "WA": 34,
-          "RvrCL": 156,
-          "RdCL": 918,
-          "RailCL": 22,
-          "BldA": 18,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 80
         }
       },
       "g-14-14440-6495": {
         "file": "near-g-14-14440-6495.webp",
-        "bytes": 111784,
-        "sha256": "cfad2ee140be88789e1d8d6e85b0bfb934b1a6a9ada7fbdd818058f4c528f277",
+        "bytes": 137014,
+        "sha256": "997bd2137e9829eb5bf418e2df0a7e8269a88c9547ed2c9bbb0f7c29ab4b14af",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2389,13 +2520,30 @@
           "RdCL": 28,
           "RailCL": 0,
           "BldA": 2,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 0
+        }
+      },
+      "g-14-14438-6495": {
+        "file": "near-g-14-14438-6495.webp",
+        "bytes": 593002,
+        "sha256": "da4b402d0dac6bd9bed09165c56114014d30b74737056c02531321471e46de18",
+        "width": 2048,
+        "height": 2048,
+        "counts": {
+          "WA": 34,
+          "RvrCL": 156,
+          "RdCL": 918,
+          "RailCL": 22,
+          "BldA": 18,
+          "TpgphArea": 0,
+          "crossings": 385
         }
       },
       "g-14-14441-6495": {
         "file": "near-g-14-14441-6495.webp",
-        "bytes": 109336,
-        "sha256": "54c2a1379474b35459f118dc7bd147dbf661a14ee84e267768743a0e54e2870b",
+        "bytes": 135464,
+        "sha256": "2a0828ef7be178d6783a53bf6769d1ed13b118336e06be55b5daa75bfeff6d26",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2404,13 +2552,14 @@
           "RdCL": 87,
           "RailCL": 0,
           "BldA": 1,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 6
         }
       },
       "g-14-14442-6495": {
         "file": "near-g-14-14442-6495.webp",
-        "bytes": 154150,
-        "sha256": "d9a6a1949d59e2342ccda574144c5b913e26816cddc572bf711837f7676ae6f2",
+        "bytes": 189550,
+        "sha256": "4083ed3407a9a11c541a6947de02b05d57c823a0f8e1e20c4a62e38e969ba456",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2419,13 +2568,14 @@
           "RdCL": 139,
           "RailCL": 0,
           "BldA": 1,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 4
         }
       },
       "g-14-14443-6495": {
         "file": "near-g-14-14443-6495.webp",
-        "bytes": 205206,
-        "sha256": "bd9efc7bbf1e691d6dfae6fd408978afbc838f8b0c3a1b91f00f92c4fc8b0f14",
+        "bytes": 242642,
+        "sha256": "b7ed489582e4ac51da0b7476ec978ebf5d4bdbaa32b581e8037a09e051be92a7",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2434,13 +2584,14 @@
           "RdCL": 116,
           "RailCL": 0,
           "BldA": 2,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 21
         }
       },
       "g-14-14444-6495": {
         "file": "near-g-14-14444-6495.webp",
-        "bytes": 133348,
-        "sha256": "4d5821b26c05534e0512ebf122451eb7bee6d4656b4acc27a8f87a9833c4960b",
+        "bytes": 155936,
+        "sha256": "e186bb05a682d1a52b9df3816e6092e913550a5a1fbb14bc22dad63ee770ce21",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2449,13 +2600,14 @@
           "RdCL": 67,
           "RailCL": 0,
           "BldA": 0,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 0
         }
       },
       "g-14-14433-6496": {
         "file": "near-g-14-14433-6496.webp",
-        "bytes": 388328,
-        "sha256": "5167a700bc283475a5ba69fbed7e626832fd2ba47e8b35737f069714a688de00",
+        "bytes": 462462,
+        "sha256": "a213fabfda9d35fb339671d0ef41040010ee36b3eb95061c26b0b34b7da332a0",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2464,28 +2616,14 @@
           "RdCL": 376,
           "RailCL": 28,
           "BldA": 26,
-          "TpgphArea": 0
-        }
-      },
-      "g-14-14432-6496": {
-        "file": "near-g-14-14432-6496.webp",
-        "bytes": 510558,
-        "sha256": "f13205774f979ba3734bb32b02eb2f15225450cd1bfe2d55eec53e9eefc223d3",
-        "width": 2048,
-        "height": 2048,
-        "counts": {
-          "WA": 57,
-          "RvrCL": 196,
-          "RdCL": 855,
-          "RailCL": 0,
-          "BldA": 25,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 167
         }
       },
       "g-14-14431-6496": {
         "file": "near-g-14-14431-6496.webp",
-        "bytes": 588580,
-        "sha256": "4d6dc1abee20687d90140f341ccc6f4bfd2a1b3527761f78d8fc98f3e088e4a0",
+        "bytes": 732076,
+        "sha256": "ecfacb0032a7cabae0bd6f7f93578b2b810fa5ed52c19426b270ee5d631f0e22",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2494,13 +2632,30 @@
           "RdCL": 856,
           "RailCL": 0,
           "BldA": 18,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 299
+        }
+      },
+      "g-14-14432-6496": {
+        "file": "near-g-14-14432-6496.webp",
+        "bytes": 642870,
+        "sha256": "cfc8ad1cd755bd8cdc0bc7f946c6964d6fbf1265e5ea967f25bb2c2dbad399ff",
+        "width": 2048,
+        "height": 2048,
+        "counts": {
+          "WA": 57,
+          "RvrCL": 196,
+          "RdCL": 855,
+          "RailCL": 0,
+          "BldA": 25,
+          "TpgphArea": 0,
+          "crossings": 312
         }
       },
       "g-14-14436-6496": {
         "file": "near-g-14-14436-6496.webp",
-        "bytes": 167974,
-        "sha256": "f7149ec3009d70553ef09ea1e75e556d27044fc1845333b5f488b6db690cec04",
+        "bytes": 210794,
+        "sha256": "6f698ac4906721af93fbddcdd5830dc8b1113b0b206ab31a24ee263a19abcdcd",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2509,13 +2664,14 @@
           "RdCL": 53,
           "RailCL": 0,
           "BldA": 0,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 0
         }
       },
       "g-14-14435-6496": {
         "file": "near-g-14-14435-6496.webp",
-        "bytes": 329188,
-        "sha256": "a7a30184927b4bb81da1cfca68f328e3e01c46eef30355b040f4f04ec847f299",
+        "bytes": 410476,
+        "sha256": "fb5a9fac6960c7e04337aaac61a2ff7e17827eb8cf6a143ef7887620b433bff7",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2524,28 +2680,14 @@
           "RdCL": 435,
           "RailCL": 0,
           "BldA": 7,
-          "TpgphArea": 0
-        }
-      },
-      "g-14-14437-6496": {
-        "file": "near-g-14-14437-6496.webp",
-        "bytes": 144096,
-        "sha256": "0975c3791366e2523166e8b8225e0269e5e14a0fd9a8b7e8ecfdeefd79b4ccb2",
-        "width": 2048,
-        "height": 2048,
-        "counts": {
-          "WA": 18,
-          "RvrCL": 81,
-          "RdCL": 60,
-          "RailCL": 0,
-          "BldA": 0,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 232
         }
       },
       "g-14-14434-6496": {
         "file": "near-g-14-14434-6496.webp",
-        "bytes": 599852,
-        "sha256": "2e034fafae641fbf59c6262a4911e856a4564057c910bdf30bfceb270b9bf612",
+        "bytes": 762158,
+        "sha256": "eb4c9ba86888500ca8ceb432efbec1012ffd9f94c6d4bad325f893e82d9d03a5",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2554,13 +2696,30 @@
           "RdCL": 1130,
           "RailCL": 14,
           "BldA": 33,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 442
+        }
+      },
+      "g-14-14437-6496": {
+        "file": "near-g-14-14437-6496.webp",
+        "bytes": 172384,
+        "sha256": "a728932a70532a75bb8109fe483db1f461c44a1e2d1532cf5b261898d0de7283",
+        "width": 2048,
+        "height": 2048,
+        "counts": {
+          "WA": 18,
+          "RvrCL": 81,
+          "RdCL": 60,
+          "RailCL": 0,
+          "BldA": 0,
+          "TpgphArea": 0,
+          "crossings": 27
         }
       },
       "g-14-14438-6496": {
         "file": "near-g-14-14438-6496.webp",
-        "bytes": 158826,
-        "sha256": "21215b60b1fcfc151d2999b9fffeba052503ce41a323ed88d7a8d88547cbc9aa",
+        "bytes": 194718,
+        "sha256": "5fef2ae4d75fda4a3b510ac553017098f39682c7e9691aeba5a13a8e1a4c2c57",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2569,13 +2728,14 @@
           "RdCL": 164,
           "RailCL": 0,
           "BldA": 5,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 68
         }
       },
       "g-14-14439-6496": {
         "file": "near-g-14-14439-6496.webp",
-        "bytes": 315278,
-        "sha256": "9a188a971d43507a30c470ea4b4d3abcca2e947a185d22975087347d545b2ffa",
+        "bytes": 376242,
+        "sha256": "1a0331acf9318c0fc92c648659ce33d02d9a7e712917be03e3fcdb12f1255465",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2584,13 +2744,14 @@
           "RdCL": 330,
           "RailCL": 6,
           "BldA": 10,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 34
         }
       },
       "g-14-14440-6496": {
         "file": "near-g-14-14440-6496.webp",
-        "bytes": 265478,
-        "sha256": "11a5e02ee24a20e9c10497073ef9c99f5ef4dab173fd837f7709b33c60ecc617",
+        "bytes": 333602,
+        "sha256": "858f084a28d546f801028e863e57b8f0e074ab21912fa5f36e16760a27dbc1dd",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2599,13 +2760,14 @@
           "RdCL": 451,
           "RailCL": 8,
           "BldA": 4,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 107
         }
       },
       "g-14-14441-6496": {
         "file": "near-g-14-14441-6496.webp",
-        "bytes": 348684,
-        "sha256": "3e009c6a93bf1f1c31664b86c312b1e12c3654fa3e3fc74e3ab8713d5d79b82a",
+        "bytes": 440222,
+        "sha256": "b554170d39922ac69442d861530356b4c53ad07aca853630734575df71f3dd9f",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2614,13 +2776,14 @@
           "RdCL": 566,
           "RailCL": 0,
           "BldA": 5,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 191
         }
       },
       "g-14-14443-6496": {
         "file": "near-g-14-14443-6496.webp",
-        "bytes": 129252,
-        "sha256": "36a8a4d4ebce9fc7bc335343a1786a4e531005cda03a8e3391fde9a1ffe6de24",
+        "bytes": 159086,
+        "sha256": "b557a5217a3d275b2cdb498e629a481e65268b759ffa0360b71efaab8fffb2ab",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2629,13 +2792,14 @@
           "RdCL": 59,
           "RailCL": 0,
           "BldA": 0,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 0
         }
       },
       "g-14-14442-6496": {
         "file": "near-g-14-14442-6496.webp",
-        "bytes": 220080,
-        "sha256": "77cf2e905b556f31e58454922272f8ad58211e409298ba250d2bd55b947b4b56",
+        "bytes": 273428,
+        "sha256": "9ef3a781d01be9a0f8dbff2456d46ec6cf77df2912933c89391e87c626fbfb20",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2644,13 +2808,14 @@
           "RdCL": 216,
           "RailCL": 0,
           "BldA": 4,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 60
         }
       },
       "g-14-14444-6496": {
         "file": "near-g-14-14444-6496.webp",
-        "bytes": 129088,
-        "sha256": "c9fae352dcf20e3e9865ac750b37e2dd688f8037b4422780735bda61ab196026",
+        "bytes": 160470,
+        "sha256": "070bb33edda144db47a246344f3e5ed85a83f19c76805cd2b17b35318400663c",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2659,13 +2824,14 @@
           "RdCL": 106,
           "RailCL": 0,
           "BldA": 0,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 13
         }
       },
       "g-14-14432-6497": {
         "file": "near-g-14-14432-6497.webp",
-        "bytes": 268780,
-        "sha256": "25078fee315ad97ea6af8acdfe61ea4ffacbf1d1d65aa49c5757a9c1da2175b1",
+        "bytes": 330904,
+        "sha256": "9428c405697adc8d02450bd365b2d74dd845f678cefe980789105fc33745efbb",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2674,13 +2840,14 @@
           "RdCL": 250,
           "RailCL": 0,
           "BldA": 4,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 41
         }
       },
       "g-14-14431-6497": {
         "file": "near-g-14-14431-6497.webp",
-        "bytes": 474480,
-        "sha256": "a4d84ff94823069fbcbeb76db8393b1039450ec4c790fa055f1b2c407255b527",
+        "bytes": 585942,
+        "sha256": "5284b2732bf11edc882f2d87d4dbf82a7912bb8d0a1c7d13e4bdd7209636574f",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2689,13 +2856,14 @@
           "RdCL": 556,
           "RailCL": 0,
           "BldA": 30,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 117
         }
       },
       "g-14-14433-6497": {
         "file": "near-g-14-14433-6497.webp",
-        "bytes": 229202,
-        "sha256": "a62bbc93a446d5c079a6ab210ce488de97b308dc6f64b36da69ecccc504653f1",
+        "bytes": 279016,
+        "sha256": "47d7f01b61bea8f0d69c84ca33dae7cf09d13f112a3c66594d4af7b2cad4f3d8",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2704,28 +2872,14 @@
           "RdCL": 207,
           "RailCL": 1,
           "BldA": 6,
-          "TpgphArea": 0
-        }
-      },
-      "g-14-14436-6497": {
-        "file": "near-g-14-14436-6497.webp",
-        "bytes": 166010,
-        "sha256": "9971257da2525970eb43f98a4c26787fa85621dff068a08e44fc727995d80e07",
-        "width": 2048,
-        "height": 2048,
-        "counts": {
-          "WA": 7,
-          "RvrCL": 53,
-          "RdCL": 98,
-          "RailCL": 0,
-          "BldA": 1,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 50
         }
       },
       "g-14-14435-6497": {
         "file": "near-g-14-14435-6497.webp",
-        "bytes": 254214,
-        "sha256": "332d780a212ebed6bc2a57c08e80a72546a97d6eaa5b9ce18b693f22c8db8b2e",
+        "bytes": 314048,
+        "sha256": "d008f6f132908fc9dca4dff8dba41532ab380b782ce108fe904c96149bfb2e62",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2734,13 +2888,30 @@
           "RdCL": 301,
           "RailCL": 5,
           "BldA": 2,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 93
+        }
+      },
+      "g-14-14436-6497": {
+        "file": "near-g-14-14436-6497.webp",
+        "bytes": 197642,
+        "sha256": "19af9dd1b7a0ee81aa069f10fe0245fa527f804ae0fc8833e230f2e0ae4958cb",
+        "width": 2048,
+        "height": 2048,
+        "counts": {
+          "WA": 7,
+          "RvrCL": 53,
+          "RdCL": 98,
+          "RailCL": 0,
+          "BldA": 1,
+          "TpgphArea": 0,
+          "crossings": 16
         }
       },
       "g-14-14434-6497": {
         "file": "near-g-14-14434-6497.webp",
-        "bytes": 630368,
-        "sha256": "a09ce029ad3ccec7f0de4f84e5c41eee62cd5c66a1f2c96c2756ce26647660e0",
+        "bytes": 778454,
+        "sha256": "24252aa45ef5260fe8f6a7f0b6e4e367769e766a5ff3d1a1f5a894a79cf17696",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2749,28 +2920,14 @@
           "RdCL": 1034,
           "RailCL": 51,
           "BldA": 51,
-          "TpgphArea": 0
-        }
-      },
-      "g-14-14437-6497": {
-        "file": "near-g-14-14437-6497.webp",
-        "bytes": 197660,
-        "sha256": "4ac3904429af19bc3f5efb71735636aa8c5c5efa4525fbd10e576dc6e72e06a4",
-        "width": 2048,
-        "height": 2048,
-        "counts": {
-          "WA": 27,
-          "RvrCL": 58,
-          "RdCL": 156,
-          "RailCL": 0,
-          "BldA": 18,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 392
         }
       },
       "g-14-14438-6497": {
         "file": "near-g-14-14438-6497.webp",
-        "bytes": 134256,
-        "sha256": "53638f15798445fe33d5c74372a6e09d050af3229bbc6a865b8c7b84b7728e16",
+        "bytes": 158280,
+        "sha256": "997b26bc90e88704bfece152df12873185e7189fe1b2be9d0155ab365522f0cb",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2779,13 +2936,30 @@
           "RdCL": 82,
           "RailCL": 0,
           "BldA": 3,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 9
+        }
+      },
+      "g-14-14437-6497": {
+        "file": "near-g-14-14437-6497.webp",
+        "bytes": 244378,
+        "sha256": "1f288ee9dc85fee70c7325559c3d411876b6685d9d22def95edb570020d6220c",
+        "width": 2048,
+        "height": 2048,
+        "counts": {
+          "WA": 27,
+          "RvrCL": 58,
+          "RdCL": 156,
+          "RailCL": 0,
+          "BldA": 18,
+          "TpgphArea": 0,
+          "crossings": 17
         }
       },
       "g-14-14439-6497": {
         "file": "near-g-14-14439-6497.webp",
-        "bytes": 111702,
-        "sha256": "3b570dfdb4ef7c661140981a98520287ebdd72f85b61e90f4e06d282dafae17c",
+        "bytes": 138490,
+        "sha256": "00088fd8d3cea144a4c79217bf09bcef302019442e644021eb238174229cceb6",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2794,13 +2968,14 @@
           "RdCL": 43,
           "RailCL": 0,
           "BldA": 0,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 3
         }
       },
       "g-14-14440-6497": {
         "file": "near-g-14-14440-6497.webp",
-        "bytes": 342094,
-        "sha256": "3d8012acd809185239611809e8b39fb4a1766e1076fbad364f22e4d87992bcc2",
+        "bytes": 423840,
+        "sha256": "6543b3867c151c0786b0dbd854a0c155277951c7157ce8b278795a7929c000d1",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2809,13 +2984,14 @@
           "RdCL": 585,
           "RailCL": 7,
           "BldA": 6,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 90
         }
       },
       "g-14-14442-6497": {
         "file": "near-g-14-14442-6497.webp",
-        "bytes": 339498,
-        "sha256": "c47c797a2654c255d87698e2a0c4dcc2eac96f5c863ed58b650060eced0cc205",
+        "bytes": 419464,
+        "sha256": "66fc4f925a53fffa5cdde3a822184678b91e19fa8c380331e6c4ed1fbbe5a055",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2824,13 +3000,14 @@
           "RdCL": 505,
           "RailCL": 0,
           "BldA": 9,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 86
         }
       },
       "g-14-14441-6497": {
         "file": "near-g-14-14441-6497.webp",
-        "bytes": 566038,
-        "sha256": "b72fc59677ec0c838a8aee519c17c69a9e400712d4f3cb38a63d5d170ff3f2e5",
+        "bytes": 704168,
+        "sha256": "061ae66652f5b070c5a089f6b13ca8703487c49dcaa4b7f92d9bcfb9dc77e722",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2839,13 +3016,14 @@
           "RdCL": 975,
           "RailCL": 9,
           "BldA": 30,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 420
         }
       },
       "g-14-14443-6497": {
         "file": "near-g-14-14443-6497.webp",
-        "bytes": 264406,
-        "sha256": "28b72ce70588ad433d69567e43ae8d043b163d2a197d5a98cba5761a8a805852",
+        "bytes": 327248,
+        "sha256": "d9149f9453aa3ba5a3d19db2461e8b098be4bd229c76b631189787d30ffb549b",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2854,13 +3032,14 @@
           "RdCL": 415,
           "RailCL": 0,
           "BldA": 9,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 104
         }
       },
       "g-14-14444-6497": {
         "file": "near-g-14-14444-6497.webp",
-        "bytes": 480508,
-        "sha256": "172f61f9b3a7048fd2e797ae583699e808546d64b41e0c7abb4fe46d0c20173c",
+        "bytes": 610252,
+        "sha256": "bf68239862ad7263eab3a64c12a9b5dc859b675a642a27475c5d38e87f3840c1",
         "width": 2048,
         "height": 2048,
         "counts": {
@@ -2869,7 +3048,8 @@
           "RdCL": 939,
           "RailCL": 0,
           "BldA": 39,
-          "TpgphArea": 0
+          "TpgphArea": 0,
+          "crossings": 281
         }
       }
     }
@@ -2877,8 +3057,8 @@
   "region": {
     "g-14-14431-6487": {
       "file": "g-14-14431-6487.webp",
-      "bytes": 115932,
-      "sha256": "0778df0356518dcbd16386b6558c32f144c4f0e775f3221b5d2ff417fa307825",
+      "bytes": 128798,
+      "sha256": "9e90850f27e8133a8827b40e9f41f3fd48693ab8f27560aba365be8540c5285e",
       "width": 512,
       "height": 512,
       "counts": {
@@ -2887,13 +3067,14 @@
         "RdCL": 971,
         "RailCL": 3,
         "BldA": 60,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 376
       }
     },
     "g-14-14431-6488": {
       "file": "g-14-14431-6488.webp",
-      "bytes": 111028,
-      "sha256": "4110047469795849a16b8db004be1642753b147daed788554f152a38f90d9366",
+      "bytes": 123804,
+      "sha256": "9557a23f1af7e2608093ec5d85d8e228d3d2fc17ffbd3082cf27aade01340fb9",
       "width": 512,
       "height": 512,
       "counts": {
@@ -2902,13 +3083,14 @@
         "RdCL": 1029,
         "RailCL": 8,
         "BldA": 40,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 362
       }
     },
     "g-14-14431-6489": {
       "file": "g-14-14431-6489.webp",
-      "bytes": 122728,
-      "sha256": "ce417243a9708796b3ec0996eef586908c22d941b6a7eb7b28f97773b59098fb",
+      "bytes": 139000,
+      "sha256": "abe5783a7c019d0508decff0a9f622ca4420905d9cef7a718a50493021bc70d2",
       "width": 512,
       "height": 512,
       "counts": {
@@ -2917,13 +3099,14 @@
         "RdCL": 1081,
         "RailCL": 0,
         "BldA": 58,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 296
       }
     },
     "g-14-14431-6490": {
       "file": "g-14-14431-6490.webp",
-      "bytes": 124690,
-      "sha256": "98f520a54dea52c6356f374d431ba4c26bc07e7875b64affa6c7735535e25ef2",
+      "bytes": 141056,
+      "sha256": "34636b91f1468db07456997739bcf46f76b4a3f8ca01e9e7c93da80f7dfe8b54",
       "width": 512,
       "height": 512,
       "counts": {
@@ -2932,13 +3115,14 @@
         "RdCL": 1219,
         "RailCL": 12,
         "BldA": 63,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 608
       }
     },
     "g-14-14431-6491": {
       "file": "g-14-14431-6491.webp",
-      "bytes": 100502,
-      "sha256": "65c89fa8bab2e8ba0a135a40b2cb01a58ca7e2bc31ef7da3fd0e2a90444e5115",
+      "bytes": 113654,
+      "sha256": "03941bf6a2f5cffb25057c9b7dc4faee82469578e1f4e72fedbc12b22ed99451",
       "width": 512,
       "height": 512,
       "counts": {
@@ -2947,13 +3131,14 @@
         "RdCL": 1120,
         "RailCL": 15,
         "BldA": 31,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 506
       }
     },
     "g-14-14431-6492": {
       "file": "g-14-14431-6492.webp",
-      "bytes": 131646,
-      "sha256": "8e7e5d19e25ff8ff48c1097a84f178ced4b1086582894a6180d47dd9b0ef6bab",
+      "bytes": 150360,
+      "sha256": "b8a25f55e2bfd472c9d9c90066ea8af8c03627698e97b94206554e71d12fef4c",
       "width": 512,
       "height": 512,
       "counts": {
@@ -2962,13 +3147,14 @@
         "RdCL": 1564,
         "RailCL": 21,
         "BldA": 23,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 672
       }
     },
     "g-14-14431-6493": {
       "file": "g-14-14431-6493.webp",
-      "bytes": 117058,
-      "sha256": "8c2d7f1ec7220b941d5e2a654d34640710def0c4f09ce521f038c1c177699175",
+      "bytes": 130344,
+      "sha256": "6f8eaf9bc71a0af8a7b0acd781c3ff5869ad991dc633a71d8556dcbccbb7a3b1",
       "width": 512,
       "height": 512,
       "counts": {
@@ -2977,13 +3163,14 @@
         "RdCL": 961,
         "RailCL": 32,
         "BldA": 24,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 255
       }
     },
     "g-14-14431-6494": {
       "file": "g-14-14431-6494.webp",
-      "bytes": 114882,
-      "sha256": "f710c1d8daa559e5c3b78f6d83b6626dec849aac68d451a6db5d4375cdd05905",
+      "bytes": 129692,
+      "sha256": "ead3029863660224834a5c691f5a732dcc4b8dffa3e6420f1dda624bc079b056",
       "width": 512,
       "height": 512,
       "counts": {
@@ -2992,13 +3179,14 @@
         "RdCL": 1031,
         "RailCL": 16,
         "BldA": 25,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 375
       }
     },
     "g-14-14431-6495": {
       "file": "g-14-14431-6495.webp",
-      "bytes": 109332,
-      "sha256": "2467d6cd0d472cc94326ae5ea7bb525515ec80729bc0dc7f172b13101b12f40c",
+      "bytes": 121498,
+      "sha256": "054d5713ee22af723368439dcd40b6eb62093af1a27385829b4f24b636253fc8",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3007,13 +3195,14 @@
         "RdCL": 700,
         "RailCL": 0,
         "BldA": 40,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 170
       }
     },
     "g-14-14431-6496": {
       "file": "g-14-14431-6496.webp",
-      "bytes": 113108,
-      "sha256": "2e320029173d9d63fb8dfd79fa3b3d62014cf2d17892148b639aadd6f9011ece",
+      "bytes": 126066,
+      "sha256": "8c92df673f9886cd271098e4814b48935c2cf2980e0b114cd1edb137c27f3921",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3022,13 +3211,14 @@
         "RdCL": 856,
         "RailCL": 0,
         "BldA": 18,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 299
       }
     },
     "g-14-14431-6497": {
       "file": "g-14-14431-6497.webp",
-      "bytes": 91722,
-      "sha256": "0881a355fad46e68f3f0cfaaee42338b133dcfb0a81c9cdd9f56ce864ce5da2f",
+      "bytes": 100730,
+      "sha256": "10087e099d4f548f557a00c6973df7f1498e4949f21a41f67dc02e53ceed8dbd",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3037,13 +3227,14 @@
         "RdCL": 556,
         "RailCL": 0,
         "BldA": 30,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 117
       }
     },
     "g-14-14432-6487": {
       "file": "g-14-14432-6487.webp",
-      "bytes": 100582,
-      "sha256": "d221a5b544207e026e84dfdc27ebfd3ac673f7197735366f0c408c3bd16dfd54",
+      "bytes": 110218,
+      "sha256": "cea72d8471ff4c5bf14aafccd1ec3cd3e779048ee129fc68e32862b7f7575556",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3052,13 +3243,14 @@
         "RdCL": 815,
         "RailCL": 5,
         "BldA": 27,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 319
       }
     },
     "g-14-14432-6488": {
       "file": "g-14-14432-6488.webp",
-      "bytes": 92036,
-      "sha256": "d50881dd65b5c6bfeef779b670e60552acc4d5568e0c993cd3496c501fca3ab5",
+      "bytes": 100432,
+      "sha256": "22b55012101e7809013aba70d51a0eaec33f4d7f825175c1fc3cfe4cb269fc94",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3067,13 +3259,14 @@
         "RdCL": 509,
         "RailCL": 0,
         "BldA": 43,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 152
       }
     },
     "g-14-14432-6489": {
       "file": "g-14-14432-6489.webp",
-      "bytes": 102978,
-      "sha256": "2894c62d14f785b5dceefa5bdb6de3ab260d2cc2ae86f32fe8f89c4aceb149c6",
+      "bytes": 114136,
+      "sha256": "541efcebcd7a3c1c29df87848137e1e521d0a71aee9426358c4e7f55abd2a71b",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3082,13 +3275,14 @@
         "RdCL": 818,
         "RailCL": 10,
         "BldA": 56,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 231
       }
     },
     "g-14-14432-6490": {
       "file": "g-14-14432-6490.webp",
-      "bytes": 114840,
-      "sha256": "fa64cb1a4ac6d022178922a2d3351bb4db601113126bcb320adef3bc9ae0d97b",
+      "bytes": 130990,
+      "sha256": "589fa2bc702de457b71d9ba50ad01e9b9915f0082d36fe04f389124209a4fb45",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3097,13 +3291,14 @@
         "RdCL": 1099,
         "RailCL": 2,
         "BldA": 57,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 484
       }
     },
     "g-14-14432-6491": {
       "file": "g-14-14432-6491.webp",
-      "bytes": 121698,
-      "sha256": "900cdf1dd92ef92092bbab3a026f579377149307f36c2cd9eee65811af400520",
+      "bytes": 137626,
+      "sha256": "05fbba40f64f5a3825d7e93a8d1c910301563d62898149921074dfa18443edc3",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3112,13 +3307,14 @@
         "RdCL": 1327,
         "RailCL": 16,
         "BldA": 32,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 354
       }
     },
     "g-14-14432-6492": {
       "file": "g-14-14432-6492.webp",
-      "bytes": 116632,
-      "sha256": "ea031dc38ed71b1465fca1c0fd10828eea766365fb29e8e505e6731413c552c5",
+      "bytes": 129224,
+      "sha256": "13918c920d6da9fe4133871cf85bb1f5237b515dca71832a3a2ef48cee6f931d",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3127,13 +3323,14 @@
         "RdCL": 982,
         "RailCL": 23,
         "BldA": 16,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 347
       }
     },
     "g-14-14432-6493": {
       "file": "g-14-14432-6493.webp",
-      "bytes": 95722,
-      "sha256": "5a67ac925b7e264926235b4b6201e45bd2726cf499a86a1318483866ac859f04",
+      "bytes": 105338,
+      "sha256": "2855d13642afeaab13a8344539ba4d65138930684e563a8949de2647cbef00fe",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3142,13 +3339,14 @@
         "RdCL": 678,
         "RailCL": 0,
         "BldA": 35,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 135
       }
     },
     "g-14-14432-6494": {
       "file": "g-14-14432-6494.webp",
-      "bytes": 114586,
-      "sha256": "effb696f5064a1d954ed3e25ca1230beb58ac4bcd60742b7bc402ff65a552040",
+      "bytes": 128618,
+      "sha256": "1b98321e2ed5960eccb4095787c7b953dac523a3cebfdc4d37ad39b2530a0c7c",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3157,13 +3355,14 @@
         "RdCL": 845,
         "RailCL": 18,
         "BldA": 62,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 449
       }
     },
     "g-14-14432-6495": {
       "file": "g-14-14432-6495.webp",
-      "bytes": 115428,
-      "sha256": "da43b8bfc17c82f5d6c84c3293a3c3bb825dd695c731b06b1409f37eee585bca",
+      "bytes": 128060,
+      "sha256": "872294f3a9be631a92daa327986bf71bd4866e54c6220eb9bbc5e81d872414bd",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3172,13 +3371,14 @@
         "RdCL": 952,
         "RailCL": 13,
         "BldA": 26,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 364
       }
     },
     "g-14-14432-6496": {
       "file": "g-14-14432-6496.webp",
-      "bytes": 99866,
-      "sha256": "b6651878519719b37ec09d6be5a3d7d41fcf9d0200578a7920c5bfbcc26bdcb6",
+      "bytes": 112138,
+      "sha256": "3c148bf5684fef43689387576ae72d3dd47a3e63f351fdd317830ebd2938b608",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3187,13 +3387,14 @@
         "RdCL": 855,
         "RailCL": 0,
         "BldA": 25,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 312
       }
     },
     "g-14-14432-6497": {
       "file": "g-14-14432-6497.webp",
-      "bytes": 50742,
-      "sha256": "a3527a376942f31f50160cebb497d5037efc89e1ebcbe621a7dbb5b08adf3015",
+      "bytes": 55026,
+      "sha256": "07ceb6d203745544b7b9f329ce9d079bc3f0815f1738319e46c45aefb540279b",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3202,13 +3403,14 @@
         "RdCL": 250,
         "RailCL": 0,
         "BldA": 4,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 41
       }
     },
     "g-14-14433-6487": {
       "file": "g-14-14433-6487.webp",
-      "bytes": 122556,
-      "sha256": "229ffea6718436aea042aca4386b30d03ced49158872c1116347541f1cdd1c61",
+      "bytes": 138056,
+      "sha256": "6a040152ba0d2761fae482836f16a37e94570bd4a1ed5975e842e3f6d62d017e",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3217,13 +3419,14 @@
         "RdCL": 1231,
         "RailCL": 21,
         "BldA": 35,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 501
       }
     },
     "g-14-14433-6488": {
       "file": "g-14-14433-6488.webp",
-      "bytes": 116478,
-      "sha256": "9aaefdda1a8f6b71e5d6288339aedfd31a84f7c862fa9ae93fe87db98bfa8839",
+      "bytes": 129672,
+      "sha256": "1b359d503afbbc73d6bfab5cadb917ce8c80a19c4fcb3efdf6f39e27449e11c4",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3232,13 +3435,14 @@
         "RdCL": 947,
         "RailCL": 17,
         "BldA": 34,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 307
       }
     },
     "g-14-14433-6489": {
       "file": "g-14-14433-6489.webp",
-      "bytes": 114242,
-      "sha256": "03b9d6910227d62b5a820200f485b8d594df952b4e831771454ee95d4d8ddb88",
+      "bytes": 128758,
+      "sha256": "6924a3695c9798bea0c256b1c4f192a1e1a63a8fc4b80aec0bce9f3cd63ca4ff",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3247,13 +3451,14 @@
         "RdCL": 1055,
         "RailCL": 26,
         "BldA": 25,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 275
       }
     },
     "g-14-14433-6490": {
       "file": "g-14-14433-6490.webp",
-      "bytes": 122378,
-      "sha256": "12f70b1c94333a5e15378e38c0b1387c2a5f184c5a999bea5de9d0ce6af889a6",
+      "bytes": 137752,
+      "sha256": "a508f90eb3e72ab588ca2daae23ad75ec5be9a1a8ffe76d791cf6281c348efb3",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3262,13 +3467,14 @@
         "RdCL": 1176,
         "RailCL": 7,
         "BldA": 56,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 605
       }
     },
     "g-14-14433-6491": {
       "file": "g-14-14433-6491.webp",
-      "bytes": 128726,
-      "sha256": "2f83100265d803c9d38988cb4da398c016f0bdc2504a77ca743d86041b310dae",
+      "bytes": 146342,
+      "sha256": "9aa4cfb08403d2a01c696fb4d75700a7c153f902d066eaa3d8c1c6fa7dc6c9ce",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3277,13 +3483,14 @@
         "RdCL": 1582,
         "RailCL": 16,
         "BldA": 31,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 666
       }
     },
     "g-14-14433-6492": {
       "file": "g-14-14433-6492.webp",
-      "bytes": 116166,
-      "sha256": "694746c243a448717789fe2b6b01d9b9bee208792f87217fd3040bcbc477183b",
+      "bytes": 128146,
+      "sha256": "82dd8f2a532f762b221afea3aa8f849ea77d9c57fad434391b8488ab7b9546f2",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3292,13 +3499,14 @@
         "RdCL": 1003,
         "RailCL": 29,
         "BldA": 35,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 445
       }
     },
     "g-14-14433-6493": {
       "file": "g-14-14433-6493.webp",
-      "bytes": 129574,
-      "sha256": "12f1a9b5d01df2bcc4cf98e50b0b493bcf4a7e23b95772c4751a03f91126db1a",
+      "bytes": 147306,
+      "sha256": "3f7ffb9a436d285fe0d092829deb5d3a2723198bb2df064c8ea2a4916d486775",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3307,13 +3515,14 @@
         "RdCL": 1649,
         "RailCL": 14,
         "BldA": 24,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 678
       }
     },
     "g-14-14433-6494": {
       "file": "g-14-14433-6494.webp",
-      "bytes": 115608,
-      "sha256": "2592cad8dcc20e1c02920644ab5d426b8a9a2d3b6357a343e3d35512b09a547c",
+      "bytes": 130546,
+      "sha256": "8e88701bc6338eabc244eb0d22ffa732319063e4dbbf1dc6e10f825d2ec964a2",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3322,13 +3531,14 @@
         "RdCL": 1271,
         "RailCL": 0,
         "BldA": 25,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 585
       }
     },
     "g-14-14433-6495": {
       "file": "g-14-14433-6495.webp",
-      "bytes": 108724,
-      "sha256": "2f5f54c97e42eab5774e4e72ba871ed2c1d04ed061bca90c781167eb9aaaf562",
+      "bytes": 120952,
+      "sha256": "9f24bd862ff435dafb790696a5d2c8b9bedcd041d717955fb8d4911b2f469c5b",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3337,13 +3547,14 @@
         "RdCL": 1001,
         "RailCL": 9,
         "BldA": 13,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 281
       }
     },
     "g-14-14433-6496": {
       "file": "g-14-14433-6496.webp",
-      "bytes": 74296,
-      "sha256": "a7bc7035af68f301139ccfc4b165bc41ba5a5d7d8240d676b3eee661a1d3da59",
+      "bytes": 80550,
+      "sha256": "70479dfa79e11509adef7b4d8d8a4b609de35053477067e8ca78b72891c864dd",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3352,13 +3563,14 @@
         "RdCL": 376,
         "RailCL": 28,
         "BldA": 26,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 167
       }
     },
     "g-14-14433-6497": {
       "file": "g-14-14433-6497.webp",
-      "bytes": 43432,
-      "sha256": "6430034459a8f10e0fe35c5a3ac706e18dac72bfd06df6c6b61a78cbf4779cf1",
+      "bytes": 46444,
+      "sha256": "d4f677de06ecfad097fa97a5e347bf32f2a964bd0f5b3146cb78ea4df906e50a",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3367,13 +3579,14 @@
         "RdCL": 207,
         "RailCL": 1,
         "BldA": 6,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 50
       }
     },
     "g-14-14434-6487": {
       "file": "g-14-14434-6487.webp",
-      "bytes": 126454,
-      "sha256": "f898a0347283492051294da551e40348318c6449270771423c2cb63325bae42c",
+      "bytes": 141586,
+      "sha256": "8dffc8102e6847d9d794714eae2526388e42ec33442c1c8b6659015c0ad20194",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3382,13 +3595,14 @@
         "RdCL": 1244,
         "RailCL": 0,
         "BldA": 29,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 499
       }
     },
     "g-14-14434-6488": {
       "file": "g-14-14434-6488.webp",
-      "bytes": 109804,
-      "sha256": "6afed9cb9a45e2d10e153e0ae913ff9dcb64f504fc17e7c0933929581f200c2b",
+      "bytes": 120932,
+      "sha256": "0bdd29e2e7e9e6475faf2b88c3acaad9097d8b14cf47db16f08eeecf3a791fb0",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3397,13 +3611,14 @@
         "RdCL": 961,
         "RailCL": 0,
         "BldA": 18,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 275
       }
     },
     "g-14-14434-6489": {
       "file": "g-14-14434-6489.webp",
-      "bytes": 112026,
-      "sha256": "d9e7bd6b351be39633435782e6760de49b720f60b7888ba158d360fea2db8c99",
+      "bytes": 125404,
+      "sha256": "a8cc7bf272d9d63b10cc8971cc1541db651d5cd9dac4b313279a18daf6d7948d",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3412,13 +3627,14 @@
         "RdCL": 1080,
         "RailCL": 0,
         "BldA": 22,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 496
       }
     },
     "g-14-14434-6490": {
       "file": "g-14-14434-6490.webp",
-      "bytes": 133482,
-      "sha256": "859592848892df4ed64cc0920790c42f75082abd0d27860e6c4528c4dbcc7a9c",
+      "bytes": 157376,
+      "sha256": "f2563211ede861c78347b035b65267951bf8e2d5a148506e3c08545fb27399d5",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3427,13 +3643,14 @@
         "RdCL": 1883,
         "RailCL": 6,
         "BldA": 57,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 1361
       }
     },
     "g-14-14434-6491": {
       "file": "g-14-14434-6491.webp",
-      "bytes": 137064,
-      "sha256": "37d76889443e1a07845450e691eaf443fd93675e5e568907f40bc8c49159eb0a",
+      "bytes": 160724,
+      "sha256": "3e65c729f1bf9283ff527b10e16c99f012a88239117b494c09fe62a882d43096",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3442,13 +3659,14 @@
         "RdCL": 2111,
         "RailCL": 9,
         "BldA": 47,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 1289
       }
     },
     "g-14-14434-6492": {
       "file": "g-14-14434-6492.webp",
-      "bytes": 134486,
-      "sha256": "dabd7c39c57ef5f74e4a31cabcfd361384e92f221e6e894bca52f1f529aaa0e8",
+      "bytes": 156852,
+      "sha256": "3b66da8aeeb862019d1a098087001f07a2db75a7052725beca7dc437f76b267d",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3457,13 +3675,14 @@
         "RdCL": 1953,
         "RailCL": 21,
         "BldA": 40,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 1279
       }
     },
     "g-14-14434-6493": {
       "file": "g-14-14434-6493.webp",
-      "bytes": 142024,
-      "sha256": "2c14a0583d3f6c9d4f52bb79322b5748bf1f0da80825e3e9b7984bf40c960a51",
+      "bytes": 165870,
+      "sha256": "5bc6b9f2fd047168296fca735281c881bd3f4f323037e6acff320be804c1ff8b",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3472,13 +3691,14 @@
         "RdCL": 1999,
         "RailCL": 19,
         "BldA": 40,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 1397
       }
     },
     "g-14-14434-6494": {
       "file": "g-14-14434-6494.webp",
-      "bytes": 129010,
-      "sha256": "7663c5fb1237f6ba3a255af3be187efc8747a65a25b5d5763d1d7301747a4fcd",
+      "bytes": 148648,
+      "sha256": "0be9c542901908e492cfcae577fff8538bd34535fa79e36c6dc4d402202329e8",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3487,13 +3707,14 @@
         "RdCL": 1870,
         "RailCL": 7,
         "BldA": 23,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 937
       }
     },
     "g-14-14434-6495": {
       "file": "g-14-14434-6495.webp",
-      "bytes": 113304,
-      "sha256": "d4eca77ee618339702a5cae4a8a4fabbc4a37f9980718501f60bce13f73c2e02",
+      "bytes": 125148,
+      "sha256": "b46101dbd1c009b2c69c6f4958972f3a7a6170c0646488270e936b690cbaaac5",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3502,13 +3723,14 @@
         "RdCL": 914,
         "RailCL": 9,
         "BldA": 15,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 362
       }
     },
     "g-14-14434-6496": {
       "file": "g-14-14434-6496.webp",
-      "bytes": 116122,
-      "sha256": "e20241291ea0e381687d53fd438d52eda53cfcc956134e0fa254351365e8cd9a",
+      "bytes": 128994,
+      "sha256": "2edd250f4499b29b3996bf2db77527affad88d7240ee0b5ed757d46a07929fc5",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3517,13 +3739,14 @@
         "RdCL": 1130,
         "RailCL": 14,
         "BldA": 33,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 442
       }
     },
     "g-14-14434-6497": {
       "file": "g-14-14434-6497.webp",
-      "bytes": 119398,
-      "sha256": "d22b94b6ec8d90dfedbf115706de4b28158c8433cf577da52e00fe254c1c333d",
+      "bytes": 131892,
+      "sha256": "8ca1cd747019cbece1da5dd374bf4f0dcbb25ad38c3ffacb9f540815177fdd20",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3532,13 +3755,14 @@
         "RdCL": 1034,
         "RailCL": 51,
         "BldA": 51,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 392
       }
     },
     "g-14-14435-6487": {
       "file": "g-14-14435-6487.webp",
-      "bytes": 74578,
-      "sha256": "638347a579567d9aec013ec798cbae80588cf88908f3f6adc1c1d4de4c04073d",
+      "bytes": 80968,
+      "sha256": "7c0d6a61e8617d96886a40f8238e8ffd714dc21daa71a95f3a27457318e38fcb",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3547,13 +3771,14 @@
         "RdCL": 520,
         "RailCL": 0,
         "BldA": 6,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 202
       }
     },
     "g-14-14435-6488": {
       "file": "g-14-14435-6488.webp",
-      "bytes": 61590,
-      "sha256": "0badf9e218222960d50b1fbfc75d1cca1892bfa1d0d5065f99ab3130c9d3854e",
+      "bytes": 69102,
+      "sha256": "c879db92acdcebcf3553f1e01a992734ae162f37cf0a08e22fd4b3d6cbc37f09",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3562,13 +3787,14 @@
         "RdCL": 624,
         "RailCL": 0,
         "BldA": 16,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 385
       }
     },
     "g-14-14435-6489": {
       "file": "g-14-14435-6489.webp",
-      "bytes": 52342,
-      "sha256": "250bee07a0109b6e534be19185bdbb80ac371c6beb89fd4429ddf66f1ac1c7f1",
+      "bytes": 56596,
+      "sha256": "270ded4552c283c34786f3bd7bc0a18bb6e0a91c02b02376c0fe9763dd4a596a",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3577,13 +3803,14 @@
         "RdCL": 344,
         "RailCL": 0,
         "BldA": 21,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 189
       }
     },
     "g-14-14435-6490": {
       "file": "g-14-14435-6490.webp",
-      "bytes": 108072,
-      "sha256": "cae01a40b004baa36752a1f683e41eadcfa0d0865a9f6757b368711c8956da49",
+      "bytes": 122496,
+      "sha256": "b895b4a94140ed022c0ed4d56b309090706301cf458328b31e746ba0e1b94b1d",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3592,13 +3819,14 @@
         "RdCL": 1383,
         "RailCL": 0,
         "BldA": 17,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 560
       }
     },
     "g-14-14435-6491": {
       "file": "g-14-14435-6491.webp",
-      "bytes": 113572,
-      "sha256": "83f189cbd3c38c2fe99273575bbf8bd66e80aadcfa76c9a0f34a9d75a7658dc5",
+      "bytes": 129912,
+      "sha256": "228b04be8d12cdba79269104967dd36fd15bf2730d26743a6acd6efae10c0a54",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3607,13 +3835,14 @@
         "RdCL": 1591,
         "RailCL": 0,
         "BldA": 19,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 675
       }
     },
     "g-14-14435-6492": {
       "file": "g-14-14435-6492.webp",
-      "bytes": 133820,
-      "sha256": "628b5097a5aa757f764c7bd7908a21cdf429577e8923f217c480864187670218",
+      "bytes": 154886,
+      "sha256": "a874e8e1481e6900d6aa0a8d2c3ffc2170c735aa7ab46b13c97d712211f5b212",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3622,13 +3851,14 @@
         "RdCL": 1776,
         "RailCL": 3,
         "BldA": 48,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 762
       }
     },
     "g-14-14435-6493": {
       "file": "g-14-14435-6493.webp",
-      "bytes": 121400,
-      "sha256": "653f63acd4d3917199ade86d99b2325752b5a1d8ddfb704f81dad8162b026fdf",
+      "bytes": 139190,
+      "sha256": "e772095d4bc24f0fb787d32a789957690fe731f22e30152d65ad74662f0783c0",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3637,13 +3867,14 @@
         "RdCL": 1615,
         "RailCL": 17,
         "BldA": 44,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 692
       }
     },
     "g-14-14435-6494": {
       "file": "g-14-14435-6494.webp",
-      "bytes": 79442,
-      "sha256": "cf4d73b2dfe0068206b64fb204274cf9ee18b74091a021b3d15f653d204725dd",
+      "bytes": 89392,
+      "sha256": "e28c8fa77ad3224fca9e3d824b40cca9fb7ea0faa18dbdd3cb5c676223b26501",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3652,13 +3883,14 @@
         "RdCL": 820,
         "RailCL": 0,
         "BldA": 21,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 475
       }
     },
     "g-14-14435-6495": {
       "file": "g-14-14435-6495.webp",
-      "bytes": 70930,
-      "sha256": "f4caadbfbdeaf6bc963fba2d7599cdcbb0a3510957114fa4119a8bfdaeeefc40",
+      "bytes": 76458,
+      "sha256": "bd63d2657c23c4106e6c042990d8f1eb96513fafd161064dca82bc9fe023bfbe",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3667,13 +3899,14 @@
         "RdCL": 371,
         "RailCL": 0,
         "BldA": 15,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 118
       }
     },
     "g-14-14435-6496": {
       "file": "g-14-14435-6496.webp",
-      "bytes": 64240,
-      "sha256": "4fe29ca4b5047fd1e46ad5d5cb3552b4326191ee51a8b823ea6ecdd7505ac398",
+      "bytes": 69708,
+      "sha256": "4e0c0d61221e45aedb12103b8d7ced9a46f0f76a4ef07dc0aea935794d0a27ba",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3682,13 +3915,14 @@
         "RdCL": 435,
         "RailCL": 0,
         "BldA": 7,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 232
       }
     },
     "g-14-14435-6497": {
       "file": "g-14-14435-6497.webp",
-      "bytes": 49874,
-      "sha256": "467a4270e7630e841f46e9a0fe4c3a3de7e188d91c263a1b29b3d38ce3579803",
+      "bytes": 54186,
+      "sha256": "6ff3d0e50e7306326d0c21adf98ecdf61258ba3a09c3b7af5a2a882e3b0aff64",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3697,13 +3931,14 @@
         "RdCL": 301,
         "RailCL": 5,
         "BldA": 2,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 93
       }
     },
     "g-14-14436-6487": {
       "file": "g-14-14436-6487.webp",
-      "bytes": 55744,
-      "sha256": "92cfa7b6457bd1f60f0c509c6de28aa0bd506d5bc53a5623e2e9cab9bb39f60d",
+      "bytes": 60454,
+      "sha256": "a52a9f542daeb702d2790da8c8a00c58ed946f87d7100044d32a3976ef0617d1",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3712,13 +3947,14 @@
         "RdCL": 313,
         "RailCL": 0,
         "BldA": 9,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 106
       }
     },
     "g-14-14436-6488": {
       "file": "g-14-14436-6488.webp",
-      "bytes": 31640,
-      "sha256": "5ddf42857f4fb90198038c7f55c93f5f46752b3d96ba4466cb4d256e29533eab",
+      "bytes": 34166,
+      "sha256": "d89bf17c5619295253a92e3f8c83c91a1ec02f7c9725595ab7c5f7847193d3d0",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3727,13 +3963,14 @@
         "RdCL": 178,
         "RailCL": 0,
         "BldA": 6,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 39
       }
     },
     "g-14-14436-6489": {
       "file": "g-14-14436-6489.webp",
-      "bytes": 27952,
-      "sha256": "f87de421e20c5f674c1b77b08324145fd36c22957f4a8027705ba9d3dced94bc",
+      "bytes": 29564,
+      "sha256": "64f668705293acb62d2a8f1876fb5f6427873d6fa31dad2b415f7f0f1a0bb629",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3742,13 +3979,14 @@
         "RdCL": 127,
         "RailCL": 0,
         "BldA": 4,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 44
       }
     },
     "g-14-14436-6490": {
       "file": "g-14-14436-6490.webp",
-      "bytes": 41828,
-      "sha256": "7bb7444f1370a6dd8f53f6066d648608ec7f7cc099170c150ac0bcd8d6f7c807",
+      "bytes": 45516,
+      "sha256": "c2f67ea9d62f1fa79c4b6a0d5dc47b989eccfaddbb97345315faaa9f882e17bf",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3757,13 +3995,14 @@
         "RdCL": 334,
         "RailCL": 0,
         "BldA": 4,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 122
       }
     },
     "g-14-14436-6491": {
       "file": "g-14-14436-6491.webp",
-      "bytes": 25978,
-      "sha256": "b5145be21387f25905bca0cb3b56e242fe7bd494c44413b4472c1ec8d0092e22",
+      "bytes": 28174,
+      "sha256": "c026ff27e3bc2ec6c67f61bf30b43eba9fcd32e2665e810ec1ab44019640a69d",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3772,13 +4011,14 @@
         "RdCL": 150,
         "RailCL": 0,
         "BldA": 0,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 13
       }
     },
     "g-14-14436-6492": {
       "file": "g-14-14436-6492.webp",
-      "bytes": 68732,
-      "sha256": "4f8de34a458007e0282b6b9aadfc594afa57397a50e978d17ff98db71aa5e9f7",
+      "bytes": 75516,
+      "sha256": "6d5738da609e35bb4e16d6776f1c866a93c78a986e83f13318382f2ae2a04f38",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3787,13 +4027,14 @@
         "RdCL": 535,
         "RailCL": 0,
         "BldA": 19,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 198
       }
     },
     "g-14-14436-6493": {
       "file": "g-14-14436-6493.webp",
-      "bytes": 100296,
-      "sha256": "efb2985f4ad5ff58bb7fd846d4cb94606d9c340369bab4c7065de06b21f7dde5",
+      "bytes": 110376,
+      "sha256": "4b62fc821993788369e2c689b04092acb37b6d07c527beb95c9b17c6ca4d1d7f",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3802,13 +4043,14 @@
         "RdCL": 942,
         "RailCL": 4,
         "BldA": 44,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 326
       }
     },
     "g-14-14436-6494": {
       "file": "g-14-14436-6494.webp",
-      "bytes": 90098,
-      "sha256": "7085229a817924c0ae7481ac23da83e3c8e0ae67b9dcf2c5ec3b6d62cef5e55d",
+      "bytes": 100044,
+      "sha256": "2b09dcf9e175116779116560d42410923cfd63726491d2afd480f9e5f2bd6f83",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3817,13 +4059,14 @@
         "RdCL": 931,
         "RailCL": 12,
         "BldA": 17,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 288
       }
     },
     "g-14-14436-6495": {
       "file": "g-14-14436-6495.webp",
-      "bytes": 45972,
-      "sha256": "13fe5287c2d80b128b09f177070994ae3b509d3d393f86169643e06febdda7dc",
+      "bytes": 49572,
+      "sha256": "14d0d0d2a11632d058dadd7bb68578b42fe2fba27518ddc2aa4de77d9574d9e6",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3832,13 +4075,14 @@
         "RdCL": 253,
         "RailCL": 0,
         "BldA": 13,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 61
       }
     },
     "g-14-14436-6496": {
       "file": "g-14-14436-6496.webp",
-      "bytes": 31310,
-      "sha256": "cfadd592e785ae585ba2ad517ab4e9ec5ddc556e4bc1b514a56b8122c1cf4111",
+      "bytes": 33606,
+      "sha256": "253380c9db7ca48d91ac48366112b46c12f5459d1a976dd2a8355a6b6a4dfc14",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3847,13 +4091,14 @@
         "RdCL": 53,
         "RailCL": 0,
         "BldA": 0,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 0
       }
     },
     "g-14-14436-6497": {
       "file": "g-14-14436-6497.webp",
-      "bytes": 32514,
-      "sha256": "18a0b699fb3061cd7dc0c291b0380019ea52f4340714d63aae8441de43af6e5d",
+      "bytes": 35296,
+      "sha256": "18a9af7612c6e4048e29cc0e7241106dd505b62a4165a7c591071f972e8b6c07",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3862,13 +4107,14 @@
         "RdCL": 98,
         "RailCL": 0,
         "BldA": 1,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 16
       }
     },
     "g-14-14437-6487": {
       "file": "g-14-14437-6487.webp",
-      "bytes": 40146,
-      "sha256": "8c77c1f515bce3974bd92f799fd99384cf079e72134e1a138d936994a2abc1a4",
+      "bytes": 43808,
+      "sha256": "896b6eb8366cb846f207a806e4ca8e1b9dd79b0c42c88c0891a7bbaeb4a5150f",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3877,13 +4123,14 @@
         "RdCL": 128,
         "RailCL": 0,
         "BldA": 1,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 22
       }
     },
     "g-14-14437-6488": {
       "file": "g-14-14437-6488.webp",
-      "bytes": 33856,
-      "sha256": "b14400958b608ffae8530e312c1c99185f667ec3c55d098a4fc08142fd529405",
+      "bytes": 35934,
+      "sha256": "bd44d08d12c2683695221008b8dbce6fe4df2c3c6f5613878468ed98a9772e04",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3892,13 +4139,14 @@
         "RdCL": 123,
         "RailCL": 0,
         "BldA": 0,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 26
       }
     },
     "g-14-14437-6489": {
       "file": "g-14-14437-6489.webp",
-      "bytes": 39852,
-      "sha256": "71229911605beeb50fb3f6d9195a58fd5c26940cfaec65ad4a59a6b519a38131",
+      "bytes": 43400,
+      "sha256": "eccf96213a62d97958285e016c54c650ad48b0ae9623ea96581ae8b88648127e",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3907,13 +4155,14 @@
         "RdCL": 195,
         "RailCL": 0,
         "BldA": 1,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 52
       }
     },
     "g-14-14437-6490": {
       "file": "g-14-14437-6490.webp",
-      "bytes": 33898,
-      "sha256": "fff8f6e09e99a13444852179e2396f4a80899da71da1279a4ef4dce26bab3930",
+      "bytes": 35984,
+      "sha256": "d26f81d2f5ed0fa15b13cb257089b60a5712f3c08616767c3f63bd656506c186",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3922,13 +4171,14 @@
         "RdCL": 154,
         "RailCL": 0,
         "BldA": 0,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 48
       }
     },
     "g-14-14437-6491": {
       "file": "g-14-14437-6491.webp",
-      "bytes": 45204,
-      "sha256": "884f001c96d5f7eb25f634a231a596bb9223b297eb27b0dc5a641b145a94c0ac",
+      "bytes": 49742,
+      "sha256": "51e7a0659222a6ed8b63c55b84275f91343f300e0312ee37aa0463a5d2e75b45",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3937,13 +4187,14 @@
         "RdCL": 340,
         "RailCL": 0,
         "BldA": 5,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 135
       }
     },
     "g-14-14437-6492": {
       "file": "g-14-14437-6492.webp",
-      "bytes": 20700,
-      "sha256": "ae73a129b64645914dff10df8996f5e19379888773ca3d992a0d32572a9aea17",
+      "bytes": 22300,
+      "sha256": "dc0adbc1496755a727d13303f686a03299089a6802c78dc1e178ebdb21e81653",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3952,13 +4203,14 @@
         "RdCL": 70,
         "RailCL": 0,
         "BldA": 4,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 26
       }
     },
     "g-14-14437-6493": {
       "file": "g-14-14437-6493.webp",
-      "bytes": 53026,
-      "sha256": "df2ef9fce4ee887ccff7d79b6d845104f131faef73672e2c7bed23dd2c9cdc60",
+      "bytes": 57308,
+      "sha256": "d06f903525a10cc1d2af08f53ac8d7bd284d0c18924953c804dabd4b0d5892e0",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3967,13 +4219,14 @@
         "RdCL": 292,
         "RailCL": 0,
         "BldA": 13,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 76
       }
     },
     "g-14-14437-6494": {
       "file": "g-14-14437-6494.webp",
-      "bytes": 70718,
-      "sha256": "9d90514849b6cd9932468e3d0ee2bda08280ce5a777f9098089fbf30de2a8d20",
+      "bytes": 76972,
+      "sha256": "4cf167449c8608b10353e7f1c84c5e5b155950f820b20925f1317077a6945dd9",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3982,13 +4235,14 @@
         "RdCL": 464,
         "RailCL": 16,
         "BldA": 22,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 131
       }
     },
     "g-14-14437-6495": {
       "file": "g-14-14437-6495.webp",
-      "bytes": 54906,
-      "sha256": "12b3d1b3ca2119c9eba4ebf16b4bfbb8abc654b7cfb107cd53405bb91b72d028",
+      "bytes": 59478,
+      "sha256": "c2fa83292994acbcb8ad28e0a98356875a0317d66f132eb30dcd07fc951f84a4",
       "width": 512,
       "height": 512,
       "counts": {
@@ -3997,13 +4251,14 @@
         "RdCL": 332,
         "RailCL": 3,
         "BldA": 13,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 65
       }
     },
     "g-14-14437-6496": {
       "file": "g-14-14437-6496.webp",
-      "bytes": 27208,
-      "sha256": "ad8f0e72eb9ecc5594c25720787228d1955378b0159d2517182d31286e3ec79a",
+      "bytes": 28590,
+      "sha256": "7c7220f464962a1f0625c60bf12983ac65f350f04853c8ab8195291e176b6117",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4012,13 +4267,14 @@
         "RdCL": 60,
         "RailCL": 0,
         "BldA": 0,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 27
       }
     },
     "g-14-14437-6497": {
       "file": "g-14-14437-6497.webp",
-      "bytes": 38588,
-      "sha256": "44b5c70fa46f0e05645e621aed33ab71c01fcb55b9b2b9e10150d9d299557b0a",
+      "bytes": 41176,
+      "sha256": "458845221d62e5204a0dc674762108abb98dda8c4d009ca45f85e0355ebcad43",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4027,13 +4283,14 @@
         "RdCL": 156,
         "RailCL": 0,
         "BldA": 18,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 17
       }
     },
     "g-14-14438-6487": {
       "file": "g-14-14438-6487.webp",
-      "bytes": 42014,
-      "sha256": "c88eee84d011e21e2ed5e29b34a6df6e4a740265f0da6feaa99de3d3982c4978",
+      "bytes": 45382,
+      "sha256": "110bfdc1fef0e1ea111c292da6bf4e95b348b9dc29e1e71d29d9a496599a4d98",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4042,13 +4299,14 @@
         "RdCL": 167,
         "RailCL": 0,
         "BldA": 1,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 55
       }
     },
     "g-14-14438-6488": {
       "file": "g-14-14438-6488.webp",
-      "bytes": 42418,
-      "sha256": "595e146a9bdf5aba9810050438adbba3b20ccc0472a893d775357cd2b84c0955",
+      "bytes": 46126,
+      "sha256": "b09f3f74ceed5be85f2d8a2c9d99dc9492b2dc968d73021c14162fc6dc4c1bbe",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4057,13 +4315,14 @@
         "RdCL": 179,
         "RailCL": 0,
         "BldA": 0,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 16
       }
     },
     "g-14-14438-6489": {
       "file": "g-14-14438-6489.webp",
-      "bytes": 32338,
-      "sha256": "e4d8eab5b9ce486d37f5f0dde577500a4690386948e5616f0e7cb9bdb5386d62",
+      "bytes": 34288,
+      "sha256": "4c4409c4eba19566e65bb7d524e6b2001690ae7fb962ca786f101db351892a59",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4072,13 +4331,14 @@
         "RdCL": 99,
         "RailCL": 0,
         "BldA": 0,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 18
       }
     },
     "g-14-14438-6490": {
       "file": "g-14-14438-6490.webp",
-      "bytes": 29668,
-      "sha256": "4b558dd02f2ea664c95377cf8c52bfb9c8bc413beed7867952e3bb858c4abf3a",
+      "bytes": 31796,
+      "sha256": "37f1994dca6f9be558aeae4412a14d2b06046076e334c50e3a2e5326946ebef5",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4087,13 +4347,14 @@
         "RdCL": 104,
         "RailCL": 0,
         "BldA": 5,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 12
       }
     },
     "g-14-14438-6491": {
       "file": "g-14-14438-6491.webp",
-      "bytes": 37934,
-      "sha256": "bc364cdcbd4501ec54d763802696ed0b7ddf4ebcece7185d6cb88e6a247357db",
+      "bytes": 40900,
+      "sha256": "aaf362b5a54261766764e0f6b13098cb239566a7631d19565ece65873e1694de",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4102,13 +4363,14 @@
         "RdCL": 205,
         "RailCL": 0,
         "BldA": 3,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 28
       }
     },
     "g-14-14438-6492": {
       "file": "g-14-14438-6492.webp",
-      "bytes": 35600,
-      "sha256": "45bbf08567d921255ce403c4ae96670fe3faed1cefa051802d2a8d74d36fe577",
+      "bytes": 38140,
+      "sha256": "ea448865b390a7e9391aebf852da9909ae7564f2aa71c54325eef1f95d632cf6",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4117,13 +4379,14 @@
         "RdCL": 170,
         "RailCL": 0,
         "BldA": 1,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 26
       }
     },
     "g-14-14438-6493": {
       "file": "g-14-14438-6493.webp",
-      "bytes": 43470,
-      "sha256": "11867960cc30295e557212848943f2c88be39eb28345e1bad5b7f695ac0d6db7",
+      "bytes": 46724,
+      "sha256": "df05d6c722522dc18ba0827c42becfb5be86fe808786df1cd871a1e8e3e0a8ec",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4132,13 +4395,14 @@
         "RdCL": 195,
         "RailCL": 0,
         "BldA": 1,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 36
       }
     },
     "g-14-14438-6494": {
       "file": "g-14-14438-6494.webp",
-      "bytes": 31054,
-      "sha256": "34b8d0c22989687ed05f101fa191d89a3acb3debbb0eca941bf8ce29379e60c3",
+      "bytes": 32976,
+      "sha256": "d9b695ee7bbbd722e56b8747b917f21c2a2d88bea831470d391fe2fa44c96e8c",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4147,13 +4411,14 @@
         "RdCL": 126,
         "RailCL": 0,
         "BldA": 18,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 61
       }
     },
     "g-14-14438-6495": {
       "file": "g-14-14438-6495.webp",
-      "bytes": 88918,
-      "sha256": "93715d1cf71fb3f603349eedbd9c4206bd480f6219eccec8e3438462b114a3c1",
+      "bytes": 97910,
+      "sha256": "b9c66cbd79cea97df4a1f8d85a107bf203f8e5cddf91a2701284b162c3299e2a",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4162,13 +4427,14 @@
         "RdCL": 918,
         "RailCL": 22,
         "BldA": 18,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 385
       }
     },
     "g-14-14438-6496": {
       "file": "g-14-14438-6496.webp",
-      "bytes": 29524,
-      "sha256": "7e9352e2c0687d12c8f8c7dffd1027285cc6bdca7cbf10b8908c354fcb364107",
+      "bytes": 31558,
+      "sha256": "109e68562db0e43f922c6dde021dffcd87a571c1c1d5067923ba2b7837d416d4",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4177,13 +4443,14 @@
         "RdCL": 164,
         "RailCL": 0,
         "BldA": 5,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 68
       }
     },
     "g-14-14438-6497": {
       "file": "g-14-14438-6497.webp",
-      "bytes": 26504,
-      "sha256": "af879ffb56e8ed32822be79d368389975e5e9de7ebb7d26ba36661e28beec115",
+      "bytes": 27804,
+      "sha256": "630d6cbdd2c6edb4d9fbab508444419c2e6d81e6bd45c41e756ae83fd87a6278",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4192,13 +4459,14 @@
         "RdCL": 82,
         "RailCL": 0,
         "BldA": 3,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 9
       }
     },
     "g-14-14439-6487": {
       "file": "g-14-14439-6487.webp",
-      "bytes": 47960,
-      "sha256": "b6c9231d75800e30797dead3fc6fb26a0ec678f8f70aee54744fb3d37e45d17b",
+      "bytes": 52324,
+      "sha256": "9d42d2181b772308495916ba6a94011d86826dc3d777605857b6c1f7ed65cb94",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4207,13 +4475,14 @@
         "RdCL": 204,
         "RailCL": 0,
         "BldA": 4,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 24
       }
     },
     "g-14-14439-6488": {
       "file": "g-14-14439-6488.webp",
-      "bytes": 33112,
-      "sha256": "a7798a7a02ee41558ad186a17455e39a711469cf30863ab9d03f73defb0cdaea",
+      "bytes": 35474,
+      "sha256": "f5a843a83788900cf8f9f67c1e570f02541fa08e28b88677d98a6794021667ed",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4222,13 +4491,14 @@
         "RdCL": 107,
         "RailCL": 0,
         "BldA": 4,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 22
       }
     },
     "g-14-14439-6489": {
       "file": "g-14-14439-6489.webp",
-      "bytes": 28630,
-      "sha256": "5dc93b904744ef9e5f0520984fc86e83973afd136dfa6eeddb729ede5e55ed13",
+      "bytes": 29474,
+      "sha256": "1335970771107cd3125ef7ff0898a282ac5206bfb9d17006016aec78aa2f014b",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4237,13 +4507,14 @@
         "RdCL": 103,
         "RailCL": 0,
         "BldA": 1,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 21
       }
     },
     "g-14-14439-6490": {
       "file": "g-14-14439-6490.webp",
-      "bytes": 40758,
-      "sha256": "043648265a281668d2d36a1542640cf41d1b1f531009589980b5afe260f59385",
+      "bytes": 43324,
+      "sha256": "ab1fed8acaafbf88e8dbcba4dd26e14c9e2b55ed7775c1cc28720e8ddc8b9755",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4252,13 +4523,14 @@
         "RdCL": 119,
         "RailCL": 0,
         "BldA": 16,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 38
       }
     },
     "g-14-14439-6491": {
       "file": "g-14-14439-6491.webp",
-      "bytes": 31312,
-      "sha256": "6b2ac315e93acba85301ab346ebf52d26e6c9138fcfa7a75b659fd4de978fc10",
+      "bytes": 34032,
+      "sha256": "73ae1b014797798ea3590475ef8cc8ceb0707bd4d3a435f5e32c2e09f2e0867a",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4267,13 +4539,14 @@
         "RdCL": 111,
         "RailCL": 0,
         "BldA": 1,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 6
       }
     },
     "g-14-14439-6492": {
       "file": "g-14-14439-6492.webp",
-      "bytes": 21844,
-      "sha256": "b807465a35f323692fefaeb261437df344b4092335181354adba2448cfdacdbb",
+      "bytes": 23650,
+      "sha256": "9bdcd8d9abd25e78ee5ebdfc0cf7f0515300631dd11a75572cc546b3f2a5c52e",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4282,13 +4555,14 @@
         "RdCL": 50,
         "RailCL": 0,
         "BldA": 2,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 0
       }
     },
     "g-14-14439-6493": {
       "file": "g-14-14439-6493.webp",
-      "bytes": 45246,
-      "sha256": "153ebf14e4c68cf1d9624feb69dd36829bda3cdabb3ed6bf09ff961911cff011",
+      "bytes": 48588,
+      "sha256": "f1176b49fa79a3365012bb730ef9da2e2919f01f35a2e3d4ffc5cacb1a08efae",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4297,13 +4571,14 @@
         "RdCL": 169,
         "RailCL": 0,
         "BldA": 5,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 43
       }
     },
     "g-14-14439-6494": {
       "file": "g-14-14439-6494.webp",
-      "bytes": 74554,
-      "sha256": "57c38369590a9be70ec184a814dfe89c7566b5d5dd70a9ee733045496074132d",
+      "bytes": 81708,
+      "sha256": "4bc21c7701c2052d37b5362dbdcb75f09c700ad273eff5dbde11982094b6045a",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4312,13 +4587,14 @@
         "RdCL": 470,
         "RailCL": 0,
         "BldA": 29,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 171
       }
     },
     "g-14-14439-6495": {
       "file": "g-14-14439-6495.webp",
-      "bytes": 49646,
-      "sha256": "df4404eac553dd72d229b268a4c69dc3b5e6c0e30f4aa87bfb6da378d089c1ea",
+      "bytes": 53242,
+      "sha256": "0d38c65a3854730ff748e15f7de5111e639bd85aa08854d98f7098a6af55008e",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4327,13 +4603,14 @@
         "RdCL": 328,
         "RailCL": 4,
         "BldA": 6,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 80
       }
     },
     "g-14-14439-6496": {
       "file": "g-14-14439-6496.webp",
-      "bytes": 55706,
-      "sha256": "f880e7e4deb6938dbfa46fb088e4fb2cbb315dbd120adc1d585abdc991603efa",
+      "bytes": 60644,
+      "sha256": "6235d33b6cb4ed442381400fe41e0ec2497cc3ec4009234ef996737d72971187",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4342,13 +4619,14 @@
         "RdCL": 330,
         "RailCL": 6,
         "BldA": 10,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 34
       }
     },
     "g-14-14439-6497": {
       "file": "g-14-14439-6497.webp",
-      "bytes": 21662,
-      "sha256": "65fc2dad1936dcb0874fded1b0184e455f5d2d71f5e71662020bec8160015142",
+      "bytes": 23198,
+      "sha256": "ea7463db2e59294c00e7faf772422f29553d132d41f34e65df1aea0b1f01f908",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4357,13 +4635,14 @@
         "RdCL": 43,
         "RailCL": 0,
         "BldA": 0,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 3
       }
     },
     "g-14-14440-6487": {
       "file": "g-14-14440-6487.webp",
-      "bytes": 32484,
-      "sha256": "7ae0633dfc69c2a3cc51112f6252f902f8296bc3e7b00e99bbbc52d5f5183669",
+      "bytes": 34758,
+      "sha256": "dcabde919bd8a2dde5f8078ae2fc1779f5630bc4d362e6d2615051888742bf8b",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4372,13 +4651,14 @@
         "RdCL": 97,
         "RailCL": 0,
         "BldA": 0,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 0
       }
     },
     "g-14-14440-6488": {
       "file": "g-14-14440-6488.webp",
-      "bytes": 57964,
-      "sha256": "d6ed1421fb1036a23b411ccfb768e2addbb959028f9dd0a76f1ae70505390254",
+      "bytes": 62398,
+      "sha256": "ab33b330f7f5eeea85d9096782dea59b30e0a3ccb0d1d3bd98d2ed8143002a1a",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4387,13 +4667,14 @@
         "RdCL": 277,
         "RailCL": 0,
         "BldA": 3,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 71
       }
     },
     "g-14-14440-6489": {
       "file": "g-14-14440-6489.webp",
-      "bytes": 40274,
-      "sha256": "fbac1a59598d77f467950122f0c80b9e9a662efa7152eb1b9c96e81893975b61",
+      "bytes": 43364,
+      "sha256": "fd5c29ef8f458284102892848ff849f726b6b1732e47415a8a546df5f0a581f9",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4402,13 +4683,14 @@
         "RdCL": 147,
         "RailCL": 0,
         "BldA": 2,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 31
       }
     },
     "g-14-14440-6490": {
       "file": "g-14-14440-6490.webp",
-      "bytes": 32136,
-      "sha256": "b635ae8e4551e29c7acba6d12d31dc84a41a77782361be745d804522b0ed9f3c",
+      "bytes": 35038,
+      "sha256": "3960394e33a5ce497fd53510beb66427b0f40bb5a32f91725a960fb8ee60b09f",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4417,13 +4699,14 @@
         "RdCL": 102,
         "RailCL": 0,
         "BldA": 0,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 14
       }
     },
     "g-14-14440-6491": {
       "file": "g-14-14440-6491.webp",
-      "bytes": 24824,
-      "sha256": "aea08eca61d39b42d92e4c1ad624a60b49b1c617cf50a82e80ccaa8c4dcc68e7",
+      "bytes": 26340,
+      "sha256": "d33c12b55e9f8a7592b9ecaf3d41652e551242ffcf8acac1347883376251a777",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4432,13 +4715,14 @@
         "RdCL": 73,
         "RailCL": 0,
         "BldA": 0,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 12
       }
     },
     "g-14-14440-6492": {
       "file": "g-14-14440-6492.webp",
-      "bytes": 18014,
-      "sha256": "fe4d90c3d99c072beb40d769915072a68770ce3459abe6fb6799ff0484a5019f",
+      "bytes": 18816,
+      "sha256": "1cd4dad5066622cecab5f39a0b3196a4afe18e82068e0a6e3c9edf9e9a0495e1",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4447,13 +4731,14 @@
         "RdCL": 30,
         "RailCL": 0,
         "BldA": 1,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 6
       }
     },
     "g-14-14440-6493": {
       "file": "g-14-14440-6493.webp",
-      "bytes": 29426,
-      "sha256": "9644f32906b69ea0a15717e3523baaba347680fb31635760aec8757bde00c0c7",
+      "bytes": 31266,
+      "sha256": "9ce8a936e803c7e039afc28c977e21113b2bb53d8a31b0b9f6d5912ef63f4a00",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4462,13 +4747,14 @@
         "RdCL": 101,
         "RailCL": 0,
         "BldA": 1,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 18
       }
     },
     "g-14-14440-6494": {
       "file": "g-14-14440-6494.webp",
-      "bytes": 73658,
-      "sha256": "17c2e0aab405fe407c06258037c78236de69df38563bb7ffcb8fec64c0e6619c",
+      "bytes": 79964,
+      "sha256": "89cfdec09d8e71429536e28b8fa3319306089b2d8659b60ce86e03708591e4f5",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4477,13 +4763,14 @@
         "RdCL": 458,
         "RailCL": 0,
         "BldA": 12,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 116
       }
     },
     "g-14-14440-6495": {
       "file": "g-14-14440-6495.webp",
-      "bytes": 21550,
-      "sha256": "7f47ce1dbf9462ba6ec081a18bf998ff6480db0ba235d6ecc207272b91ab9108",
+      "bytes": 22668,
+      "sha256": "efe984c608e982a12f51ae9021a12ef41709688426793f28af22fa2943298583",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4492,13 +4779,14 @@
         "RdCL": 28,
         "RailCL": 0,
         "BldA": 2,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 0
       }
     },
     "g-14-14440-6496": {
       "file": "g-14-14440-6496.webp",
-      "bytes": 49436,
-      "sha256": "04ea3771a9d9dfa30322f68e0daf336fec57f0e392f7e35997a0b4a6dd7ad2f4",
+      "bytes": 55334,
+      "sha256": "796d028c30d84b797a9240068dd4c9e3e5c56323742e7ac4d7cde8290f1b4ed1",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4507,13 +4795,14 @@
         "RdCL": 451,
         "RailCL": 8,
         "BldA": 4,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 107
       }
     },
     "g-14-14440-6497": {
       "file": "g-14-14440-6497.webp",
-      "bytes": 61872,
-      "sha256": "8aaf553818ec0b497ea01fa92adff3837804a4f7de754ed9d263c1b87fa68f21",
+      "bytes": 69248,
+      "sha256": "deadc6ac0f6fcb0128d3178709bd151f9c6b0906bd486a919dbc80a29e7fdcff",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4522,13 +4811,14 @@
         "RdCL": 585,
         "RailCL": 7,
         "BldA": 6,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 90
       }
     },
     "g-14-14441-6487": {
       "file": "g-14-14441-6487.webp",
-      "bytes": 49692,
-      "sha256": "60490226f9e47e001faa305c6f06eb30b26d3331451009a779c51187a6e32bc8",
+      "bytes": 54068,
+      "sha256": "69dcfb3b3e30bd0c90420818fed6db33ad5ef76c1c6d39fbdecb2105c1c8e89f",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4537,13 +4827,14 @@
         "RdCL": 229,
         "RailCL": 0,
         "BldA": 6,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 61
       }
     },
     "g-14-14441-6488": {
       "file": "g-14-14441-6488.webp",
-      "bytes": 21268,
-      "sha256": "0406bf5e580aa0bf67ee2d08cf312bcbe257404f313438f8968fc128fdd4aac8",
+      "bytes": 23236,
+      "sha256": "8e0328a85e27abeaefa6dc3df734ea78dd7ad16b9b555fee4a7a103dbf48cbac",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4552,13 +4843,14 @@
         "RdCL": 79,
         "RailCL": 0,
         "BldA": 9,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 5
       }
     },
     "g-14-14441-6489": {
       "file": "g-14-14441-6489.webp",
-      "bytes": 34250,
-      "sha256": "4304a4438776cea9f0aec57bc0fb1d86beb791fc8528777fe2c2f101d33fbac8",
+      "bytes": 37444,
+      "sha256": "b7d5e1615af713cc6bdbd0d81e606fd79ce178a9195b34884437d70d8e5038ae",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4567,13 +4859,14 @@
         "RdCL": 157,
         "RailCL": 0,
         "BldA": 0,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 12
       }
     },
     "g-14-14441-6490": {
       "file": "g-14-14441-6490.webp",
-      "bytes": 45392,
-      "sha256": "fea2285b6700657577680970ee41b482b18cfcb2b830dd8b0c677642bfbdc50c",
+      "bytes": 48156,
+      "sha256": "4f8a876ab78286e55dfc2d88dbe72b71f57aa0227d07ce442471536d9ffe5264",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4582,13 +4875,14 @@
         "RdCL": 162,
         "RailCL": 0,
         "BldA": 2,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 38
       }
     },
     "g-14-14441-6491": {
       "file": "g-14-14441-6491.webp",
-      "bytes": 26842,
-      "sha256": "dd95fd9f67262f83839fc226889767628c1909a4e27b862cd3ad765d775fe71b",
+      "bytes": 28914,
+      "sha256": "1bba5f287f0bc25baf70d8cc32666e42e365d1cc66a7fb663834502c43d3c0f4",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4597,13 +4891,14 @@
         "RdCL": 107,
         "RailCL": 0,
         "BldA": 1,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 13
       }
     },
     "g-14-14441-6492": {
       "file": "g-14-14441-6492.webp",
-      "bytes": 28914,
-      "sha256": "9f760fd0add766b4f755d3a66f3c2cfd42ae50073af82b344b6cf1dcc8a465ce",
+      "bytes": 31066,
+      "sha256": "feb81461d692d50974a4b4b579fc8cb58e28937e31c1a7144f4cc41acc890b11",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4612,13 +4907,14 @@
         "RdCL": 94,
         "RailCL": 0,
         "BldA": 1,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 3
       }
     },
     "g-14-14441-6493": {
       "file": "g-14-14441-6493.webp",
-      "bytes": 24442,
-      "sha256": "f84dbfff00e91a92fd2b3d2b19cd8aeaf39216f5aa5db0e45a2ab545c8d7cb08",
+      "bytes": 25954,
+      "sha256": "93fddd84ea99882fce826e0bf0868b2d8e0a9b6c8c8f54644de45ac1f2bd3c05",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4627,13 +4923,14 @@
         "RdCL": 126,
         "RailCL": 0,
         "BldA": 1,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 29
       }
     },
     "g-14-14441-6494": {
       "file": "g-14-14441-6494.webp",
-      "bytes": 23672,
-      "sha256": "9210727a7a0c98979ed002e7b971ad73cbe48a68800b1b023a579a7ebe3b6a11",
+      "bytes": 24628,
+      "sha256": "01852a8fafc27403a5366d447fdbec9b64c5b8fee526808d1c956839da3f1bf7",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4642,13 +4939,14 @@
         "RdCL": 72,
         "RailCL": 0,
         "BldA": 0,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 12
       }
     },
     "g-14-14441-6495": {
       "file": "g-14-14441-6495.webp",
-      "bytes": 21254,
-      "sha256": "ce75a11a2d7ff1dafb7098150c5321bf834b5b6a4a99c89d385c93104f01f22d",
+      "bytes": 22856,
+      "sha256": "521a5ca7aa187a7d1e6cf5aff4179e974295cc72f8d3db48b60c0fca6dbeb06e",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4657,13 +4955,14 @@
         "RdCL": 87,
         "RailCL": 0,
         "BldA": 1,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 6
       }
     },
     "g-14-14441-6496": {
       "file": "g-14-14441-6496.webp",
-      "bytes": 64058,
-      "sha256": "516788e5b6db13b009bb754fb0068d0d1c94b178db60b326d5db459da86e17b3",
+      "bytes": 70920,
+      "sha256": "c34d80debfdfbbf8320860e4c8ffa63b8fcb9cddc363ecdf5e1ae7e95affe8b7",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4672,13 +4971,14 @@
         "RdCL": 566,
         "RailCL": 0,
         "BldA": 5,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 191
       }
     },
     "g-14-14441-6497": {
       "file": "g-14-14441-6497.webp",
-      "bytes": 105434,
-      "sha256": "4917d97e272ed2653ae004b5d310b94e6df7aebb560733e4bac4c23167dcc15e",
+      "bytes": 116510,
+      "sha256": "507504c803f6c3763a1068471bbf2203662726749ebabb1cc8187868bdc2e924",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4687,13 +4987,14 @@
         "RdCL": 975,
         "RailCL": 9,
         "BldA": 30,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 420
       }
     },
     "g-14-14442-6487": {
       "file": "g-14-14442-6487.webp",
-      "bytes": 27396,
-      "sha256": "b52a2b026a3746082d595aafdf0799d2aba5a32462876b61ac6e7bf24957a5f6",
+      "bytes": 29058,
+      "sha256": "2cf8233706206863984553cbaee4261b8088ac003b050aa37c972666020755a0",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4702,13 +5003,14 @@
         "RdCL": 71,
         "RailCL": 0,
         "BldA": 0,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 12
       }
     },
     "g-14-14442-6488": {
       "file": "g-14-14442-6488.webp",
-      "bytes": 29174,
-      "sha256": "6a113a1a6ec51f80b7b93853079be6092dba0d502d2d07e9d724ce7014d9cc7f",
+      "bytes": 31122,
+      "sha256": "60660e05dc74b13fecc8f9862ee54636d6ba9eae3ba935b99fd8f5cd5e5fbcaa",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4717,13 +5019,14 @@
         "RdCL": 99,
         "RailCL": 0,
         "BldA": 0,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 15
       }
     },
     "g-14-14442-6489": {
       "file": "g-14-14442-6489.webp",
-      "bytes": 32074,
-      "sha256": "2680f3ddd3cb97e298befb6293f9c9a7130fb196ec3b53ab097a65ac4c0ad4e2",
+      "bytes": 33638,
+      "sha256": "9e811abc0869963a81375c49acf1f71858fa7583b02f48a0d7d90326652cd72f",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4732,13 +5035,14 @@
         "RdCL": 115,
         "RailCL": 0,
         "BldA": 0,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 15
       }
     },
     "g-14-14442-6490": {
       "file": "g-14-14442-6490.webp",
-      "bytes": 30936,
-      "sha256": "473d1dc5e3641b87194bab51a96d7e5518d9a4831fd4f5a1990243c194eaaa5f",
+      "bytes": 33560,
+      "sha256": "8196cbb3e0b8a85ec8413ad091c5a18797749c76c1e81e6d168cd3b12015e8d9",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4747,13 +5051,14 @@
         "RdCL": 61,
         "RailCL": 0,
         "BldA": 0,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 6
       }
     },
     "g-14-14442-6491": {
       "file": "g-14-14442-6491.webp",
-      "bytes": 29292,
-      "sha256": "b8d135e233b5e81ffc0780c8d603f9193b188ae8d88b4bbb36a5737b6e9ad96b",
+      "bytes": 31524,
+      "sha256": "79e10b11c1d594df9d63ecc83abfb54c30406fc1d11ef6ccfbf629ba65916eaa",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4762,13 +5067,14 @@
         "RdCL": 73,
         "RailCL": 0,
         "BldA": 0,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 6
       }
     },
     "g-14-14442-6492": {
       "file": "g-14-14442-6492.webp",
-      "bytes": 15640,
-      "sha256": "9f6aa97028eb72d0c2de7a4e6be8044dcb8dec329b7cc58328e0652a5e5c2a15",
+      "bytes": 16744,
+      "sha256": "c36f18d7a8dd21942c5291620a8046cb43f6f26331f048cdc493979b74df11d4",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4777,13 +5083,14 @@
         "RdCL": 25,
         "RailCL": 0,
         "BldA": 0,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 0
       }
     },
     "g-14-14442-6493": {
       "file": "g-14-14442-6493.webp",
-      "bytes": 30702,
-      "sha256": "db66d4e109f7ea736cfb0726a46c0b87011d09e0164d902185278fdb8c263a4d",
+      "bytes": 32518,
+      "sha256": "2ec904a434e708c8b403bea92001b2cac2ebf4ed00f2e122a7b82ad143503646",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4792,13 +5099,14 @@
         "RdCL": 68,
         "RailCL": 0,
         "BldA": 0,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 12
       }
     },
     "g-14-14442-6494": {
       "file": "g-14-14442-6494.webp",
-      "bytes": 20654,
-      "sha256": "f5b41053cfd4d589e6cd198a80c3403dfc64b2556fab83a12795def73ef9b109",
+      "bytes": 21822,
+      "sha256": "65a60374cb4604ec7b0e9c9a4844c775c65075e8a6cc2adf56ff8e48daabaf91",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4807,13 +5115,14 @@
         "RdCL": 39,
         "RailCL": 0,
         "BldA": 0,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 3
       }
     },
     "g-14-14442-6495": {
       "file": "g-14-14442-6495.webp",
-      "bytes": 29782,
-      "sha256": "e9794c974272eba485e08c79096afbd4447c75ffd03c419ecbc043e71a3ffac7",
+      "bytes": 31446,
+      "sha256": "02c645eef8a2937e65c0892ed7ea46673875fe78b0219ac2b351511221dbf8e5",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4822,13 +5131,14 @@
         "RdCL": 139,
         "RailCL": 0,
         "BldA": 1,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 4
       }
     },
     "g-14-14442-6496": {
       "file": "g-14-14442-6496.webp",
-      "bytes": 41780,
-      "sha256": "7a394c1c7024b730c670f40239d5e447b27d60aafdda6a7194785bf2c851c284",
+      "bytes": 45682,
+      "sha256": "2382addf131a25677138dbf6e3b5898db4a385e7af59daeb0212db5327525258",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4837,13 +5147,14 @@
         "RdCL": 216,
         "RailCL": 0,
         "BldA": 4,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 60
       }
     },
     "g-14-14442-6497": {
       "file": "g-14-14442-6497.webp",
-      "bytes": 65210,
-      "sha256": "bf39d26ca8dd3bf3c193558b7940723cb035d41f710e6ebb915876ccbcceab89",
+      "bytes": 71300,
+      "sha256": "93975a45088824df238b1fcd8f25a5ab7af467a7802ff9fbbba3560a3af8164b",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4852,13 +5163,14 @@
         "RdCL": 505,
         "RailCL": 0,
         "BldA": 9,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 86
       }
     },
     "g-14-14443-6487": {
       "file": "g-14-14443-6487.webp",
-      "bytes": 44548,
-      "sha256": "c8080da5fe22974e55ebaf3f70bee51bad2bcc4534768dec8d5749ccca5cb5c7",
+      "bytes": 48578,
+      "sha256": "17fd8ead210a70e898a088c0e640fece326a65b33767e0412afe9a23a3374ed7",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4867,13 +5179,14 @@
         "RdCL": 189,
         "RailCL": 0,
         "BldA": 1,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 49
       }
     },
     "g-14-14443-6488": {
       "file": "g-14-14443-6488.webp",
-      "bytes": 36694,
-      "sha256": "83c65091a41615a595e61dc2fdcd7089f2980b93aed7a942dc15e5e63e63495d",
+      "bytes": 39724,
+      "sha256": "3273310abbe7fdab0bb1ed6bf215bb671d140253b09f5f74a2a5834362e5e894",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4882,13 +5195,14 @@
         "RdCL": 125,
         "RailCL": 0,
         "BldA": 0,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 30
       }
     },
     "g-14-14443-6489": {
       "file": "g-14-14443-6489.webp",
-      "bytes": 24274,
-      "sha256": "67556d74ec12885bd0ae7b3ff8259a63c42749ed7d5d484e4dd69dad7c1ffc1f",
+      "bytes": 25546,
+      "sha256": "17e4fda1f19bed04f49d6ff34391124b7eb91170a4a5af8c0262a2dd6e7d28de",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4897,13 +5211,14 @@
         "RdCL": 73,
         "RailCL": 0,
         "BldA": 1,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 7
       }
     },
     "g-14-14443-6490": {
       "file": "g-14-14443-6490.webp",
-      "bytes": 28916,
-      "sha256": "ea454e53a039838d2b063ac243d2f85bd86db7a55724f1e0846584450ab0a883",
+      "bytes": 31794,
+      "sha256": "fd796d609634d9d412377adac4f78d3648a1983206ca57a25540217260938c0b",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4912,13 +5227,14 @@
         "RdCL": 92,
         "RailCL": 0,
         "BldA": 0,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 19
       }
     },
     "g-14-14443-6491": {
       "file": "g-14-14443-6491.webp",
-      "bytes": 25350,
-      "sha256": "b0c330d7a35b43cbe5b2877aa6b267369ad14ffff9b3fb1a907e23c282bc2970",
+      "bytes": 27092,
+      "sha256": "b9c41d15e29f9706a9615d83982825cc2b2735b44ab37cbbcd158095bb8da6da",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4927,13 +5243,14 @@
         "RdCL": 46,
         "RailCL": 0,
         "BldA": 0,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 3
       }
     },
     "g-14-14443-6492": {
       "file": "g-14-14443-6492.webp",
-      "bytes": 21650,
-      "sha256": "931d1709bf24b0719e8e6195fcc962d2ec05aa64d3b57f408824685d02eb8791",
+      "bytes": 22604,
+      "sha256": "5b63752cfcc1628062055ffdc30862d6c1736eabe24a56c6efb69dc4e802681f",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4942,13 +5259,14 @@
         "RdCL": 30,
         "RailCL": 0,
         "BldA": 0,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 3
       }
     },
     "g-14-14443-6493": {
       "file": "g-14-14443-6493.webp",
-      "bytes": 33584,
-      "sha256": "7c4aed4e93eb565d9f1a4999b1adaf6ca8f02582c060585a9a2538c9ce98457d",
+      "bytes": 35222,
+      "sha256": "fa5c98cdecf7ad0422f634a5eaa913f83d4270bf38cf0095d97f3aa4f3bfe5cc",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4957,13 +5275,14 @@
         "RdCL": 111,
         "RailCL": 0,
         "BldA": 0,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 18
       }
     },
     "g-14-14443-6494": {
       "file": "g-14-14443-6494.webp",
-      "bytes": 26204,
-      "sha256": "c05c9e1fc076a1663570467473b28002cb82d369e066c7a22be5bd93f70e52b2",
+      "bytes": 27642,
+      "sha256": "dd2fdc992f72d7a8d7e44abfc01c493843f0024fce5a81d5ce860c5478da502f",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4972,13 +5291,14 @@
         "RdCL": 78,
         "RailCL": 0,
         "BldA": 1,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 15
       }
     },
     "g-14-14443-6495": {
       "file": "g-14-14443-6495.webp",
-      "bytes": 39022,
-      "sha256": "d7f0bf7711a326f85c42be2a646f9f0d6f3edb249ef4fa4bad3d13002fa823ea",
+      "bytes": 41492,
+      "sha256": "f53b6be0d4d36acc2a09d4a78fc81ee5c4174bae73366030fe80d59eb089de76",
       "width": 512,
       "height": 512,
       "counts": {
@@ -4987,13 +5307,14 @@
         "RdCL": 116,
         "RailCL": 0,
         "BldA": 2,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 21
       }
     },
     "g-14-14443-6496": {
       "file": "g-14-14443-6496.webp",
-      "bytes": 24444,
-      "sha256": "f42dce05ed778c8cc276847a88594889df499894e9b981bd0b6cefb1a3f31998",
+      "bytes": 26020,
+      "sha256": "ae4d61eef32b0cd43d6dea37977cb5374967b646eeeb713713bb9beefd02363e",
       "width": 512,
       "height": 512,
       "counts": {
@@ -5002,13 +5323,14 @@
         "RdCL": 59,
         "RailCL": 0,
         "BldA": 0,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 0
       }
     },
     "g-14-14443-6497": {
       "file": "g-14-14443-6497.webp",
-      "bytes": 50062,
-      "sha256": "df2cd0bee6d6a679b94c34145dc6b95d29bff6f9690713aa3f88db685416e637",
+      "bytes": 55328,
+      "sha256": "a46909fa7c701f0b0e92b4035eaa04e03e2cc5946c0e47c2b5c654323519439a",
       "width": 512,
       "height": 512,
       "counts": {
@@ -5017,13 +5339,14 @@
         "RdCL": 415,
         "RailCL": 0,
         "BldA": 9,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 104
       }
     },
     "g-14-14444-6487": {
       "file": "g-14-14444-6487.webp",
-      "bytes": 36088,
-      "sha256": "c87c294aa1152651c141c8542f9dba04245acda400fc26b737075380d8a0894f",
+      "bytes": 39444,
+      "sha256": "b0c62038e23919acfc16fd06db51cb99b34a4b8e4ac286b8800e868800383171",
       "width": 512,
       "height": 512,
       "counts": {
@@ -5032,13 +5355,14 @@
         "RdCL": 124,
         "RailCL": 0,
         "BldA": 1,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 25
       }
     },
     "g-14-14444-6488": {
       "file": "g-14-14444-6488.webp",
-      "bytes": 31808,
-      "sha256": "e35bf8ff5a01d5ff37c77df63a9b16a816d3bcad20e2cc1144352e6caa0d834e",
+      "bytes": 34832,
+      "sha256": "3eeeb7af9c2f2ec24168f63a39236fe19ef43981648637879242ac0ab03c780e",
       "width": 512,
       "height": 512,
       "counts": {
@@ -5047,13 +5371,14 @@
         "RdCL": 80,
         "RailCL": 0,
         "BldA": 2,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 0
       }
     },
     "g-14-14444-6489": {
       "file": "g-14-14444-6489.webp",
-      "bytes": 26434,
-      "sha256": "f29fb96fd972961a1c20056dc6b413a9cf2cc925780c22cb3d08a5fdb8b7699c",
+      "bytes": 28256,
+      "sha256": "b0f19970eb40a18151b49863b61d62d2816dc6e8f680003af020c5fcfa352e03",
       "width": 512,
       "height": 512,
       "counts": {
@@ -5062,13 +5387,14 @@
         "RdCL": 64,
         "RailCL": 0,
         "BldA": 0,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 21
       }
     },
     "g-14-14444-6490": {
       "file": "g-14-14444-6490.webp",
-      "bytes": 38436,
-      "sha256": "4578d965e456c67e0e562084d0b041c813354f5b1b434b50e6dc25f11d03cfe0",
+      "bytes": 41240,
+      "sha256": "1d6accc17915f804de5a4e9e48535d71d7135f6295b70865063007125dccfaa5",
       "width": 512,
       "height": 512,
       "counts": {
@@ -5077,13 +5403,14 @@
         "RdCL": 123,
         "RailCL": 0,
         "BldA": 3,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 38
       }
     },
     "g-14-14444-6491": {
       "file": "g-14-14444-6491.webp",
-      "bytes": 25728,
-      "sha256": "cbc0fc1de029ca42525aa2ab6e9aef8be78564cc0ae558a07c414ad1a878d695",
+      "bytes": 26880,
+      "sha256": "4eb18a76db82a78f7cbaa48e9b1a739b80fc80b1d500f7ab5ca9d9b3b040a288",
       "width": 512,
       "height": 512,
       "counts": {
@@ -5092,13 +5419,14 @@
         "RdCL": 64,
         "RailCL": 0,
         "BldA": 0,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 15
       }
     },
     "g-14-14444-6492": {
       "file": "g-14-14444-6492.webp",
-      "bytes": 33694,
-      "sha256": "8f66db8ca516f37d09793759d3990164537c02da022a4a90883e8b96af3bca80",
+      "bytes": 35474,
+      "sha256": "c2e950fcfaa4c4bf653b7a3f72f5089ac850bb8f98cc4e7b18551f976a959a8a",
       "width": 512,
       "height": 512,
       "counts": {
@@ -5107,13 +5435,14 @@
         "RdCL": 54,
         "RailCL": 0,
         "BldA": 0,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 9
       }
     },
     "g-14-14444-6493": {
       "file": "g-14-14444-6493.webp",
-      "bytes": 9538,
-      "sha256": "ad79215ec76c74ff27745401945e6847a5f03e030042b0380c420460b3d99f98",
+      "bytes": 9788,
+      "sha256": "2d570243ca5afbb50f7be387f5c5ffd22955e1fe3a8814e6fd0d15e68eb47531",
       "width": 512,
       "height": 512,
       "counts": {
@@ -5122,13 +5451,14 @@
         "RdCL": 10,
         "RailCL": 0,
         "BldA": 0,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 0
       }
     },
     "g-14-14444-6494": {
       "file": "g-14-14444-6494.webp",
-      "bytes": 16458,
-      "sha256": "8b4864d8a760017e13ccf4370d6bebe7dae72f2846d4d9546729e27fd2ddb435",
+      "bytes": 17628,
+      "sha256": "1dcc5d8f58545ab68d3f4a519816766fb44ed8d6bd591e90934fd1bdaad6e82f",
       "width": 512,
       "height": 512,
       "counts": {
@@ -5137,13 +5467,14 @@
         "RdCL": 38,
         "RailCL": 0,
         "BldA": 0,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 0
       }
     },
     "g-14-14444-6495": {
       "file": "g-14-14444-6495.webp",
-      "bytes": 24982,
-      "sha256": "b7f13d6b1e85f43591f4ab9a1f7459cfb5a61c32e8107d90fdaba124f88e4045",
+      "bytes": 25828,
+      "sha256": "e7623ee4d9e6d27ef83a6b92ea279dc5b176e5d5ad389f217254eb8a6c4ca352",
       "width": 512,
       "height": 512,
       "counts": {
@@ -5152,13 +5483,14 @@
         "RdCL": 67,
         "RailCL": 0,
         "BldA": 0,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 0
       }
     },
     "g-14-14444-6496": {
       "file": "g-14-14444-6496.webp",
-      "bytes": 25542,
-      "sha256": "3352387ec9dd3f9f91599a199ca3b25880fa030120423c315b040d8583a85add",
+      "bytes": 26824,
+      "sha256": "d7ca386936a2b9945860cb28b457ac9af4386057418547dceb8982c54f0bda6a",
       "width": 512,
       "height": 512,
       "counts": {
@@ -5167,13 +5499,14 @@
         "RdCL": 106,
         "RailCL": 0,
         "BldA": 0,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 13
       }
     },
     "g-14-14444-6497": {
       "file": "g-14-14444-6497.webp",
-      "bytes": 93668,
-      "sha256": "995e726c5361e5dc1039f9e82f1bc495a77309232cff1af4a520aa73d614a556",
+      "bytes": 104984,
+      "sha256": "4f37b51386b327d829906a524ee555158d2353c3392cf63cc077f597945ba4b3",
       "width": 512,
       "height": 512,
       "counts": {
@@ -5182,7 +5515,8 @@
         "RdCL": 939,
         "RailCL": 0,
         "BldA": 39,
-        "TpgphArea": 0
+        "TpgphArea": 0,
+        "crossings": 281
       }
     }
   },

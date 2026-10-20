@@ -19,7 +19,9 @@ test('public classroom manual has both roles and complete same-page navigation',
   assert.match(manual,/このマニュアルはログインせずに読めます/);
 });
 test('manual is a lightweight first-party page with accessible code-native diagrams',async()=>{
-  assert.doesNotMatch(manual,/(?:src|href)="https?:\/\/(?!metaquest001\.gigach\.net)/);
+  assert.doesNotMatch(manual,/src="https?:\/\//);
+  assert.doesNotMatch(manual,/<link\b[^>]*href="https?:\/\/(?!metaquest001\.gigach\.net)/);
+  assert.match(manual,/<a href="https:\/\/www\.okazakiglider\.jp\/gliderport\/" target="_blank" rel="noopener">/);
   assert.doesNotMatch(manual,/<script[^>]*>\s*\S[\s\S]*?<\/script>|\bonclick=|type="password"|three|webgl/i);
   assert.match(manual,/<svg[^>]+role="img"[^>]+aria-labelledby=/);
   assert.match(manual,/<title id="placement-title">/);

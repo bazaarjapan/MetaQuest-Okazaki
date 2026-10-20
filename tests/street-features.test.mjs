@@ -41,7 +41,7 @@ test('scenery remains bounded, refuses unavailable terrain, and disappears in ph
  assert.equal(sceneryCandidates([[500,0,0],[30,0,0],[10,0,0]],{x:0,z:0},1).length,2);
  const scene=new THREE.Scene();let environment={error:'terrain unavailable'};
  const scenery=createStreetScenery({scene,getEnvironment:()=>environment});scenery.setData({trees:[[0,0,0]],signals:[[10,0,0]]});
- const update=(time,changes={})=>scenery.update({position:{x:0,z:0},quality:'high',enabled:true,time,...changes});
+ const update=(time,changes={})=>scenery.update({position:{x:0,z:0},quality:'high',enabled:true,time,terrainVersion:environment,...changes});
  update(0);assert.equal(scenery.getState().trees,0);
  const terrain=createSurfaceIndex(new Float32Array([-50,0,-50,50,0,50,50,0,-50,-50,0,-50,-50,0,50,50,0,50]));
  environment={terrain,obstacles:[],bounds:[-50,-50,50,50]};update(2000);

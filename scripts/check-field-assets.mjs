@@ -22,11 +22,15 @@ for(const item of [...Object.values(manifest.profiles),...Object.values(manifest
 }
 for(const tile of terrain.tiles)assert.ok(manifest.region[tile.id]);
 const scenery=JSON.parse(await readFile(new URL('scenery.json',root),'utf8'));
-assert.equal(scenery.version,1);
-for(const kind of ['trees','signals']){
-  assert.ok(scenery[kind].length>0&&scenery[kind].length<10000);
+assert.equal(scenery.version,2);
+for(const kind of ['trees','signals','lights','grass']){
+  assert.ok(scenery[kind].length>0&&scenery[kind].length<20000);
   for(const point of scenery[kind])assert.ok(Array.isArray(point)&&point.length===3&&point.every(Number.isFinite)&&Math.abs(point[0])<1800&&Math.abs(point[1])<1800);
 }
+assert.ok(scenery.motion.roads.length>0&&scenery.motion.roads.length<=160);
+assert.ok(scenery.motion.rails.length>0&&scenery.motion.rails.length<=24);
+for(const route of [...scenery.motion.roads,...scenery.motion.rails])assert.ok(route.length>=2&&route.every(p=>p.length===2&&p.every(Number.isFinite)));
+assert.equal(scenery.motion.airfield.sourceUrl,'https://www.okazakiglider.jp/gliderport/');
 assert.ok(scenery.landmarks.length>=4);
 const sourceHashes=new Map(manifest.sourceTiles.map(s=>[`${s.z}-${s.x}-${s.y}.pbf`,s.sha256]));
 for(const record of scenery.sources)assert.equal(record.sha256,sourceHashes.get(record.file),record.file);

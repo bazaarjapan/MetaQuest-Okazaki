@@ -42,6 +42,8 @@ aside { padding: 14px; min-height: 0; display: flex; flex-direction: column; gap
 .vr-note { font-size: 10px; margin: 6px 0 0; line-height: 1.55; }
 .quality-setting { margin: 0; }
 .quality-setting label { display: block; font-size: 12px; margin-bottom: 7px; }
+.quality-setting input[type=range] { width: 100%; min-height: 32px; accent-color: #287a69; }
+.quality-setting input[type=checkbox] { width: 18px; height: 18px; vertical-align: middle; accent-color: #287a69; }
 .quality-setting select, .region-setting select { width: 100%; font: inherit; font-size: 13px; min-height: 38px; padding: 8px; border: 1px solid #c8d6de; border-radius: 7px; background: #f7fafb; color: #173447; }
 .quality-setting p, .setting-warning { font-size: 11px; line-height: 1.7; color: #627d8b; margin: 8px 0 12px; }
 .setting-warning { background: #fcf7ec; padding: 10px; border-radius: 6px; }
