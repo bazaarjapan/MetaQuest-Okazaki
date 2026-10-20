@@ -59,10 +59,15 @@ export function createFieldBuildingMaterial(THREE,uniform,options={}) {
         float windowMask=smoothstep(.16-aa.x,.16+aa.x,cell.x)*(1.0-smoothstep(.72-aa.x,.72+aa.x,cell.x))
           *smoothstep(.27-aa.y,.27+aa.y,cell.y)*(1.0-smoothstep(.75-aa.y,.75+aa.y,cell.y));
         float nearView=1.0-smoothstep(100.0,300.0,distance(cameraPosition,vFieldPosition));
-        paint=mix(paint,vec3(.10,.19,.23),windowMask*(1.0-roof)*nearView*.78);
+        float floorBand=1.0-smoothstep(.025,.065,cell.y);
+        paint*=1.0-floorBand*(1.0-roof)*nearView*.16;
+        vec3 glass=mix(vec3(.07,.16,.19),vec3(.28,.40,.43),cell.y);
+        float frame=windowMask*(1.0-smoothstep(.035,.065,abs(cell.x-.44)));
+        paint=mix(paint,glass,windowMask*(1.0-roof)*nearView*.85);
+        paint=mix(paint,vec3(.48,.53,.49),frame*(1.0-roof)*nearView*.6);
         diffuseColor.rgb=paint;
       }`);
   };
-  material.customProgramCacheKey=()=> 'okazaki-field-building-v2';
+  material.customProgramCacheKey=()=> 'okazaki-field-building-v3';
   return material;
 }

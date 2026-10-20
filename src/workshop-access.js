@@ -32,6 +32,6 @@ export function safeWorkshopTransform({ position, rotation, scale } = {}) {
 export function sharedObjectOverlap(bounds, object) {
   const a = bounds, b = object?.bounds;
   if (!a || !b || ![a.min, a.max, b.min, b.max].every((v) => Array.isArray(v) && v.length === 3 && v.every(Number.isFinite))) return false;
-  // Match the authoritative room's 5mm tolerance, including Y separation.
-  return a.min.every((value, axis) => value < b.max[axis] - 0.005 && a.max[axis] > b.min[axis] + 0.005);
+  // Reserve the footprint, even for flat models or vertically separated work.
+  return [0, 2].every(axis => a.min[axis] <= b.max[axis] + 0.005 && a.max[axis] >= b.min[axis] - 0.005);
 }

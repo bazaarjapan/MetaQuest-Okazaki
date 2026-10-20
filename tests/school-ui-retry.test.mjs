@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import vm from "node:vm";
+import { describeWorkLocation, exhibitTitle } from "../src/workshop-presentation.js";
 
 // Execute the actual DOM UI module, omitting only its CSS/import declarations.
 // No client or Google behavior is implicitly invoked by initial rendering.
@@ -46,6 +47,7 @@ function harness(initial, retry, extraClient = {}) {
     ...extraClient,
   };
   const context = vm.createContext({ document, URL, location: { href: "https://example.test/", origin: "https://example.test" },
+    describeWorkLocation, exhibitTitle,
     parseSchoolInvite: () => null, schoolInviteURL: () => "https://example.test/#join=ABCDEFGHIJKL",
     createGoogleIdentityLoader: () => async () => { gisLoads++; throw Error("Google must stay lazy"); } });
   vm.runInContext(`${source}\nthis.createTestUI = createSchoolUI;`, context);
@@ -98,7 +100,7 @@ test("movement warning recovers on pose without repeated announcements or overwr
   h.emit(failed, "error"); const status = h.find("school-status"), statusWrites = status.textWrites;
   h.emit({ ...failed, movementWarning: null }, "pose");
   assert.equal(notice.textContent, ""); assert.equal(notice.hidden, true);
-  assert.match(status.textContent, /操作を完了できません/);
+  assert.match(status.textContent, /操作する権限がありません/);
   h.emit({ ...failed, movementWarning: null }, "objects");
   assert.equal(status.textWrites, statusWrites); h.ui.destroy();
 });
@@ -140,5 +142,27 @@ test("issued student passwords survive room rerender only for the issuing teache
   h.emit(initial, "auth");
   assert.equal(h.find("student-issued-credentials").hidden, true);
   assert.equal(h.find("student-issued-credentials").value, undefined);
+  h.ui.destroy();
+});
+
+test("teacher roster reflects placed work, returns only its ID and refreshes on server broadcast", async () => {
+  const initial = { ...guest, singleClassroom: true, configured: true, error: null,
+    user: {id:"teacher",role:"teacher",name:"先生"}, world:{id:"room",name:"教室"}, connection:"connected",
+    objects:[{id:"work",ownerId:"student",name:"a.stl",title:"<b>作品名</b>",description:"工夫したところ",position:[100,5,200]}] };
+  const edits=[];
+  const h=harness(initial,async()=>initial,{
+    students:async()=>({students:[{id:"student",slot:1,name:"生徒",loginId:"s01"}]}),
+    editObject:async(type,data)=>{edits.push([type,data]);},
+  });
+  h.find("student-roster").click();await tick();
+  const roster=h.find("student-roster-list"),nodes=roster.querySelectorAll("*");
+  assert.ok(nodes.some(n=>n.textContent==="<b>作品名</b>"));
+  assert.ok(nodes.some(n=>/水平距離/.test(n.textContent)));
+  nodes.find(n=>n.textContent==="生徒のホットバーへ戻す").click();await tick();
+  assert.equal(edits[0][0],"object.delete");assert.equal(edits[0][1].id,"work");
+  h.emit({...initial,objects:[]},"objects");
+  assert.ok(roster.querySelectorAll("*").some(n=>n.textContent==="配置中の作品はありません。"));
+  h.emit({...initial,connection:"reconnecting"},"connection");
+  assert.equal(roster.querySelectorAll("*").find(n=>n.textContent==="生徒のホットバーへ戻す").disabled,true);
   h.ui.destroy();
 });

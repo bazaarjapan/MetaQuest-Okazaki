@@ -409,3 +409,52 @@ test("expired session rejects HTTP before returning private file or classroom st
   await assert.rejects(handleSchoolRequest(s.request(`/api/worlds/${world.id}/state`, teacher), s.env, s.dependencies), (error) => error.code === "login_required");
   s.sqlite.close();
 });
+
+test("teacher return preserves student STL; metadata persists and other owners cannot mutate it", async () => {
+  const s=await setup();
+  try {
+    const teacher=await s.user('exhibit-teacher','teacher'),student=await s.user('exhibit-student'),other=await s.user('exhibit-other');
+    const world=await createWorld(s.db,teacher,{},s.now());
+    await joinWorld(s.db,student,world.join_code,s.now());await joinWorld(s.db,other,world.join_code,s.now());
+    const asset=(await(await upload(s,world,student)).json()).asset;
+    const a=await s.connect(world.id,student),t=await s.connect(world.id,teacher),b=await s.connect(world.id,other);
+    const send=async(peer,data)=>{s.advance();await peer.room.webSocketMessage(peer.socket,JSON.stringify({requestId:crypto.randomUUID(),revision:a.room.state.revision,...data}));return peer.socket.messages.at(-1);};
+    const create={type:'object.create',assetId:asset.id,position:await unusedCoreLocation(),rotation:[0,0,0],scale:[1,1,1],title:'未来の駅',description:'太陽光で動きます'};
+    assert.equal((await send(a,create)).type,'ack');const object=structuredClone(a.room.state.objects[0]);
+    assert.equal(object.title,create.title);assert.equal(object.authorName,'exhibit-student');
+    assert.equal((await send(t,{type:'object.describe',id:object.id,title:'変更',description:''})).error,'object_owner_required');
+    assert.equal((await send(a,{type:'object.describe',id:object.id,title:'x'.repeat(41),description:''})).error,'invalid_exhibit_text');
+    assert.equal((await send(a,{type:'object.describe',id:object.id,title:'私の駅',description:'<b>HTMLではなく文字です</b>'})).type,'ack');
+    const saved=structuredClone(a.room.state.objects[0]);assert.deepEqual(saved.position,object.position);
+    const woken=new SchoolRoom(s.rooms.get(world.id).ctx,s.env,{now:()=>s.now()*1000});await woken.ready;
+    assert.deepEqual(woken.state.objects[0],saved);
+    assert.equal((await send(b,{type:'object.delete',id:object.id})).error,'object_owner_required');
+    // Role is checked from the live database for every command.
+    await run(s.db,"UPDATE school_users SET role='student' WHERE id=?",teacher.id);
+    assert.equal((await send(t,{type:'object.delete',id:object.id})).error,'object_owner_required');
+    await run(s.db,"UPDATE school_users SET role='teacher' WHERE id=?",teacher.id);
+    const deletion={type:'object.delete',id:object.id,requestId:crypto.randomUUID(),revision:a.room.state.revision};
+    assert.equal((await send(t,deletion)).type,'ack');assert.equal(a.room.state.objects.length,0);
+    assert.ok(await first(s.db,"SELECT id FROM school_assets WHERE id=? AND owner_id=? AND status='ready'",asset.id,student.id));
+    assert.equal((await send(t,deletion)).type,'ack');assert.equal(a.room.state.objects.length,0);
+    assert.equal((await send(a,create)).type,'ack');assert.equal(a.room.state.objects[0].assetId,asset.id);
+  } finally {s.sqlite.close();}
+});
+
+test("overlapping placements race through one authoritative revision, then the occupied footprint is rejected",async()=>{
+  const s=await setup();
+  try{
+    const teacher=await s.user('race-teacher','teacher'),aUser=await s.user('race-a'),bUser=await s.user('race-b');
+    const world=await createWorld(s.db,teacher,{},s.now());
+    await joinWorld(s.db,aUser,world.join_code,s.now());await joinWorld(s.db,bUser,world.join_code,s.now());
+    const aa=(await(await upload(s,world,aUser)).json()).asset,ba=(await(await upload(s,world,bUser)).json()).asset;
+    const a=await s.connect(world.id,aUser),b=await s.connect(world.id,bUser),position=await unusedCoreLocation();
+    const command=id=>({type:'object.create',requestId:crypto.randomUUID(),revision:0,assetId:id,position,rotation:[0,0,0],scale:[1,1,1]});
+    await Promise.all([a.room.webSocketMessage(a.socket,JSON.stringify(command(aa.id))),b.room.webSocketMessage(b.socket,JSON.stringify(command(ba.id)))]);
+    assert.equal(a.room.state.objects.length,1);
+    const loser=a.room.state.objects[0].ownerId===aUser.id?b:a,asset=loser===b?ba:aa;
+    assert.equal(loser.socket.messages.at(-1).error,'stale_revision');
+    s.advance();await loser.room.webSocketMessage(loser.socket,JSON.stringify({...command(asset.id),revision:1}));
+    assert.equal(loser.socket.messages.at(-1).error,'object_overlap');assert.equal(a.room.state.objects.length,1);
+  }finally{s.sqlite.close();}
+});

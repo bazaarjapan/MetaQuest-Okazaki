@@ -5,7 +5,8 @@ import { readAssetModel } from "./school-assets.mjs";
 import { loadRegionalPlacement } from "./regional-placement.mjs";
 import { CLASSROOM_ID, managesWorld } from "./classroom-id.mjs";
 import { validAvatarMotion } from "../src/avatar-motion.js";
-import { validSTLColor, stlColor } from "../src/workshop-presentation.js";
+import { validSTLColor, stlColor, validExhibitText } from "../src/workshop-presentation.js";
+import { sharedObjectOverlap } from "../src/workshop-access.js";
 
 const DEFAULT_POSE = Object.freeze({ position: [195, 74.4, 105], yaw: 0 });
 const livePoseKey = (userId) => `live-pose:${userId}`;
@@ -37,9 +38,7 @@ export function validateTransform(value) {
   };
 }
 function overlaps(a, b) {
-  return a.min[0] < b.max[0] - 0.005 && a.max[0] > b.min[0] + 0.005 &&
-    a.min[1] < b.max[1] - 0.005 && a.max[1] > b.min[1] + 0.005 &&
-    a.min[2] < b.max[2] - 0.005 && a.max[2] > b.min[2] + 0.005;
+  return sharedObjectOverlap(a, { bounds: b });
 }
 
 // Plain Durable Object classes are supported by Workers. No test or auth-bypass env
@@ -270,7 +269,7 @@ export class SchoolRoom {
           this.broadcast({ type: "pose", participant: { ...attachment.avatar, ...attachment.pose }, revision: this.state.revision });
           return;
         }
-        if (!["object.create", "object.update", "object.delete", "object.paint"].includes(value.type) || !validId(value.requestId)) fail(400, "invalid_command");
+        if (!["object.create", "object.update", "object.delete", "object.paint", "object.describe"].includes(value.type) || !validId(value.requestId)) fail(400, "invalid_command");
         const fingerprint = await sha256(JSON.stringify(value));
         const previous = this.state.recent.find((entry) => entry.userId === session.id && entry.requestId === value.requestId);
         if (previous) {
@@ -342,13 +341,20 @@ export class SchoolRoom {
     const current = this.state.objects.find((object) => object.id === value.id);
     if (value.type !== "object.create") {
       if (!current) fail(404, "object_not_found");
-      // Even the teacher must not silently edit a student's own work. Teacher
-      // controls are whole-world checkpoint/restore, not ownership impersonation.
-      if (current.ownerId !== session.id) fail(403, "object_owner_required");
+      // Teachers may return placements to their owners' inventory, but cannot
+      // impersonate the owner to move, paint or rename their work.
+      if (current.ownerId !== session.id && !(value.type === "object.delete" && managesWorld(world, session))) fail(403, "object_owner_required");
     }
     if (value.type === "object.delete") {
       this.state = { ...this.state, revision: this.state.revision + 1, objects: this.state.objects.filter((object) => object.id !== current.id) };
       return current;
+    }
+    if (value.type === "object.describe") {
+      if (!validExhibitText(value.title, value.description)) fail(400, "invalid_exhibit_text");
+      const object = { ...current, title: value.title.trim(), description: value.description.trim() };
+      this.state = { ...this.state, revision: this.state.revision + 1,
+        objects: this.state.objects.map(entry => entry.id === current.id ? object : entry) };
+      return object;
     }
     if ((value.type === "object.paint" || value.color !== undefined) && !validSTLColor(value.color)) fail(400, "invalid_object_color");
     if (value.type === "object.paint") {
@@ -377,7 +383,11 @@ export class SchoolRoom {
     if (this.state.objects.some((object) => object.id !== current?.id && overlaps(placement.bounds, object.bounds))) fail(409, "object_overlap");
     const object = { id: current?.id ?? value.id ?? crypto.randomUUID(), ownerId: session.id, assetId,
       name: asset.name, color: stlColor(value.color ?? current?.color), position: [...placement.position], rotation: transform.rotation, scale: transform.scale,
-      bounds: placement.bounds, triangles: asset.triangles };
+      bounds: placement.bounds, triangles: asset.triangles,
+      title: value.title ?? current?.title ?? "", description: value.description ?? current?.description ?? "",
+      authorName: publicAvatar(session).name };
+    if (!validExhibitText(object.title, object.description)) fail(400, "invalid_exhibit_text");
+    object.title = object.title.trim(); object.description = object.description.trim();
     this.state = { ...this.state, revision: this.state.revision + 1,
       objects: [...this.state.objects.filter((entry) => entry.id !== object.id), object] };
     return object;

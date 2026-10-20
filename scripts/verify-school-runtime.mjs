@@ -277,7 +277,7 @@ try {
     assert.equal((await owner.command(command)).revision, 1);
     const attack = await classroom[2].probe.command({ type: "object.delete", requestId: randomUUID(), revision: 1, id }, "error");
     assert.equal(attack.error, "object_owner_required");
-    const teacherAttack = await classroom[0].probe.command({ type: "object.delete", requestId: randomUUID(), revision: 1, id }, "error");
+    const teacherAttack = await classroom[0].probe.command({ type: "object.describe", requestId: randomUUID(), revision: 1, id, title: "Teacher overwrite" }, "error");
     assert.equal(teacherAttack.error, "object_owner_required");
     return { originalSTLHashVerified: true, actualPLATEAUGroundSnapped: true, simultaneousObjectRecipients: 31 };
   });
@@ -289,7 +289,10 @@ try {
     const row = await db.prepare("SELECT state_json FROM school_snapshots WHERE id=?").bind(checkpoint.id).first();
     assert.deepEqual(JSON.parse(row.state_json).objects[0], object);
     await delay(260);
-    assert.equal((await owner.command({ type: "object.delete", requestId: randomUUID(), revision: 1, id: object.id })).revision, 2);
+    assert.equal((await classroom[0].probe.command({ type: "object.delete", requestId: randomUUID(), revision: 1, id: object.id })).revision, 2);
+    const returned = await fetchApi(`/api/worlds/${world.id}/assets/${object.assetId}`, students[0]);
+    assert.equal(returned.status, 200);
+    assert.deepEqual(new Uint8Array(await returned.arrayBuffer()), bytes);
     const movedAfterCheckpoint = [800,50,300];
     owner.send({ type: "pose", position: movedAfterCheckpoint, yaw: .8, seq: 6, restoreCommit: poseRestoreCommit });
     await Promise.all(classroom.map(({ probe }) => probe.wait((packet) => packet.type === "pose" &&
@@ -381,18 +384,24 @@ try {
       const packets = []; live.on("message", bytes => packets.push(JSON.parse(bytes.toString())));
       const uploaded = await client.uploadAsset({ buffer: bytes, name: "pose-fixture.stl", upAxis: "y", units: "m" });
       await client.editObject("object.create", { assetId: uploaded.id, position: empty.position, rotation: [.3,.5,.2], scale: [.5,.5,.5] });
-      // Deliberately bypass 8Hz client pacing to reproduce transport bunching.
-      // Two client-generated packets retain their real sequence/epoch fields.
-      client.sendPose({ position: [1,40,0], yaw: 0 }); clock += 125; client.sendPose({ position: [2,40,0], yaw: 0 });
-      await waitFor(() => packets.some(p => p.error === "pose_rate_limit"));
+      // A pair can straddle the server's 100ms window on a busy CI host.
+      // Send a bounded burst below the 20-message connection limit and observe
+      // every response, including transient warnings cleared by later poses.
+      let observedMovementWarning = false;
+      client.subscribe(state => { if (state.movementWarning === "pose_rate_limit") observedMovementWarning = true; });
+      for (let index = 1; index <= 8; index++) {
+        clock += 125; client.sendPose({ position: [index,40,0], yaw: 0 });
+      }
+      await waitFor(() => packets.filter(p => p.type === "pose" || p.error === "pose_rate_limit").length === 8);
+      assert.ok(packets.some(p => p.error === "pose_rate_limit"), "burst must reach the real server pose limit");
       assert.equal(client.getState().error, null, "movement limit must not be an operation failure");
-      assert.equal(client.getState().movementWarning, "pose_rate_limit");
+      assert.equal(observedMovementWarning, true, "client must surface the movement warning");
       await delay(300); clock += 1000;
       const owned = client.getState().objects[0];
       await client.editObject("object.update", { id: owned.id, position: owned.position, rotation: [0,.6,0], scale: [.5,.5,.5] });
       const checkpoint = await client.saveWorld(); assert.equal(checkpoint.revision, 2);
-      await delay(150); clock += 125; client.sendPose({ position: [3,40,0], yaw: 0 });
-      await waitFor(s => s.participants.some(p => p.id === teacher.id && p.position[0] === 3));
+      await delay(150); clock += 125; client.sendPose({ position: [30,40,0], yaw: 0 });
+      await waitFor(s => s.participants.some(p => p.id === teacher.id && p.position[0] === 30));
       await waitFor(s => s.movementWarning === null);
       assert.equal(client.getState().movementWarning, null); assert.equal(client.getState().error, null);
       await delay(300); clock += 1000;

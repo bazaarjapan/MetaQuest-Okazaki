@@ -50,12 +50,12 @@ test("transforms fail closed before GPU matrices, including array lengths", () =
   assert.equal(safeWorkshopTransform({ ...valid, scale: [0, 1, 1] }), false);
   assert.equal(safeWorkshopTransform({ ...valid, position: [1, 2] }), false);
 });
-test("shared object overlap matches server XYZ and 5mm tolerance", () => {
+test("shared object footprints reserve flat and vertically separated placements", () => {
   const bounds = { min: [0, 0, 0], max: [1, 1, 1] };
   assert.equal(sharedObjectOverlap(bounds, { bounds }), true);
-  assert.equal(sharedObjectOverlap(bounds, { bounds: { min: [1, 0, 0], max: [2, 1, 1] } }), false);
-  assert.equal(sharedObjectOverlap(bounds, { bounds: { min: [0, 2, 0], max: [1, 3, 1] } }), false);
-  assert.equal(sharedObjectOverlap(bounds, { bounds: { min: [0.996, 0, 0], max: [2, 1, 1] } }), false);
+  assert.equal(sharedObjectOverlap(bounds, { bounds: { min: [1, 0, 0], max: [2, 1, 1] } }), true);
+  assert.equal(sharedObjectOverlap(bounds, { bounds: { min: [0, 2, 0], max: [1, 3, 1] } }), true);
+  assert.equal(sharedObjectOverlap(bounds, { bounds: { min: [0.996, 0, 0], max: [2, 1, 1] } }), true);
   assert.equal(sharedObjectOverlap(bounds, { bounds: { min: [0.99, 0, 0], max: [2, 1, 1] } }), true);
 });
 
@@ -78,7 +78,7 @@ class Element {
 const source = new TextEncoder().encode("solid part\nfacet normal 0 1 0\nouter loop\nvertex 0 0 0\nvertex 1 0 0\nvertex 0 0 1\nendloop\nendfacet\nendsolid part").buffer;
 async function fixture(t, initial = connected()) {
   const ids = ["workshop-dialog", "workshop-status", "workshop-list", "stl-files", "stl-up", "stl-units", "object-x", "object-z", "object-scale", "object-rx", "object-ry", "object-rz", "object-y", "object-pick", "object-remove", "object-apply", "workshop-close", "open-workshop", "canvas-hint"];
-  ids.push("object-color", "object-paint", "object-locate", "object-location", "object-name");
+  ids.push("exhibit-title", "exhibit-description", "exhibit-save", "exhibit-author", "object-color", "object-paint", "object-locate", "object-location", "object-name");
   const registry = new Map(ids.map((id) => [id, new Element()])); registry.get("workshop-dialog").registry = registry;
   registry.get("stl-up").value = "y"; registry.get("stl-units").value = "m";
   const saved = { document: globalThis.document, window: globalThis.window, Option: globalThis.Option };
@@ -96,6 +96,7 @@ async function fixture(t, initial = connected()) {
     editObject: async (type, data) => {
       calls.edits++;
       if (type === "object.delete") state.objects = state.objects.filter((item) => item.id !== data.id);
+      else if (type === "object.describe") state.objects = state.objects.map(item => item.id === data.id ? { ...item, title: data.title, description: data.description } : item);
       else if (type === "object.paint") state.objects = state.objects.map(item => item.id === data.id ? { ...item, color: data.color } : item);
       else {
         const previous = state.objects.find((item) => item.id === data.id);
@@ -144,10 +145,10 @@ test("STL color flows through draft, commit, painting and reload without moving 
   f.workshop.selectObject(before.id);
   assert.equal(f.workshop.getState().current.color, "#22aa77");
   assert.equal(await f.workshop.paintSelected("red"), false);
-  f.client.replace({ ...saved, user: { ...saved.user, id: "other" } }); await f.settle();
+  f.client.replace({ ...saved, user: { ...saved.user, id: "other" } }); await f.settle(() => f.workshop.getState().committed === 1);
   f.workshop.selectObject(before.id);
   assert.equal(await f.workshop.paintSelected("#ffffff"), false);
-  assert.equal(await f.workshop.locateSelected(), false);
+  assert.equal(await f.workshop.locateSelected(), true);
 });
 
 test('recall waits for ACK and keeps color, scale and rotation in a new held draft',async t=>{

@@ -35,10 +35,14 @@ import { createHeldSTL } from "./held-stl.js";
 import { createSchoolPresence } from "./school-presence.js";
 import { createVRWorkshop } from "./vr-workshop.js";
 import { createVRControllerPointer } from "./vr-controller-pointer.js";
+import { createStreetScenery } from "./street-scenery.js";
+import { createWorldRadar } from "./world-radar.js";
+import { createExhibitLabels } from "./exhibit-labels.js";
 import "./style.css";
 import "./layout.css";
 import "./hotbar.css";
 import "./location-hud.css";
+import "./street.css";
 
 const $ = (s) => document.querySelector(s),
   viewport = $("#viewport");
@@ -129,7 +133,8 @@ controls.dampingFactor = 0.08;
 controls.minDistance = 12;
 controls.maxDistance = 1100;
 controls.maxPolarAngle = Math.PI * 0.485;
-scene.add(new THREE.HemisphereLight(0xdff2ff, 0x879080, 2.1));
+const skyLight = new THREE.HemisphereLight(0xdff2ff, 0x879080, 2.1);
+scene.add(skyLight);
 const sun = new THREE.DirectionalLight(0xfff2da, 2.3);
 sun.position.set(-200, 400, 150);
 sun.castShadow = true;
@@ -212,6 +217,8 @@ const schoolClient = createSchoolClient();
 let schoolUI;
 let placementEnvironment = { terrain: null, obstacles: [], bounds: [-320, -381, 315, 372], terrainMeshes: [] };
 const regionalPlacementEnvironment=createRegionalPlacementEnvironment({getCore:()=>placementEnvironment,getManifest:()=>regionManifest,getMeshes:()=>regionStreamer.getMeshes()});
+const streetScenery=createStreetScenery({scene,getEnvironment:regionalPlacementEnvironment});
+const exhibitLabels=createExhibitLabels(scene);
 const workshop = createWorkshop(THREE, { scene, domElement: renderer.domElement, camera,
   getEnvironment: regionalPlacementEnvironment, getViewPosition: userPosition,
   getStation: () => stationPosition, onLocate: locateWorkshopObject,
@@ -310,10 +317,36 @@ let lastXRView = null, pendingXRView = null;
 let panel;
 let simulationSeconds = 0;
 schoolUI = createSchoolUI({ client: schoolClient, button: $("#school-button"),
+  getViewPosition: userPosition, getStation: () => stationPosition,
+  onLocateObject: async id => workshop.selectObject(id) && await workshop.locateSelected(),
   onBeforeOpen: () => {
     if (state.xr || xrEntering) return false;
     setFree(false); creative.clearInput({ release: true }); return true;
   } });
+const radar=createWorldRadar({parent:viewport,onOpenWorks:()=>{setFree(false);creative.clearInput({release:true});workshop.open();},
+  onFocusWorld:()=>renderer.domElement.focus({preventScroll:true})});
+let timeOfDay="day";
+function setTimeOfDay(value) {
+  timeOfDay=value==="evening"?"evening":"day";
+  const evening=timeOfDay==="evening";
+  scene.background.set(evening?0xe9b4a1:0xdce9ee);scene.fog.color.copy(scene.background);
+  skyLight.color.set(evening?0xffd6b3:0xdff2ff);skyLight.groundColor.set(evening?0x77748d:0x879080);skyLight.intensity=evening?1.7:2.1;
+  sun.color.set(evening?0xffba7c:0xfff2da);sun.intensity=evening?2:2.3;
+  sun.position.set(evening?-380:-200,evening?180:400,150);
+  renderer.shadowMap.needsUpdate=true;$("#time-of-day").value=timeOfDay;
+  try{localStorage.setItem("okazaki-time-of-day",timeOfDay);}catch{}
+}
+try{setTimeOfDay(localStorage.getItem("okazaki-time-of-day"));}catch{setTimeOfDay("day");}
+$("#time-of-day").onchange=event=>setTimeOfDay(event.target.value);
+fetch("/field/scenery.json").then(response=>{if(!response.ok)throw Error("scenery unavailable");return response.json();}).then(data=>{
+  streetScenery.setData(data);
+  const label=document.createElement("label");label.textContent="目印へワープ（地図上の位置の上空）";
+  const select=document.createElement("select");select.id="landmark-select";select.setAttribute("aria-label","移動する目印");
+  for(const item of data.landmarks)select.append(new Option(item.name,item.name));
+  const button=document.createElement("button");button.id="landmark-go";button.textContent="この目印を見に行く";
+  button.onclick=()=>{if(!activityAllowed||state.xr||xrEntering)return;const item=data.landmarks.find(p=>p.name===select.value);if(item)visitRegionPoint(item.x,item.z);};
+  label.append(select);$("#panel-region").append(label,button);
+}).catch(()=>{ /* Optional scenery stays absent; original city remains available. */ });
 const presence = createSchoolPresence(THREE, { scene, client: schoolClient });
 const vrWorkshop = createVRWorkshop(THREE, { camera, workshop, client: schoolClient,
   embedded: true,
@@ -691,7 +724,7 @@ $('#field-style').onchange=async event=>{
     if(oldFile!==nextFile){textures.get(oldFile)?.dispose();textures.delete(oldFile);}
     if(regionManifest)regionStreamer.setManifest(fieldRegionManifest());
     try{preferenceStorage?.setItem(FIELD_STYLE_KEY,fieldStyle);}catch{}
-    $('#field-style-note').textContent=fieldStyle==='game'?'道・線路・川を見やすく色分け。草や建物の窓はゲーム風の装飾です。':'航空写真と元の建物の色で表示します。';
+    $('#field-style-note').textContent=fieldStyle==='game'?'道・線路・川を見やすく色分け。樹木・信号機・窓は装飾で、実際の設備や植生の位置・点灯は再現しません。':'航空写真と元の建物の色で表示します。';
   }catch{
     fieldStyle=previous;event.target.value=previous;
     $('#field-style-note').textContent='表示を切り替えられませんでした。現在の表示で続けられます。';
@@ -1354,6 +1387,11 @@ renderer.setAnimationLoop((time, frame) => {
     regionStreamer.update(locateStreamTarget ?? userPosition(), quality.id, time);
     nearField.update({position:userPosition(),quality:quality.id,enabled:fieldStyle==='game'&&!state.qualityLoading,
       manifest:fieldManifest,core:terrainMesh,terrain:regionStreamer.getGroundMeshes(),time});
+    streetScenery.update({position:userPosition(),quality:quality.id,enabled:fieldStyle==="game"&&!state.qualityLoading,time,objects:schoolState.objects});
+    exhibitLabels.update({objects:schoolState.objects,position:userPosition(),time,enabled:activityAllowed});
+    radar.update({position:userPosition(),yaw:creative.getState().mode==="creative"?creative.getState().yaw:
+      new THREE.Euler().setFromQuaternion(camera.getWorldQuaternion(new THREE.Quaternion()),"YXZ").y,
+      objects:schoolState.objects,userId:schoolState.user?.id,station:stationPosition,time,hidden:state.xr});
     adoptSchoolPose();
     if (activityAllowed && schoolState.user && schoolState.world && schoolState.connection === "connected" &&
         restoredWorld === schoolState.world.id && !pendingXRView && !document.hidden &&
@@ -1447,6 +1485,7 @@ window.__okazaki = {
     presence: presence.getState(),
     vrWorkshop: vrWorkshop.getState(),
     workshop: workshop.getState(),
+    streetScenery: streetScenery.getState(), radar: radar.getState(), exhibits: exhibitLabels.getState(), timeOfDay,
     hotbar: hotbar.getState(),
     heldSTL: heldSTL.getState(),
     creative: creative.getState(),

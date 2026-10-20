@@ -1,6 +1,7 @@
 import { parseSchoolInvite, schoolInviteURL } from "./school-client.js";
 import { createGoogleIdentityLoader } from "./google-identity.js";
 import "./school.css";
+import { describeWorkLocation, exhibitTitle } from "./workshop-presentation.js";
 
 const ERROR_TEXT = {
   invalid_student_login: "IDまたはパスワードが違います。先生から受け取った内容を確認してください。",
@@ -20,6 +21,8 @@ const ERROR_TEXT = {
   room_full: "同時参加人数の上限に達しました。しばらくしてからもう一度開いてください。",
   other_teacher_world: "先生は自分が作成した教室のみ開けます。",
   teacher_required: "この操作はワールドを作成した先生だけができます。",
+  object_not_found: "この作品はすでに回収されています。生徒一覧を確認してください。",
+  object_owner_required: "この作品を操作する権限がありません。",
   stale_revision: "ほかの人の変更が先に保存されました。最新状態に更新したので、内容を確認してもう一度操作してください。",
   session_expired: "ログイン期限が切れました。生徒はID・パスワード、先生はGoogleでログインし直してください。",
   room_login_required: "ログインまたは教室への参加が必要です。",
@@ -65,7 +68,8 @@ function actionButton(text, handler, id) {
 }
 const loadGoogleIdentity = createGoogleIdentityLoader();
 
-export function createSchoolUI({ client, button, onBeforeOpen = () => {} }) {
+export function createSchoolUI({ client, button, onBeforeOpen = () => {},
+  onLocateObject = async () => false, getViewPosition = () => ({x:0,z:0}), getStation = () => null }) {
   const dialog = element("dialog", undefined, "school-dialog"); dialog.id = "school-dialog";
   dialog.setAttribute("aria-labelledby", "school-title");
   const heading = element("div", undefined, "school-heading");
@@ -82,6 +86,7 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {} }) {
   let state = client.getState(), renderKey = "", busy = false, googleGeneration = 0;
   let googleHost = null, participantLabel = null, roomConnection = null;
   let issuedCredentials = [], credentialsOwner = null;
+  let updateRoster = () => {};
   const inviteCode = parseSchoolInvite(globalThis.location?.href ?? "");
   function setStatus(text, error = false) { if (status.textContent !== text) status.textContent = text; status.classList.toggle("is-error", error); }
   function updateMovementStatus() {
@@ -203,7 +208,8 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {} }) {
     const credentialText = () => "ID\tパスワード\n" + issuedCredentials.map(row => `${row.loginId}\t${row.password}`).join("\n");
     if (issuedCredentials.length) output.value = credentialText();
     const note = element("p", "パスワードは発行・再発行した時だけ表示します。各生徒に自分の1行だけを安全に渡してください。再発行しても名前・作品は残ります。", "school-note");
-    const roster = element("div");
+    const roster = element("div"); roster.id = "student-roster-list";
+    let students = null, rosterKey = "";
     const showSecrets = result => {
       // Socket arrival may rerender the dialog during issuance. Keep this one
       // response in volatile UI memory and update the CURRENT textarea, not a
@@ -214,17 +220,49 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {} }) {
       current.focus(); current.select();
     };
     async function refreshRoster() {
-      const result = await client.students(); roster.replaceChildren();
-      roster.append(element("p", `発行済み ${result.students.length} / 30人`));
-      for (const student of result.students) {
-        const row = element("div", undefined, "school-row");
-        row.append(element("span", `${student.slot}. ${student.name} (${student.loginId})`), command("パスワード再発行", () => {
+      const owner = state.user?.id, world = state.world?.id;
+      const result = await client.students();
+      if (!roster.isConnected || state.user?.id !== owner || state.world?.id !== world) return;
+      students = result.students; rosterKey = ""; updateRoster();
+    }
+    updateRoster = () => {
+      if (!students || !roster.isConnected) return;
+      const key = JSON.stringify([state.world?.id, state.connection, state.objects]);
+      if (key === rosterKey) return;
+      rosterKey = key; roster.replaceChildren();
+      roster.append(element("p", `発行済み ${students.length} / 30人 · 配置はリアルタイム更新`));
+      for (const student of students) {
+        const row = element("section", undefined, "student-placement-row");
+        row.dataset.studentId = student.id;
+        row.append(element("h4", `${student.slot}. ${student.name} (${student.loginId})`), command("パスワード再発行", () => {
           if (!confirm("この生徒の古いパスワードを無効にして再発行しますか？作品は残ります。")) return;
           void perform(async () => showSecrets(await client.students("reset", { id: student.id })), "新しいパスワードを本人に渡してください。");
-        })); roster.append(row);
+        }));
+        const objects = state.objects.filter(item => item.ownerId === student.id);
+        row.append(element("p", state.connection !== "connected" ? "再接続後に配置を確認できます。" :
+          objects.length ? `配置中 ${objects.length}点` : "配置中の作品はありません。", "school-note"));
+        for (const item of objects) {
+          const card = element("div", undefined, "student-work");
+          card.dataset.objectId = item.id;
+          card.append(element("strong", exhibitTitle(item)),
+            element("p", describeWorkLocation(item.position, getViewPosition(), getStation()), "school-note"));
+          if (item.description) card.append(element("p", item.description, "school-note"));
+          card.append(command("📍 作品を見に行く", () => perform(async () => {
+            dialog.close();
+            if (!await onLocateObject(item.id)) {
+              await open(); setStatus("作品の地面を確認できませんでした。読み込み後にもう一度お試しください。", true);
+            }
+          }), undefined, state.connection !== "connected"));
+          card.append(command("生徒のホットバーへ戻す", () => perform(async () => {
+            await client.editObject("object.delete", { id: item.id });
+          }, `「${exhibitTitle(item)}」の配置を解除しました。${student.name}のSTLはホットバーから再び使えます。`),
+          undefined, state.connection !== "connected"));
+          row.append(card);
+        }
+        roster.append(row);
       }
       refreshDisabled();
-    }
+    };
     section.append(count.label, command("ID・パスワードを発行", () => perform(async () => {
       showSecrets(await client.students("issue", { count: Number(count.input.value) })); await refreshRoster();
     }, "発行しました。表示された情報を控えてください。"), "student-issue"), note, output,
@@ -294,6 +332,7 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {} }) {
       if (!state.user) renderGuest(); else { renderAccount(); renderEntry(); if (!state.user.namePending) renderRoom(); }
     }
     updateConnection();
+    updateRoster();
     if (state.error) setStatus(explainSchoolError(state.error), true);
     else if (event === "auth" || event === "state") setStatus(state.user ? (state.user.namePending ? "頭の上に表示する名前を決めてください。" : "ログイン中です。みんなのワールドに接続します。") : "ログインすると、街の移動・VR・作品づくりを始められます。");
   }
