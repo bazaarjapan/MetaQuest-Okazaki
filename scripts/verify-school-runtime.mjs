@@ -277,7 +277,7 @@ try {
     assert.equal((await owner.command(command)).revision, 1);
     const attack = await classroom[2].probe.command({ type: "object.delete", requestId: randomUUID(), revision: 1, id }, "error");
     assert.equal(attack.error, "object_owner_required");
-    const teacherAttack = await classroom[0].probe.command({ type: "object.delete", requestId: randomUUID(), revision: 1, id }, "error");
+    const teacherAttack = await classroom[0].probe.command({ type: "object.describe", requestId: randomUUID(), revision: 1, id, title: "Teacher overwrite" }, "error");
     assert.equal(teacherAttack.error, "object_owner_required");
     return { originalSTLHashVerified: true, actualPLATEAUGroundSnapped: true, simultaneousObjectRecipients: 31 };
   });
@@ -289,7 +289,10 @@ try {
     const row = await db.prepare("SELECT state_json FROM school_snapshots WHERE id=?").bind(checkpoint.id).first();
     assert.deepEqual(JSON.parse(row.state_json).objects[0], object);
     await delay(260);
-    assert.equal((await owner.command({ type: "object.delete", requestId: randomUUID(), revision: 1, id: object.id })).revision, 2);
+    assert.equal((await classroom[0].probe.command({ type: "object.delete", requestId: randomUUID(), revision: 1, id: object.id })).revision, 2);
+    const returned = await fetchApi(`/api/worlds/${world.id}/assets/${object.assetId}`, students[0]);
+    assert.equal(returned.status, 200);
+    assert.deepEqual(new Uint8Array(await returned.arrayBuffer()), bytes);
     const movedAfterCheckpoint = [800,50,300];
     owner.send({ type: "pose", position: movedAfterCheckpoint, yaw: .8, seq: 6, restoreCommit: poseRestoreCommit });
     await Promise.all(classroom.map(({ probe }) => probe.wait((packet) => packet.type === "pose" &&
