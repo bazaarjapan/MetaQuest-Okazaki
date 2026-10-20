@@ -108,6 +108,7 @@ try {
   await until("!document.querySelector('#enter-vr').disabled");
   await browser("click","#enter-vr");await until("window.__okazaki.getState().xr");
   check("XR hides PC hand controls",await evaluate("document.querySelector('#held-item-controls').hidden") && !(await state()).heldSTL.visible);
+  check("XR hides the 2D people radar",await evaluate("document.querySelector('#world-radar').hidden"));
   await key("KeyQ");await key("KeyQ","keyup");
   check("Q in XR preserves held draft",(await state()).workshop.current.id===draft);
   await evaluate('window.__xrTestDevice.controllers.left.updateButtonValue("x-button",0) ?? true');
@@ -117,6 +118,8 @@ try {
   await evaluate('window.__xrTestDevice.controllers.left.updateButtonValue("x-button",0) ?? true');
   await until("window.__okazaki.getState().heldSTL.visible");
   check("XR return preserves draft and leaves movement OFF",(await state()).workshop.current.id===draft && !(await state()).free);
+  await until("!document.querySelector('#world-radar').hidden");
+  check("XR return restores the people radar",await evaluate("document.querySelector('.radar-legend').textContent.includes('先生')"));
   passed=true;
 } finally {
   if(!passed) await browser("screenshot","test-results/held-controls-failure.png").catch(()=>{});
