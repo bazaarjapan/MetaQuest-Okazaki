@@ -36,6 +36,9 @@ import { createSchoolPresence } from "./school-presence.js";
 import { createVRWorkshop } from "./vr-workshop.js";
 import { createVRControllerPointer } from "./vr-controller-pointer.js";
 import { createStreetScenery } from "./street-scenery.js";
+import { createAmbientTraffic } from "./ambient-traffic.js";
+import { createMovementAudio } from "./movement-audio.js";
+import { createCitySky } from "./city-atmosphere.js";
 import { createWorldRadar } from "./world-radar.js";
 import { createExhibitLabels } from "./exhibit-labels.js";
 import "./style.css";
@@ -100,6 +103,7 @@ let initialMovementInterrupted = false;
 const scene = new THREE.Scene();
 scene.background = new THREE.Color("#dce9ee");
 scene.fog = new THREE.Fog("#dce9ee", 800, 1700);
+const citySky=createCitySky(THREE,scene);
 const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 2300),
   rig = new THREE.Group();
 rig.add(camera);
@@ -218,6 +222,16 @@ let schoolUI;
 let placementEnvironment = { terrain: null, obstacles: [], bounds: [-320, -381, 315, 372], terrainMeshes: [] };
 const regionalPlacementEnvironment=createRegionalPlacementEnvironment({getCore:()=>placementEnvironment,getManifest:()=>regionManifest,getMeshes:()=>regionStreamer.getMeshes()});
 const streetScenery=createStreetScenery({scene,getEnvironment:regionalPlacementEnvironment});
+const ambientTraffic=createAmbientTraffic({scene,getEnvironment:regionalPlacementEnvironment});
+const movementAudio=createMovementAudio({storage:preferenceStorage,isAllowed:()=>activityAllowed});
+let ambientMotion=true;
+try{const saved=preferenceStorage?.getItem('okazaki-ambient-motion');ambientMotion=saved===null||saved===undefined?!matchMedia('(prefers-reduced-motion: reduce)').matches:saved!=='false';}catch{}
+$('#ambient-motion').checked=ambientMotion;
+$('#ambient-motion').onchange=event=>{ambientMotion=event.target.checked;try{preferenceStorage?.setItem('okazaki-ambient-motion',String(ambientMotion));}catch{}};
+const initialSound=movementAudio.getState();$('#movement-sound').checked=initialSound.enabled;$('#movement-volume').value=String(initialSound.volume*100);$('#movement-volume-value').textContent=`${Math.round(initialSound.volume*100)}%`;
+const changeSound=()=>{const volume=Number($('#movement-volume').value)/100;movementAudio.setSettings({enabled:$('#movement-sound').checked,volume});$('#movement-volume-value').textContent=`${Math.round(volume*100)}%`;};
+$('#movement-sound').onchange=changeSound;$('#movement-volume').oninput=changeSound;
+document.addEventListener('visibilitychange',()=>{if(document.hidden)movementAudio.stop();});
 const exhibitLabels=createExhibitLabels(scene);
 const workshop = createWorkshop(THREE, { scene, domElement: renderer.domElement, camera,
   getEnvironment: regionalPlacementEnvironment, getViewPosition: userPosition,
@@ -329,10 +343,10 @@ let timeOfDay="day";
 function setTimeOfDay(value) {
   timeOfDay=value==="evening"?"evening":"day";
   const evening=timeOfDay==="evening";
-  scene.background.set(evening?0xe9b4a1:0xdce9ee);scene.fog.color.copy(scene.background);
-  skyLight.color.set(evening?0xffd6b3:0xdff2ff);skyLight.groundColor.set(evening?0x77748d:0x879080);skyLight.intensity=evening?1.7:2.1;
+  citySky.set(evening);
+  skyLight.color.set(evening?0xffd6b3:0xdff2ff);skyLight.groundColor.set(evening?0x77748d:0x879080);skyLight.intensity=evening?1.4:1.7;
   sun.color.set(evening?0xffba7c:0xfff2da);sun.intensity=evening?2:2.3;
-  sun.position.set(evening?-380:-200,evening?180:400,150);
+  sun.position.set(evening?-380:-280,evening?180:330,150);
   renderer.shadowMap.needsUpdate=true;$("#time-of-day").value=timeOfDay;
   try{localStorage.setItem("okazaki-time-of-day",timeOfDay);}catch{}
 }
@@ -340,6 +354,7 @@ try{setTimeOfDay(localStorage.getItem("okazaki-time-of-day"));}catch{setTimeOfDa
 $("#time-of-day").onchange=event=>setTimeOfDay(event.target.value);
 fetch("/field/scenery.json").then(response=>{if(!response.ok)throw Error("scenery unavailable");return response.json();}).then(data=>{
   streetScenery.setData(data);
+  ambientTraffic.setData(data.motion);
   const label=document.createElement("label");label.textContent="目印へワープ（地図上の位置の上空）";
   const select=document.createElement("select");select.id="landmark-select";select.setAttribute("aria-label","移動する目印");
   for(const item of data.landmarks)select.append(new Option(item.name,item.name));
@@ -724,7 +739,7 @@ $('#field-style').onchange=async event=>{
     if(oldFile!==nextFile){textures.get(oldFile)?.dispose();textures.delete(oldFile);}
     if(regionManifest)regionStreamer.setManifest(fieldRegionManifest());
     try{preferenceStorage?.setItem(FIELD_STYLE_KEY,fieldStyle);}catch{}
-    $('#field-style-note').textContent=fieldStyle==='game'?'道・線路・川を見やすく色分け。樹木・信号機・窓は装飾で、実際の設備や植生の位置・点灯は再現しません。':'航空写真と元の建物の色で表示します。';
+    $('#field-style-note').textContent=fieldStyle==='game'?'道・線路・川は地図に沿って表示。草木・信号・街灯・車両・飛行は街を楽しむための装飾です。':'航空写真と元の建物の色で表示します。';
   }catch{
     fieldStyle=previous;event.target.value=previous;
     $('#field-style-note').textContent='表示を切り替えられませんでした。現在の表示で続けられます。';
@@ -903,6 +918,7 @@ function syncMovementHelp() {
 }
 function setFree(value, { preserveView = false, preserveXRStartup = false } = {}) {
   value = Boolean(value);
+  if(!value)movementAudio.stop();
   if (value && (!state.ready || !activityAllowed)) value = false;
   if (value && !state.xr && (document.hidden || document.querySelector("dialog[open]"))) value = false;
   if (state.xr && vrWorkshop?.getState().picking) value = false;
@@ -1387,7 +1403,13 @@ renderer.setAnimationLoop((time, frame) => {
     regionStreamer.update(locateStreamTarget ?? userPosition(), quality.id, time);
     nearField.update({position:userPosition(),quality:quality.id,enabled:fieldStyle==='game'&&!state.qualityLoading,
       manifest:fieldManifest,core:terrainMesh,terrain:regionStreamer.getGroundMeshes(),time});
-    streetScenery.update({position:userPosition(),quality:quality.id,enabled:fieldStyle==="game"&&!state.qualityLoading,time,objects:schoolState.objects});
+    streetScenery.update({position:userPosition(),quality:quality.id,enabled:fieldStyle==="game"&&!state.qualityLoading,time,objects:schoolState.objects,timeOfDay});
+    ambientTraffic.update({position:userPosition(),quality:quality.id,active:activityAllowed&&ambientMotion&&fieldStyle==='game'&&!state.qualityLoading&&!document.hidden,time,objects:schoolState.objects,
+      terrainVersion:`${terrainMesh?.geometry.id}:${regionStreamer.getMeshes().map(m=>m.geometry.id).join(',')}`});
+    const soundMovement=creative.getState();
+    movementAudio.update({time,position:userPosition().toArray(),active:activityAllowed&&state.free&&!state.qualityLoading&&!document.hidden&&!adaptiveUi.getState().open&&!document.querySelector('dialog[open]')&&!pendingXRView&&(!state.xr||renderer.xr.getSession()?.visibilityState==='visible'),
+      grounded:!state.xr&&soundMovement.mode==='creative'&&soundMovement.grounded,
+      flying:state.xr||soundMovement.mode==='drone'||soundMovement.flying,boosting:soundMovement.animation==='boost'});
     exhibitLabels.update({objects:schoolState.objects,position:userPosition(),time,enabled:activityAllowed,
       camera:state.xr?null:camera,viewportHeight:viewport.clientHeight,maxPixels:Math.min(220,viewport.clientWidth*.4)});
     radar.update({position:userPosition(),yaw:creative.getState().mode==="creative"?creative.getState().yaw:
@@ -1487,7 +1509,7 @@ window.__okazaki = {
     presence: presence.getState(),
     vrWorkshop: vrWorkshop.getState(),
     workshop: workshop.getState(),
-    streetScenery: streetScenery.getState(), radar: radar.getState(), exhibits: exhibitLabels.getState(), timeOfDay,
+    streetScenery: streetScenery.getState(), traffic:ambientTraffic.getState(), audio:movementAudio.getState(), radar: radar.getState(), exhibits: exhibitLabels.getState(), timeOfDay,
     hotbar: hotbar.getState(),
     heldSTL: heldSTL.getState(),
     creative: creative.getState(),

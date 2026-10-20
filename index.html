@@ -135,7 +135,17 @@
             <option value="game" selected>ゲーム風（道・線路・川をくっきり）</option>
             <option value="photo">航空写真・元の色</option>
           </select>
-          <p id="field-style-note">道・線路・川を地図データで色分け。樹木・信号機・窓は装飾で、実際の設備や植生の位置・点灯は再現しません。</p>
+          <p id="field-style-note">道・線路・川は地図に沿って表示。草木・信号・街灯・車両・飛行は街を楽しむための装飾です。</p>
+        </div>
+        <div class="quality-setting">
+          <label><input id="ambient-motion" type="checkbox" checked> 車・電車・飛行機を動かす</label>
+          <p>ゲーム風の標準・高精細で表示。実際の運行状況や飛行経路ではありません。</p>
+        </div>
+        <div class="quality-setting">
+          <label><input id="movement-sound" type="checkbox" checked> 歩行・飛行の効果音</label>
+          <label for="movement-volume">音量 <output id="movement-volume-value">35%</output></label>
+          <input id="movement-volume" type="range" min="0" max="100" step="5" value="35">
+          <p>操作を始めると有効になります。メニュー表示中と移動OFFでは停止します。</p>
         </div>
         <div id="quality-setting" class="quality-setting">
           <label for="quality-select">画質（VRに入る前に選択）</label>

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import * as THREE from 'three';
-import {buildingColorBytes,readFieldStyle,gameTerrainFile,isCoreBuildingPart,createFieldBuildingMaterial,decorateBuildingGeometry} from '../src/field-style.js';
+import {buildingColorBytes,buildingAttributes,readFieldStyle,gameTerrainFile,isCoreBuildingPart,createFieldBuildingMaterial,decorateBuildingGeometry} from '../src/field-style.js';
 import {mapPoint,roadWidth,renderFieldSVG} from '../scripts/lib/field-map.mjs';
 
 test('all four actual station building material groups are styled, never the terrain',async()=>{
@@ -18,7 +18,9 @@ test('small, black and photo-textured actual meshes gain colors without changing
     g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(buffer,0,p.vertices*3),3));
     g.setIndex(new THREE.BufferAttribute(new Uint32Array(buffer,p.vertices*32,p.indices),1));
     const before=Buffer.from(buffer).toString('base64');decorateBuildingGeometry(THREE,g);
-    assert.equal(g.attributes.fieldColor.count,p.vertices,p.name);
+    assert.equal(g.attributes.fieldColor.count,g.attributes.position.count,p.name);
+    assert.equal(g.attributes.fieldSpan.count,g.attributes.position.count,p.name);
+    assert.ok(g.attributes.fieldSpan.array.every(Number.isFinite),p.name);
     assert.ok(g.attributes.fieldColor.array.every(c=>c>0),p.name);
     assert.equal(Buffer.from(buffer).toString('base64'),before,p.name);g.dispose();
   }
@@ -31,12 +33,37 @@ test('shared shader bypasses original photos in game mode and retains photo/blac
   assert.match(shader.fragmentShader,/if\(fieldGame>\.5\)/);
   assert.equal(shader.uniforms.fieldGame,uniform);assert.equal(material.map,map);assert.equal(material.color.getHex(),0);
   uniform.value=0;assert.equal(shader.uniforms.fieldGame.value,0);assert.equal(material.map,map);
-  assert.equal(material.userData.fieldBuilding,true);assert.equal(material.customProgramCacheKey(),'okazaki-field-building-v3');material.dispose();map.dispose();
+  assert.equal(material.userData.fieldBuilding,true);assert.equal(material.customProgramCacheKey(),'okazaki-field-building-v4');material.dispose();map.dispose();
+});
+
+test('facades retain low-wing roof heights even when they connect to a taller building',()=>{
+  const p=new Float32Array([0,20,0,4,20,0,0,24.1,0,4,20,0,4,24.1,0,0,24.1,0,4,20,0,8,20,0,4,28.7,0,8,20,0,8,28.7,0,4,28.7,0]);
+  const before=[...p],result=buildingAttributes(p);
+  assert.equal(result.spans[0],20);assert.ok(Math.abs(result.spans[1]-24.1)<.001);
+  assert.ok(Math.abs(result.spans[15]-28.7)<.001);assert.deepEqual([...p],before);
+  assert.ok(Math.abs(result.ceilings[0]-24.1)<.001);assert.ok(Math.abs(result.ceilings[2]-28.7)<.001);
+  // Split wall/roof copies at the same vertical corner agree on the roof.
+  assert.equal(result.spans[1],result.spans[5]);
 });
 test('game atlas respects every quality profile with legacy manifest fallback',()=>{
   const manifest={core:{file:'station.webp'},profiles:{performance:{file:'station-performance.webp'},balanced:{file:'station-balanced.webp'},high:{file:'station.webp'}}};
   for(const id of ['performance','balanced','high'])assert.equal(gameTerrainFile(manifest,id),'../field/'+manifest.profiles[id].file);
   assert.equal(gameTerrainFile({core:manifest.core},'performance'),'../field/station.webp');
+});
+test('facade vertex splitting preserves every indexed triangle and its source attributes',()=>{
+  const geometry=new THREE.BufferGeometry();
+  geometry.setAttribute('position',new THREE.Float32BufferAttribute([0,0,0,4,0,0,0,4,0,4,4,0,4,8,0,8,0,0],3));
+  geometry.setAttribute('uv',new THREE.Float32BufferAttribute([0,0,1,0,0,1,1,1,1,2,2,0],2));
+  geometry.setIndex([0,1,2,1,3,2,1,5,4]);
+  const sourceIndex=[...geometry.index.array],sourcePosition=[...geometry.attributes.position.array],sourceUv=[...geometry.attributes.uv.array];
+  decorateBuildingGeometry(THREE,geometry);
+  for(let i=0;i<sourceIndex.length;i++){
+    const old=sourceIndex[i],next=geometry.index.array[i];
+    assert.deepEqual([...geometry.attributes.position.array.slice(next*3,next*3+3)],sourcePosition.slice(old*3,old*3+3));
+    assert.deepEqual([...geometry.attributes.uv.array.slice(next*2,next*2+2)],sourceUv.slice(old*2,old*2+2));
+  }
+  assert.ok(geometry.attributes.position.count>sourcePosition.length/3);
+  geometry.dispose();
 });
 test('game field defaults without writable storage; photo choice persists',()=>{
   assert.equal(readFieldStyle(), 'game');assert.equal(readFieldStyle({getItem(){throw Error();}}),'game');
