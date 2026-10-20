@@ -78,6 +78,18 @@ test('new grass and streetlights require real terrain and never overlap a placed
   update(2000,[{id:'work',bounds:{min:[-3,0,-3],max:[3,10,3]}}]);assert.equal(scenery.getState().grass,0);assert.equal(scenery.getState().lights,1);scenery.dispose();
 });
 
+test('stationary scenery reuses verified ground and defers queries during editing',()=>{
+  let queries=0;const env=environment(),scene=new THREE.Scene();
+  const scenery=createStreetScenery({scene,getEnvironment:()=>{queries++;return env;}});
+  scenery.setData({trees:[],signals:[],grass:[[0,0,0]],lights:[]});
+  const update=(time,extra={})=>scenery.update({position:{x:0,z:0},quality:'high',enabled:true,time,terrainVersion:'first',...extra});
+  update(0);assert.equal(queries,1);assert.equal(scenery.getState().grass,1);
+  update(2000);update(4000);assert.equal(queries,1);
+  update(6000,{paused:true,terrainVersion:'new'});assert.equal(queries,1);assert.equal(scenery.getState().grass,0);
+  update(7000,{terrainVersion:'new'});assert.equal(queries,2);assert.equal(scenery.getState().grass,1);
+  update(9000,{terrainVersion:'new',position:{x:20,z:0}});assert.equal(queries,3);scenery.dispose();
+});
+
 test('movement sound only plays on ground contact or moving flight, with bounded gain',()=>{
   assert.equal(movementSoundProfile({active:true,grounded:true,flying:false,speed:4}).mode,'steps');
   assert.equal(movementSoundProfile({active:true,grounded:false,flying:false,speed:4}).mode,'silent');

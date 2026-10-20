@@ -38,21 +38,26 @@ export function createStreetScenery({scene,getEnvironment}) {
   const grass=make(grassGeometry(),0xffffff,360);grass.material.side=THREE.DoubleSide;
   const wind={value:0};grass.material.onBeforeCompile=shader=>{shader.uniforms.grassTime=wind;shader.vertexShader='uniform float grassTime;\n'+shader.vertexShader;shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',`#include <begin_vertex>
     transformed.x+=sin(grassTime*1.7+instanceMatrix[3].x*.13+instanceMatrix[3].z*.09)*position.y*.14;`);};grass.material.customProgramCacheKey=()=> 'okazaki-grass-wind-v1';
-  let data=null,queue=[],prepared=null,last=-Infinity,mode='',loaded=false,visible=true,occupiedKey='',signalAngles=[],lastLights=-Infinity;
+  let data=null,queue=[],prepared=null,last=-Infinity,mode='',loaded=false,visible=true,occupiedKey='',signalAngles=[],lastLights=-Infinity,lastPosition=null,groundVersion;
   function put(mesh,index,x,y,z,sx,sy,sz,angle=0) {
     matrix.position.set(x,y,z);matrix.rotation.set(0,angle,0);matrix.scale.set(sx,sy,sz);matrix.updateMatrix();mesh.setMatrixAt(index,matrix.matrix);mesh.count=index+1;mesh.instanceMatrix.needsUpdate=true;
   }
-  function reset(){queue=[];prepared=null;group.children.forEach(m=>m.count=0);signalAngles=[];}
+  function reset(){queue=[];prepared=null;group.children.forEach(m=>m.count=0);signalAngles=[];lastPosition=null;}
   return {
-    setData(value){data=value;loaded=true;last=-Infinity;},
-    update({position,quality,enabled,time,objects=[],timeOfDay='day'}) {
+    setData(value){data=value;loaded=true;last=-Infinity;reset();},
+    update({position,quality,enabled,time,objects=[],timeOfDay='day',terrainVersion=null,paused=false}) {
       const nextMode=`${enabled}:${quality}`;if(nextMode!==mode){mode=nextMode;last=-Infinity;reset();}
       visible=Boolean(enabled&&quality!=='performance'&&data);group.visible=visible;if(!visible)return;
       wind.value=time/1000;
       const [treeLimit,signalLimit]=sceneryLimits[quality]??sceneryLimits.balanced,[lightLimit,grassLimit]=extras[quality]??extras.balanced;
       const limits={tree:treeLimit,signal:signalLimit,light:lightLimit,grass:grassLimit};
       const nextOccupied=JSON.stringify(objects.map(o=>[o.id,o.bounds]));if(nextOccupied!==occupiedKey){occupiedKey=nextOccupied;last=-Infinity;reset();}
-      if(!queue.length&&time-last>1800) {
+      if(terrainVersion!==groundVersion){groundVersion=terrainVersion;last=-Infinity;reset();}
+      // A menu or editor needs no new scenery queries. At a stationary viewpoint
+      // reuse the accepted batch until geometry, objects or the position changes.
+      if(paused)return;
+      if(!queue.length&&time-last>1800&&(!lastPosition||Math.hypot(position.x-lastPosition.x,position.z-lastPosition.z)>12)) {
+        lastPosition={x:position.x,z:position.z};
         last=time;prepared={items:[],counts:{tree:0,signal:0,light:0,grass:0}};
         queue=[['signal',data.signals],['light',data.lights],['tree',data.trees],['grass',data.grass]].flatMap(([kind,entries])=>sceneryCandidates(entries??[],position,limits[kind],kind==='grass'?220:420).map(p=>({p,kind})));
       }

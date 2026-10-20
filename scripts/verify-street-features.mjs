@@ -53,7 +53,7 @@ try{
  await browser('click','#simple-menu');await browser('click','#tab-settings');await browser('click','#ambient-motion');
  await until('!window.__okazaki.getState().traffic.enabled');const pausedClock=(await state()).traffic.clock;await delay(300);
  check('motion can pause without advancing its clock',(await state()).traffic.clock===pausedClock);
- await browser('click','#ambient-motion');await until('window.__okazaki.getState().traffic.enabled');await browser('click','#panel-close');
+ await browser('click','#ambient-motion');await browser('click','#panel-close');await until('window.__okazaki.getState().traffic.enabled');
  await browser('click','#viewport > canvas');
  const key=async(code,type='keydown')=>evaluate(`window.dispatchEvent(new KeyboardEvent('${type}',{code:'${code}',key:'${code}',bubbles:true,cancelable:true}))`);
  await key('KeyZ');await until("window.__okazaki.getState().audio.mode==='jet' && window.__okazaki.getState().audio.jetGain>0",60000);

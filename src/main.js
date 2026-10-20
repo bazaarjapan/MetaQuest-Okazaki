@@ -1403,9 +1403,11 @@ renderer.setAnimationLoop((time, frame) => {
     regionStreamer.update(locateStreamTarget ?? userPosition(), quality.id, time);
     nearField.update({position:userPosition(),quality:quality.id,enabled:fieldStyle==='game'&&!state.qualityLoading,
       manifest:fieldManifest,core:terrainMesh,terrain:regionStreamer.getGroundMeshes(),time});
-    streetScenery.update({position:userPosition(),quality:quality.id,enabled:fieldStyle==="game"&&!state.qualityLoading,time,objects:schoolState.objects,timeOfDay});
-    ambientTraffic.update({position:userPosition(),quality:quality.id,active:activityAllowed&&ambientMotion&&fieldStyle==='game'&&!state.qualityLoading&&!document.hidden,time,objects:schoolState.objects,
-      terrainVersion:`${terrainMesh?.geometry.id}:${regionStreamer.getMeshes().map(m=>m.geometry.id).join(',')}`});
+    const sceneryGeometryVersion=`${terrainMesh?.geometry.id}:${regionStreamer.getMeshes().map(m=>m.geometry.id).join(',')}`;
+    const editingWorld=adaptiveUi.getState().open||Boolean(document.querySelector('dialog[open]'));
+    streetScenery.update({position:userPosition(),quality:quality.id,enabled:fieldStyle==="game"&&!state.qualityLoading,time,objects:schoolState.objects,timeOfDay,terrainVersion:sceneryGeometryVersion,paused:editingWorld||document.hidden});
+    ambientTraffic.update({position:userPosition(),quality:quality.id,active:activityAllowed&&ambientMotion&&fieldStyle==='game'&&!state.qualityLoading&&!document.hidden&&!editingWorld,time,objects:schoolState.objects,
+      terrainVersion:sceneryGeometryVersion});
     const soundMovement=creative.getState();
     movementAudio.update({time,position:userPosition().toArray(),active:activityAllowed&&state.free&&!state.qualityLoading&&!document.hidden&&!adaptiveUi.getState().open&&!document.querySelector('dialog[open]')&&!pendingXRView&&(!state.xr||renderer.xr.getSession()?.visibilityState==='visible'),
       grounded:!state.xr&&soundMovement.mode==='creative'&&soundMovement.grounded,
