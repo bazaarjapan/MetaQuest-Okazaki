@@ -1391,7 +1391,8 @@ renderer.setAnimationLoop((time, frame) => {
     exhibitLabels.update({objects:schoolState.objects,position:userPosition(),time,enabled:activityAllowed});
     radar.update({position:userPosition(),yaw:creative.getState().mode==="creative"?creative.getState().yaw:
       new THREE.Euler().setFromQuaternion(camera.getWorldQuaternion(new THREE.Quaternion()),"YXZ").y,
-      objects:schoolState.objects,userId:schoolState.user?.id,station:stationPosition,time,hidden:state.xr});
+      objects:schoolState.objects,participants:schoolState.connection==="connected"?schoolState.participants:[],
+      userId:schoolState.user?.id,station:stationPosition,time,hidden:state.xr});
     adoptSchoolPose();
     if (activityAllowed && schoolState.user && schoolState.world && schoolState.connection === "connected" &&
         restoredWorld === schoolState.world.id && !pendingXRView && !document.hidden &&

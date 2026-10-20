@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {radarPoint} from '../src/world-radar.js';
+import {radarPoint,radarPeople} from '../src/world-radar.js';
 import {sceneryCandidates,sceneryLimits,createStreetScenery} from '../src/street-scenery.js';
 import {validExhibitText} from '../src/workshop-presentation.js';
 import * as THREE from 'three';
@@ -11,6 +11,17 @@ test('radar rotates relative to heading and clamps distant items without losing 
  const west=radarPoint(origin,[-90,0,20],Math.PI/2,100);assert.ok(Math.abs(west.x)<1e-10);assert.equal(west.y,-76);
  const far=radarPoint(origin,[3010,0,4020],0,100);assert.equal(far.distance,5000);assert.equal(far.edge,true);assert.ok(Math.abs(Math.hypot(far.x,far.y)-76)<1e-8);
  assert.equal(radarPoint(origin,[10,0,20],0,100).distance,0);
+});
+test('radar uses participant roles, omits self and invalid poses, follows movement and departures',()=>{
+ const origin={x:0,z:0},student={id:'student',role:'student',position:[100,0,0]},teacher={id:'teacher',role:'teacher',position:[0,10,-500]};
+ const people=[student,teacher,{id:'self',role:'teacher',position:[0,0,0]},
+  {id:'bad',role:'student',position:[NaN,0,0]},{id:'unknown',role:'admin',position:[0,0,0]}];
+ const first=radarPeople(people,'self',origin,0,300);
+ assert.deepEqual(first.map(p=>[p.id,p.color]),[['student','#70d6ff'],['teacher','#d9a1ff']]);
+ assert.equal(first[1].edge,true);assert.equal(first[1].y,-76);assert.equal(first[1].distance,500);
+ const moved=radarPeople([{...student,position:[-100,0,0]}],'self',origin,Math.PI/2,300);
+ assert.equal(moved.length,1);assert.ok(Math.abs(moved[0].x)<1e-10);assert.ok(moved[0].y<0);
+ assert.deepEqual(radarPeople([],'self',origin,0,300),[]);
 });
 test('exhibit metadata is bounded and accepts ordinary text as text',()=>{
  assert.equal(validExhibitText('私の駅','<script>text</script>'),true);

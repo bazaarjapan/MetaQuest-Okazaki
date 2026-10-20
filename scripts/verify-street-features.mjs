@@ -72,6 +72,15 @@ try{
  await browser('click','#workshop-close');await until("!document.querySelector('#workshop-dialog').open");if((await state()).ui.open)await browser('click','#panel-close');
  await until('window.__okazaki.getState().radar?.count===1');
  check('own placement is tracked by radar',(await state()).radar.markers[0].id===object.id);
+ await until('window.__okazaki.getState().radar?.people.length===1');
+ const teacherMarker=(await state()).radar.people[0];
+ check('student radar shows teacher purple and excludes self',teacherMarker.role==='teacher'&&teacherMarker.color==='#d9a1ff'&&teacherMarker.id!==(await state()).school.user.id);
+ check('radar legend explains student and teacher colors',await evaluate("document.querySelector('.radar-legend').textContent.includes('生徒') && document.querySelector('.radar-legend').textContent.includes('先生')"));
+ for(const [w,h] of [[390,844],[844,390]]){
+  await browser('set','viewport',String(w),String(h));
+  check(`radar ${w}x${h} stays within screen`,await evaluate("(()=>{const r=document.querySelector('#world-radar').getBoundingClientRect();return r.top>=0&&r.left>=0&&r.right<=innerWidth+1&&r.bottom<=innerHeight+1;})()"));
+ }
+ await browser('set','viewport','1280','800');
  await browser('click','.radar-actions button');check('radar distance selector changes range',(await evaluate("document.querySelector('.radar-actions button').textContent")).includes('1,000'));
  await browser('screenshot','test-results/street-radar-student.png');
  session=sessions[0];
@@ -83,6 +92,15 @@ try{
  check('teacher can travel safely beside student work',!(await state()).free);
  await until('window.__okazaki.getState().exhibits.count===1');
  await browser('screenshot','test-results/street-exhibit.png');
+ await until('window.__okazaki.getState().radar?.people.length===1');
+ const studentMarker=(await state()).radar.people[0];
+ check('teacher radar shows student cyan and excludes self',studentMarker.role==='student'&&studentMarker.color==='#70d6ff'&&studentMarker.id!==(await state()).school.user.id);
+ await browser('screenshot','test-results/radar-people-teacher.png');
+ session=sessions[1];
+ await until(`Math.abs(window.__okazaki.getState().radar.people[0].distance-${teacherMarker.distance})>10`);
+ check('student radar follows teacher movement',(await state()).radar.people[0].id===teacherMarker.id);
+ await browser('screenshot','test-results/radar-people-student.png');
+ session=sessions[0];
  await browser('click','#school-button');await browser('click','.student-work button:nth-of-type(2)');
  await until('window.__okazaki.getState().school.objects.length===0');
  check('teacher roster updates after return',await evaluate("document.querySelector('#student-roster-list').textContent.includes('配置中の作品はありません')"));
@@ -94,6 +112,9 @@ try{
  await browser('select','#quality-select','performance');await until("!window.__okazaki.getState().qualityLoading && !window.__okazaki.getState().streetScenery.visible");
  check('performance profile hides decorative scenery',!(await state()).streetScenery.visible);
  for(const s of sessions){session=s;check(`${s} has no uncaught browser exceptions`,await browser('errors')==='');}
+ session=sessions[0];await browser('close');
+ session=sessions[1];await until('window.__okazaki.getState().radar.people.length===0');
+ check('departed teacher disappears from student radar',(await state()).school.participants.length===1);
  passed=true;
 }finally{
  if(!passed){await browser('screenshot','test-results/street-failure.png').catch(()=>{});await writeFile('test-results/street-failure-state.json',JSON.stringify(await state().catch(()=>null),null,2));}
