@@ -3,6 +3,12 @@ import { formatLocation } from "./location-hud.js";
 export const DEFAULT_STL_COLOR = "#488caa";
 export const validSTLColor = value => typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value);
 export const stlColor = value => validSTLColor(value) ? value.toLowerCase() : DEFAULT_STL_COLOR;
+export function validExhibitText(title, description) {
+  return typeof title === "string" && typeof description === "string" &&
+    title.trim().length <= 40 && description.trim().length <= 240 &&
+    !/[\u0000-\u0008\u000b-\u001f\u007f]/.test(title + description);
+}
+export const exhibitTitle = item => item?.title?.trim() || item?.name || "STL作品";
 
 export function describeWorkLocation(position, viewer, station) {
   if (!Array.isArray(position) || !position.every(Number.isFinite)) return "場所を取得中";

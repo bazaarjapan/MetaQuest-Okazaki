@@ -3,7 +3,7 @@ import { validatePlacement } from "./placement.js";
 import { workshopAccess, canEditWorkshopObject, createWorkshopScope, safeWorkshopTransform,
   sharedObjectOverlap } from "./workshop-access.js";
 import "./workshop.css";
-import { stlColor, validSTLColor, describeWorkLocation } from "./workshop-presentation.js";
+import { stlColor, validSTLColor, describeWorkLocation, validExhibitText, exhibitTitle } from "./workshop-presentation.js";
 
 const MAX_ASSETS = 10, MAX_WORLD_TRIANGLES = 200000, MAX_CACHE_TRIANGLES = 220000;
 const degrees = (r) => r * 180 / Math.PI;
@@ -61,7 +61,7 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
   let picking = false, operation = null, activeLoads = 0, message = "ログインして共同ワールドに参加すると作品を配置できます。";
   let syncScheduled = false, destroyed = false;
   let locator = null, locatedId = null;
-  let colorSelectionKey = "";
+  let colorSelectionKey = "", exhibitSelectionKey = "";
   const access = () => workshopAccess(state);
   const busy = () => operation !== null;
   const ownAssets = () => (state.assets ?? []).filter((asset) => validAsset(asset) && asset.ownerId === access().userId);
@@ -107,14 +107,14 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
     loading.clear(); failures.clear(); operation = null;
   }
   function publicObject(item) {
-    return { id: item.id, name: item.name, ownerId: item.ownerId, assetId: item.assetId,
+    return { id: item.id, name: item.name, title: item.title, description: item.description, authorName: item.authorName, ownerId: item.ownerId, assetId: item.assetId,
       upAxis: item.upAxis, position: [...item.position], rotation: [...item.rotation],
       scale: [...item.scale], color: stlColor(item.color), triangles: item.triangles, committed: item !== draft,
       valid: item === draft ? item.valid : true, editable: canChange(item) };
   }
   function renderList() {
     const select = q("workshop-list"); select.replaceChildren();
-    for (const item of remote.values()) select.append(new Option(`${item.ownerId === access().userId ? "自分" : "他の人"} ✓ ${item.name}`, item.id));
+    for (const item of remote.values()) select.append(new Option(`${item.ownerId === access().userId ? "自分" : item.authorName || "他の人"} ✓ ${exhibitTitle(item)}`, item.id));
     if (draft && !remote.has(draft.id)) select.append(new Option(`下書き ${draft.name}`, draft.id));
     if (selected) select.value = selected;
     const previousAsset = librarySelect.value; librarySelect.replaceChildren();
@@ -126,8 +126,17 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
     // A classmate placing a work must not reset an open native color chooser.
     if (colorKey !== colorSelectionKey) { colorSelectionKey = colorKey; q("object-color").value = stlColor(item?.color); }
     q("object-paint").disabled = !editable;
-    q("object-locate").disabled = !editable || item === draft || isXR();
-    q("object-name").textContent = item ? `選択中：${item.name}` : "作品はまだ選ばれていません";
+    q("object-locate").disabled = !access().canEdit || !item || busy() || item === draft || isXR();
+    q("object-name").textContent = item ? `選択中：${exhibitTitle(item)}` : "作品はまだ選ばれていません";
+    const exhibitKey = JSON.stringify([item?.id, item?.title, item?.description]);
+    if (exhibitKey !== exhibitSelectionKey) {
+      exhibitSelectionKey = exhibitKey;
+      q("exhibit-title").value = item?.title ?? "";
+      q("exhibit-description").value = item?.description ?? "";
+    }
+    q("exhibit-title").readOnly = q("exhibit-description").readOnly = !editable;
+    q("exhibit-save").disabled = !editable;
+    q("exhibit-author").textContent = item?.authorName ? `作者：${item.authorName}` : "";
     q("object-location").textContent = item ? `${item === draft ? "未確定のプレビュー" : "設置済み"}：${describeWorkLocation(item.position, getViewPosition(), getStation())}` : "設置済みの自分の作品を選ぶと、場所を確認できます。";
     for (const field of fields) q(`object-${field}`).disabled = !editable;
     for (const id of ["stl-files", "stl-up", "stl-units"]) q(id).disabled = !access().canEdit || busy();
@@ -390,6 +399,7 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
     try {
       const ack = await schoolClient.editObject(item.baseId ? "object.update" : "object.create", {
         id: item.id, ...(item.baseId ? {} : { assetId: item.assetId }),
+        title: item.title ?? "", description: item.description ?? "",
         position: [...item.position], rotation: [...item.rotation], scale: [...item.scale], color: stlColor(item.color) });
       if (!accepts(token)) return false;
       // Only the server broadcast becomes committed, never the local preview.
@@ -458,9 +468,9 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
   }
   async function locateSelected() {
     const item = selectedItem();
-    if (!requireAccess() || busy() || !canChange(item) || item === draft || isXR()) return false;
+    if (!requireAccess() || busy() || !item || item === draft || isXR()) return false;
     const token=currentToken(),key=objectKey(item),marker={};operation=marker;renderList();
-    const stillValid=()=>accepts(token) && !isXR() && canChange(remote.get(item.id)) && objectKey(remote.get(item.id))===key;
+    const stillValid=()=>accepts(token) && !isXR() && remote.has(item.id) && objectKey(remote.get(item.id))===key;
     clearLocator();
     setMessage("作品のそばの地面と建物を確認しています…");
     try {
@@ -478,6 +488,21 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
   function retryAssets() {
     if (!requireAccess() || busy()) return false;
     failures.clear(); scheduleSync(); setMessage("表示できなかった作品を再読込しています…"); return true;
+  }
+  async function describeSelected(title, description) {
+    const item = selectedItem();
+    if (!requireAccess() || busy() || !canChange(item) || !validExhibitText(title, description)) return false;
+    if (item === draft) {
+      Object.assign(item, { title: title.trim(), description: description.trim() });
+      renderList(); setMessage("展示名・説明を下書きに反映しました。置くときに保存されます。"); return true;
+    }
+    const token = currentToken(), marker = {}; operation = marker; renderList();
+    try {
+      await schoolClient.editObject("object.describe", { id: item.id, title, description });
+      if (!accepts(token)) return false;
+      syncObjects(); setMessage("展示名・説明を保存しました。"); return true;
+    } catch (error) { if (accepts(token)) setMessage(`保存できませんでした：${explainError(error)}`); return false; }
+    finally { if (operation === marker) operation = null; renderList(); }
   }
   function open() {
     if (!requireAccess()) return false;
@@ -497,6 +522,7 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
   q("object-apply").onclick = () => { void commitSelected(); }; q("object-remove").onclick = () => { void removeSelected(); };
   q("object-paint").onclick = () => { void paintSelected(q("object-color").value); };
   q("object-locate").onclick = locateSelected;
+  q("exhibit-save").onclick = () => { void describeSelected(q("exhibit-title").value, q("exhibit-description").value); };
   reuse.onclick = () => { void useAsset(librarySelect.value); }; cancel.onclick = cancelDraft; retry.onclick = retryAssets;
   q("object-pick").onclick = () => {
     if (!requireAccess() || busy() || !canChange(selectedItem()) || isXR() || !beginDraft()) return;
@@ -519,7 +545,7 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
   const unsubscribe = schoolClient?.subscribe(onState) ?? (() => {});
   onState(schoolClient?.getState() ?? {}); renderList();
   return { group, open, importFiles, useAsset, selectObject, cycleOwnAsset, moveSelected, adjustSelected,
-    commitSelected, removeSelected, retrieveSelected, cancelDraft, retryAssets, paintSelected, locateSelected,
+    commitSelected, removeSelected, retrieveSelected, cancelDraft, retryAssets, paintSelected, locateSelected, describeSelected,
     // Rendering-only handle: avoid cloning the full classroom every frame.
     // Editing an existing placement is not holding a new inventory item.
     getHeldDraft: () => draft && !draft.baseId && canChange(draft) ? draft.mesh : null,

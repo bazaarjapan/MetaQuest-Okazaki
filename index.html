@@ -125,12 +125,17 @@
         </section>
         <section id="panel-settings" role="tabpanel" aria-labelledby="tab-settings" hidden>
         <div class="quality-setting">
+          <label for="time-of-day">空と光（自分の画面）</label>
+          <select id="time-of-day"><option value="day">昼・青空</option><option value="evening">夕方・あたたかな光</option></select>
+          <p>街の見え方を切り替えて楽しめます。</p>
+        </div>
+        <div class="quality-setting">
           <label for="field-style">街のデザイン</label>
           <select id="field-style" disabled>
             <option value="game" selected>ゲーム風（道・線路・川をくっきり）</option>
             <option value="photo">航空写真・元の色</option>
           </select>
-          <p id="field-style-note">道・線路・川を地図データで色分け。草や建物の窓はゲーム風の装飾です。</p>
+          <p id="field-style-note">道・線路・川を地図データで色分け。樹木・信号機・窓は装飾で、実際の設備や植生の位置・点灯は再現しません。</p>
         </div>
         <div id="quality-setting" class="quality-setting">
           <label for="quality-select">画質（VRに入る前に選択）</label>
@@ -192,6 +197,12 @@
       <h2 id="workshop-title">自分のSTL作品 · 色と場所</h2>
       <section class="workshop-find" aria-label="作品の色と場所">
         <p id="object-name"></p>
+        <div class="exhibit-fields">
+          <label>展示名（40文字まで）<input id="exhibit-title" maxlength="40" placeholder="例：未来の駅"></label>
+          <label>作品の説明（240文字まで）<textarea id="exhibit-description" maxlength="240" rows="3" placeholder="工夫したところ、見てほしいところ"></textarea></label>
+          <button id="exhibit-save">展示名・説明を保存</button>
+          <p id="exhibit-author"></p>
+        </div>
         <p id="object-location">設置済みの自分の作品を選んでください。</p>
         <button id="object-locate">📍 この作品を見に行く</button>
         <div class="workshop-color"><label for="object-color">作品の色<input id="object-color" type="color" value="#488caa"></label><button id="object-paint">この色にする</button></div>

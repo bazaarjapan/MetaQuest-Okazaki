@@ -31,7 +31,7 @@ test('shared shader bypasses original photos in game mode and retains photo/blac
   assert.match(shader.fragmentShader,/if\(fieldGame>\.5\)/);
   assert.equal(shader.uniforms.fieldGame,uniform);assert.equal(material.map,map);assert.equal(material.color.getHex(),0);
   uniform.value=0;assert.equal(shader.uniforms.fieldGame.value,0);assert.equal(material.map,map);
-  assert.equal(material.userData.fieldBuilding,true);assert.equal(material.customProgramCacheKey(),'okazaki-field-building-v2');material.dispose();map.dispose();
+  assert.equal(material.userData.fieldBuilding,true);assert.equal(material.customProgramCacheKey(),'okazaki-field-building-v3');material.dispose();map.dispose();
 });
 test('game atlas respects every quality profile with legacy manifest fallback',()=>{
   const manifest={core:{file:'station.webp'},profiles:{performance:{file:'station-performance.webp'},balanced:{file:'station-balanced.webp'},high:{file:'station.webp'}}};

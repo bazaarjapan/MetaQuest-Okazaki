@@ -88,12 +88,12 @@ test("real API enforces Origin, challenge and CSRF before login; credentials ros
   const enter=await worker.fetch(new Request(`${origin}/api/classroom/enter`,{method:"POST",headers:{Origin:origin,Cookie:sessionCookie,"X-CSRF-Token":user.csrf}}),env);assert.equal(enter.status,409);
   assert.equal((await worker.fetch(new Request(`${origin}/api/config`),env).then(r=>r.json())).singleClassroom,true);
 });
-test("shared room prevents duplicate slot placement and even teachers cannot retrieve another owner's object",async()=>{
+test("shared room prevents duplicate slot placement and permits teacher return without editing ownership",async()=>{
   const object={id:crypto.randomUUID(),assetId:crypto.randomUUID(),ownerId:"student"};
   const room={state:{objects:[object],revision:0}};
-  await rejects(()=>SchoolRoom.prototype.applyEdit.call(room,{type:"object.delete",id:object.id},{id:"teacher",role:"teacher"},{id:CLASSROOM_ID}),"object_owner_required");
+  await rejects(()=>SchoolRoom.prototype.applyEdit.call(room,{type:"object.paint",id:object.id,color:"#ffffff"},{id:"teacher",role:"teacher"},{id:CLASSROOM_ID}),"object_owner_required");
   await rejects(()=>SchoolRoom.prototype.applyEdit.call(room,{type:"object.create",assetId:object.assetId},{id:"student"},{id:CLASSROOM_ID}),"asset_already_placed");
-  await SchoolRoom.prototype.applyEdit.call(room,{type:"object.delete",id:object.id},{id:"student"},{id:CLASSROOM_ID});
+  await SchoolRoom.prototype.applyEdit.call(room,{type:"object.delete",id:object.id},{id:"teacher",role:"teacher"},{id:CLASSROOM_ID});
   assert.equal(room.state.objects.length,0);
 });
 

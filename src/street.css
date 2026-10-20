@@ -1,0 +1,57 @@
+/* The scene keeps its full width; Escape opens a roomy, bounded overlay. */
+main, body[data-panel-open=true] main { grid-template-columns: minmax(0,1fr); }
+#control-panel {
+  position: fixed; z-index: 8; top: max(70px,env(safe-area-inset-top,0px));
+  left: auto; right: max(16px,env(safe-area-inset-right,0px)); bottom: auto;
+  width: min(960px,calc(100vw - 32px)); max-height: calc(100dvh - 116px);
+  box-sizing: border-box; padding: 20px; gap: 12px; border: 1px solid #bfd4d7;
+  border-radius: 18px; background: #fbfdfc; box-shadow: 0 18px 65px #12333d38;
+}
+#control-panel > .panel-heading, #control-panel > .control-tabs { flex: none; }
+#control-panel .panel-body { flex: 0 1 auto; overflow-y: auto; overflow-x: hidden; }
+#panel-close { display: block; min-height: 40px; padding: 8px 14px; }
+#panel-observe { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.15fr); gap: 24px; }
+#viewpoints { grid-template-columns: repeat(3,minmax(0,1fr)); }
+#viewpoints .view { text-align: center; justify-content: center; min-height: 65px; }
+#viewpoints .view-number, #viewpoints .view-icon { display: none; }
+#control-panel .movement-note { font-size: 12px; line-height: 1.8; }
+#control-panel .panel-caption { font-size: 12px; }
+#control-panel .panel-footer { display: flex; align-items: center; gap: 16px; }
+#control-panel .panel-footer .primary { width: 260px; flex: none; margin: 0; }
+#panel-settings { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px 24px; }
+#panel-settings .setting-warning, #panel-settings details { margin: 0; }
+#control-panel #panel-region { display: grid; grid-template-columns: minmax(0,1.2fr) minmax(0,1fr); gap: 6px 20px; }
+#control-panel #panel-region > * { grid-column: 2; grid-row: auto; }
+#control-panel #panel-region #region-title, #control-panel #panel-region #region-summary { grid-column: 1 / -1; }
+#control-panel #panel-region #region-map { grid-column: 1; grid-row: 3 / span 8; width: 100%; height: auto; max-width: 540px; max-height: none; }
+.exhibit-fields { display: grid; gap: 8px; margin: 12px 0; }
+.exhibit-fields label { display: grid; gap: 5px; font-size: 12px; }
+.exhibit-fields input, .exhibit-fields textarea { width: 100%; box-sizing: border-box; font: inherit; padding: 8px; border: 1px solid #becfd5; border-radius: 6px; }
+.exhibit-fields textarea { resize: vertical; min-height: 60px; }
+.student-placement-row { padding: 12px 0; border-top: 1px solid #c8d6de; }
+.student-placement-row h4 { margin: 0 0 8px; }
+.student-work { background: #eef6f1; border-radius: 10px; padding: 12px; margin: 8px 0; overflow-wrap: anywhere; }
+.student-work { color: #173c32; }
+.student-work .school-note { color: #365b50; }
+.student-work button { margin: 4px 8px 0 0; }
+#world-radar { position: absolute; top: 76px; right: 16px; z-index: 4; width: 196px; border-radius: 18px;
+  color: #d5f4e6; background: #092a28ed; border: 1px solid #579e7e; box-shadow: 0 6px 24px #092b3438; padding: 8px; box-sizing: border-box; }
+.radar-heading { display: flex; align-items: center; justify-content: space-between; font-size: 12px; padding-left: 6px; }
+#world-radar button { background: #17473e; border: 1px solid #4e8a6f; color: #e8fff2; font-size: 10px; padding: 5px 7px; min-height: 30px; }
+#world-radar canvas { width: 100%; height: auto; display: block; }
+.radar-actions { display: flex; gap: 4px; justify-content: center; }
+.radar-summary { font-size: 10px; line-height: 1.5; margin: 6px 0 0; text-align: center; }
+body[data-panel-open=true] #world-radar { visibility: hidden; }
+@media (max-width: 800px), (max-width: 1000px) and (max-height: 500px) {
+  #control-panel { top: auto; bottom: calc(72px + env(safe-area-inset-bottom,0px)); right: 8px; left: 8px;
+    width: calc(100vw - 16px); max-height: calc(100dvh - 132px - env(safe-area-inset-bottom,0px)); padding: 12px; }
+  #control-panel .panel-footer { display: none; }
+  #panel-observe { gap: 14px; }
+}
+@media (max-width: 600px) {
+  #panel-observe, #panel-settings { grid-template-columns: minmax(0,1fr); }
+  #control-panel #panel-region { display: block; }
+  #world-radar { top: 58px; right: 8px; width: 150px; padding: 6px; }
+  #world-radar button { min-height: 36px; }
+  .radar-actions { flex-wrap: wrap; }
+}

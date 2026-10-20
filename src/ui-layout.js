@@ -4,13 +4,17 @@ export function nextPanel(id, offset) {
   return panelIds[(index + offset % panelIds.length + panelIds.length) % panelIds.length];
 }
 
-/** One compact desktop sidebar, or a dismissible mobile bottom sheet. */
+/** A wide menu that only scrolls when its content exceeds the viewport. */
 export function createAdaptiveUi() {
   const media = matchMedia('(max-width: 800px), (max-width: 1000px) and (max-height: 500px)');
   const aside = document.querySelector('#control-panel');
   const actions = document.createElement('div'); actions.className = 'simple-detail-actions';
   for (const id of ['home', 'open-workshop', 'fullscreen']) actions.append(document.getElementById(id));
   document.querySelector('#panel-observe').append(actions);
+  const observe = document.querySelector('#panel-observe');
+  const explore = document.createElement('div'); explore.className = 'explore-tools';
+  for (const child of [...observe.children]) if (child.id !== 'movement-controls') explore.append(child);
+  observe.append(explore);
   let active = 'observe', open = false, returnFocus = null;
   function render() {
     document.body.dataset.panelOpen = String(open);
