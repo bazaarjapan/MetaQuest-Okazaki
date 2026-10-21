@@ -15,7 +15,7 @@ export function exhibitDescriptionLines(value,characters=18,limit=4){
 // Only nearby exhibits need labels; textures are reused until their text changes.
 export function createExhibitLabels(scene) {
   const labels=new Map();let last=-Infinity;
-  const eye=new THREE.Vector3(),forward=new THREE.Vector3(),offset=new THREE.Vector3();
+  const eye=new THREE.Vector3(),forward=new THREE.Vector3(),offset=new THREE.Vector3(),screen=new THREE.Vector3();
   let maxScreenWidth=0,expanded=0;
   const dispose=entry=>{entry.sprite.removeFromParent();entry.texture.dispose();entry.sprite.material.dispose();};
   return {
@@ -34,7 +34,7 @@ export function createExhibitLabels(scene) {
           const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;texture.generateMipmaps=false;texture.minFilter=THREE.LinearFilter;
           const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,depthWrite:false,toneMapped:false}));
           sprite.scale.set(6,1.5,1);sprite.name="exhibit-label";scene.add(sprite);
-          entry={canvas,texture,sprite,key:""};labels.set(object.id,entry);
+          entry={canvas,texture,sprite,anchor:new THREE.Vector3(),key:""};labels.set(object.id,entry);
         }
         const title=exhibitTitle(object),author=object.authorName||"作品";
         const detailed=object.id===closest?.id&&Math.hypot(object.position[0]-position.x,object.position[2]-position.z)<18&&Boolean(object.description?.trim());
@@ -53,15 +53,29 @@ export function createExhibitLabels(scene) {
           if(detailed){ctx.textAlign='left';ctx.font='26px sans-serif';ctx.fillStyle='#f1f6eb';description.forEach((line,i)=>ctx.fillText(line,22,136+i*32,468));}
           entry.texture.needsUpdate=true;
         }
-        entry.sprite.position.set((object.bounds.min[0]+object.bounds.max[0])/2,object.bounds.max[1]+1.3,(object.bounds.min[2]+object.bounds.max[2])/2);
+        entry.anchor.set((object.bounds.min[0]+object.bounds.max[0])/2,object.bounds.max[1]+1.3,(object.bounds.min[2]+object.bounds.max[2])/2);
       }
       }
       maxScreenWidth=0;expanded=0;
       if(camera){camera.getWorldPosition(eye);camera.getWorldDirection(forward);}
-      for(const {sprite,canvas,detailed,distance} of labels.values()){
+      for(const {sprite,canvas,detailed,distance,anchor} of labels.values()){
+        sprite.position.copy(anchor);
         const depth=camera?offset.copy(sprite.position).sub(eye).dot(forward):0;
-        const width=camera?exhibitLabelWidth(depth,camera.projectionMatrix.elements[5],viewportHeight,Math.min(maxPixels,detailed?300:220)):Math.min(6,Math.max(.8,distance*.5));
+        const top=viewportHeight<500?70:140,bottom=viewportHeight<500?90:130;
+        const heightLimit=Math.max(40,viewportHeight-top-bottom)*512/canvas.height;
+        const width=camera?exhibitLabelWidth(depth,camera.projectionMatrix.elements[5],viewportHeight,Math.min(maxPixels,detailed?Math.min(300,heightLimit):220)):Math.min(6,Math.max(.8,distance*.5));
         sprite.visible=enabled&&width>0;sprite.scale.set(width,width*canvas.height/512,1);
+        // A nearby information card must remain readable when its world anchor
+        // sits above the camera. Keep its projected bounds inside the viewport.
+        const overlay=Boolean(camera&&detailed);
+        sprite.material.depthTest=!overlay;sprite.renderOrder=overlay?1000:0;
+        if(camera&&detailed&&width>0){
+          screen.copy(anchor).project(camera);
+          const halfX=width*camera.projectionMatrix.elements[0]/(2*depth),halfY=sprite.scale.y*camera.projectionMatrix.elements[5]/(2*depth);
+          screen.x=Math.max(-1+halfX+.04,Math.min(1-halfX-.04,screen.x));
+          screen.y=Math.max(-1+halfY+2*bottom/viewportHeight,Math.min(1-halfY-2*top/viewportHeight,screen.y));
+          sprite.position.copy(screen).unproject(camera);
+        }
         if(sprite.visible&&detailed)expanded++;
         if(camera&&depth>0)maxScreenWidth=Math.max(maxScreenWidth,width*camera.projectionMatrix.elements[5]*viewportHeight/(2*depth));
       }
