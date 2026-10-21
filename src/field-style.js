@@ -79,10 +79,11 @@ export function decorateBuildingGeometry(THREE,geometry) {
   geometry.setAttribute('fieldSpan',new THREE.BufferAttribute(spans,2));
 }
 export function createFieldBuildingMaterial(THREE,uniform,options={}) {
-  const {eveningUniform={value:0},...materialOptions}=options;
+  const {eveningUniform={value:0},citySurfaceUniforms=null,...materialOptions}=options;
   const material=new THREE.MeshStandardMaterial({roughness:1,metalness:0,...materialOptions});
   material.userData??={};material.userData.fieldBuilding=true;
   material.onBeforeCompile=shader=>{
+    if(citySurfaceUniforms)attachCitySurfaceShader(shader,citySurfaceUniforms);
     shader.uniforms.fieldGame=uniform;
     shader.uniforms.fieldEvening=eveningUniform;
     shader.vertexShader='attribute vec3 fieldColor; attribute vec2 fieldSpan; varying vec2 vFieldSpan; varying vec3 vFieldColor; varying vec3 vFieldPosition; varying vec3 vFieldNormal;\n'+shader.vertexShader;
@@ -99,12 +100,19 @@ export function createFieldBuildingMaterial(THREE,uniform,options={}) {
       if(fieldGame>.5){
         vec3 paint=pow(vFieldColor,vec3(2.2));
         float roof=step(.5,abs(vFieldNormal.y));
-        vec2 wall=vec2(abs(vFieldNormal.x)>.5?vFieldPosition.z:vFieldPosition.x,vFieldPosition.y-vFieldSpan.x);
+        float floorBase=vFieldSpan.x;
+        ${citySurfaceUniforms?`// One horizontal window column shares one measured ground reference.
+        vec2 axis=abs(vFieldNormal.x)>.5?vec2(0.,1.):vec2(1.,0.);
+        float along=dot(vFieldPosition.xz,axis);
+        vec2 columnPoint=vFieldPosition.xz+axis*((floor(along/2.)+.44)*2.-along);
+        float foot=max(cityHeight(columnPoint,floorBase),max(cityHeight(columnPoint-axis*.65,floorBase),cityHeight(columnPoint+axis*.65,floorBase)));
+        floorBase=max(floorBase,ceil(foot*2.)/2.);`:''}
+        vec2 wall=vec2(abs(vFieldNormal.x)>.5?vFieldPosition.z:vFieldPosition.x,vFieldPosition.y-floorBase);
         vec2 cell=fract(wall/vec2(2.0,3.2));
         vec2 aa=max(fwidth(wall/vec2(2.0,3.2))*1.5,vec2(.001));
         // Test the entire window, including a sloping roof, before drawing any
         // of it. The upper floor becomes a solid parapet instead of half glass.
-        float windowTop=vFieldSpan.x+floor(wall.y/3.2)*3.2+2.4;
+        float windowTop=floorBase+floor(wall.y/3.2)*3.2+2.4;
         float completeWindow=step(windowTop+.65,vFieldSpan.y)*step(0.0,wall.y);
         float windowMask=smoothstep(.16-aa.x,.16+aa.x,cell.x)*(1.0-smoothstep(.72-aa.x,.72+aa.x,cell.x))
           *smoothstep(.27-aa.y,.27+aa.y,cell.y)*(1.0-smoothstep(.75-aa.y,.75+aa.y,cell.y))*completeWindow;
@@ -115,6 +123,8 @@ export function createFieldBuildingMaterial(THREE,uniform,options={}) {
         float frame=windowMask*(1.0-smoothstep(.035,.065,abs(cell.x-.44)));
         paint=mix(paint,glass,windowMask*(1.0-roof)*nearView*.85);
         paint=mix(paint,vec3(.48,.53,.49),frame*(1.0-roof)*nearView*.6);
+        float foundation=(1.0-smoothstep(.15,.65,vFieldPosition.y-floorBase))*(1.0-roof);
+        paint=mix(paint,vec3(.31,.36,.34),foundation*.55);
         float occupied=step(.3,fract(sin(dot(floor(wall/vec2(2.0,3.2)),vec2(12.9898,78.233)))*43758.5453));
         totalEmissiveRadiance+=vec3(1.0,.52,.16)*windowMask*(1.0-roof)*nearView*occupied*fieldEvening*1.3;
         float roofDistance=vFieldSpan.y-vFieldPosition.y;
@@ -126,6 +136,7 @@ export function createFieldBuildingMaterial(THREE,uniform,options={}) {
         diffuseColor.rgb=paint;
       }`);
   };
-  material.customProgramCacheKey=()=> 'okazaki-field-building-v5';
+  material.customProgramCacheKey=()=> 'okazaki-field-building-v6'+(citySurfaceUniforms?'-grounded':'');
   return material;
 }
+import {attachCitySurfaceShader} from './city-surface-map.js';

@@ -1,4 +1,5 @@
 import { createAvatarLabel } from "./avatar-label.js";
+import {createCitySurfaceMap,applyCityGroundMaterial} from './city-surface-map.js';
 import { createLocationHud } from "./location-hud.js";
 import * as THREE from "three";
 import "./xr-dev.js";
@@ -126,6 +127,7 @@ try {
 }
 renderer.setPixelRatio(Math.min(devicePixelRatio, quality.dpr));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
+const citySurfaceMap=createCitySurfaceMap(renderer);
 renderer.xr.enabled = true;
 renderer.xr.setReferenceSpaceType("local-floor");
 renderer.xr.setFramebufferScaleFactor(quality.xrScale);
@@ -158,12 +160,12 @@ scene.add(city);
 const regionGroup = new THREE.Group();
 regionGroup.name = "streamed-okazaki-region";
 scene.add(regionGroup);
-const regionStreamer = createRegionStreamer(THREE, regionGroup,{fieldUniform,eveningUniform,
+const regionStreamer = createRegionStreamer(THREE, regionGroup,{fieldUniform,eveningUniform,citySurfaceUniforms:citySurfaceMap.uniforms,
   terrainLimit:q=>fieldStyle==='game'?Math.min(q==='high'?16:9,8):(q==='high'?16:9),
   terrainAnisotropy:()=>Math.min(quality.anisotropy,renderer.capabilities.getMaxAnisotropy()),
   terrainTexture:tile=>({url:fieldStyle==='game'&&fieldManifest?.region[tile.id]
     ? `/field/${fieldManifest.region[tile.id].file}`:`/region/${tile.texture}`})});
-const nearField=createNearField(THREE,{maxAnisotropy:renderer.capabilities.getMaxAnisotropy()});
+const nearField=createNearField(THREE,{maxAnisotropy:renderer.capabilities.getMaxAnisotropy(),citySurfaceUniforms:citySurfaceMap.uniforms,gameUniform:fieldUniform});
 let regionManifest = null, regionUiTime = 0;
 const textures = new Map();
 let detail = null, terrainMesh = null, terrainFile = "Texture-001.png";
@@ -224,7 +226,7 @@ let schoolUI;
 let placementEnvironment = { terrain: null, obstacles: [], bounds: [-320, -381, 315, 372], terrainMeshes: [] };
 const regionalPlacementEnvironment=createRegionalPlacementEnvironment({getCore:()=>placementEnvironment,getManifest:()=>regionManifest,getMeshes:()=>regionStreamer.getMeshes()});
 const streetScenery=createStreetScenery({scene,getEnvironment:regionalPlacementEnvironment});
-const vectorStreets=createVectorStreets({scene,getIndex:mesh=>mesh===terrainMesh?placementEnvironment.terrain:null});
+const vectorStreets=createVectorStreets({scene,citySurfaceUniforms:citySurfaceMap.uniforms,getIndex:mesh=>mesh===terrainMesh?placementEnvironment.terrain:null});
 const ambientTraffic=createAmbientTraffic({scene,getEnvironment:regionalPlacementEnvironment});
 const movementAudio=createMovementAudio({storage:preferenceStorage,isAllowed:()=>activityAllowed});
 let ambientMotion=true;
@@ -501,12 +503,12 @@ async function loadCity() {
     const materialOptions={color,map,roughness:1,metalness:0};
     const mesh = new THREE.Mesh(
       geometry,
-      gameBuilding?createFieldBuildingMaterial(THREE,fieldUniform,{...materialOptions,eveningUniform}):new THREE.MeshStandardMaterial(materialOptions),
+      gameBuilding?createFieldBuildingMaterial(THREE,fieldUniform,{...materialOptions,eveningUniform,citySurfaceUniforms:citySurfaceMap.uniforms}):new THREE.MeshStandardMaterial(materialOptions),
     );
     mesh.name = p.name;
     mesh.castShadow = p.texture !== "Texture-001.png";
     mesh.receiveShadow = true;
-    if (p.texture === "Texture-001.png") { terrainMesh = mesh; regionStreamer.setCoreTerrain(geometry); }
+    if (p.texture === "Texture-001.png") { terrainMesh = mesh; regionStreamer.setCoreTerrain(geometry);applyCityGroundMaterial(mesh.material,citySurfaceMap.uniforms,fieldUniform); }
     // Real geometry edges improve readability without inventing facade detail.
     if (!p.texture && p.vertices > 30000) {
       const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geometry, 35),
@@ -1487,6 +1489,7 @@ renderer.setAnimationLoop((time, frame) => {
   if (!leftSeen) controllerPointers.left.hide();
   if (!rightSeen) controllerPointers.right.hide();
   vrFieldPanel.update({ xr: state.xr, interactive: panelInteractive, hovered: panelHover, hoveredHands, time });
+  if(state.ready)citySurfaceMap.update({position:userPosition(),terrain:[terrainMesh,...regionStreamer.getGroundMeshes()].filter(Boolean),buildings:[...city.children,...regionStreamer.getMeshes()].filter(m=>m.material?.userData?.fieldBuilding),quality:quality.id,xr:state.xr,enabled:fieldStyle==='game',time});
   renderer.render(scene, camera);
   if (panelInteractive && frame) {
     const viewerPose = frame.getViewerPose(renderer.xr.getReferenceSpace());
@@ -1532,7 +1535,7 @@ window.__okazaki = {
     panelVisible: panel.visible && vrFieldPanel.getState().expanded,
     vrPanel: vrFieldPanel.getState(),
     pointers: { left: controllerPointers.left.getState(), right: controllerPointers.right.getState() },
-    version: "1.10.9",
+    version: "1.10.10",
     vrReturn: { buttonVisible: vrReturnButton.getState().visible,
       holdProgress: vrReturnButton.getState().progress, exiting: xrExitPending,
       hasResume: hasVRResume, view: lastXRView ? {
@@ -1543,7 +1546,7 @@ window.__okazaki = {
     touch: touchControls.getState(),
     guide: { position: panel.position.toArray(), size: vrFieldPanel.getState().size },
     hud: controllerHud.getState(),
-    nearField:nearField.getState(),vectorStreets:vectorStreets.getState(),atmosphere:{fogNear:scene.fog.near,fogFar:scene.fog.far,windowGlow:eveningUniform.value},
+    nearField:nearField.getState(),vectorStreets:vectorStreets.getState(),citySurface:citySurfaceMap.getState(),atmosphere:{fogNear:scene.fog.near,fogFar:scene.fog.far,windowGlow:eveningUniform.value},
     quality: { ...quality, terrainFile, shadows: renderer.shadowMap.enabled,
       terrainSize: terrainMesh?.material.map?.image
         ? [terrainMesh.material.map.image.width, terrainMesh.material.map.image.height] : null,
