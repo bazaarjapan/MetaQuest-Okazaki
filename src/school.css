@@ -2,7 +2,8 @@
 .school-dialog[open] { display: flex; flex-direction: column; }
 .school-body { min-height: 0; overflow-y: auto; padding: 16px 24px; overscroll-behavior: contain; }
 .school-body > .school-note:first-child { margin-top: 0; }
-.school-footer { flex: none; padding: 12px 24px; border-top: 1px solid #385567; font-size: .83rem; }
+.school-footer { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 24px; border-top: 1px solid #385567; font-size: .83rem; }
+.school-footer > button { flex: none; }
 .school-body, .school-footer { overflow-wrap: anywhere; }
 .school-dialog::backdrop { background: #04101bcc; }
 .school-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px;

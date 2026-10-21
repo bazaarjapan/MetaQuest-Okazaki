@@ -78,7 +78,7 @@ function packedTile(id, bounds = [1000, -800, 1500, -300]) {
 function immediateFetch(tiles, intercept) {
   const entries = new Map(tiles.map((entry) => [`/region/${entry.file}`, entry]));
   return async (url, options) => {
-    const entry = entries.get(url);
+    const entry = entries.get(new URL(url,'https://fixture.test').pathname);
     if (intercept) return intercept(entry, url, options);
     return { ok: true, headers: { get: () => String(entry.bytes) }, arrayBuffer: async () => data(entry) };
   };

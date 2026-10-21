@@ -30,6 +30,29 @@ export function polygonAreaXZ(polygon) {
   return Math.abs(polygon.reduce((sum,a,i)=>{const b=polygon[(i+1)%polygon.length];return sum+a[0]*b[2]-b[0]*a[2];},0))/2;
 }
 
+// Preserve the original PLATEAU vertices and measured DEM away from its rim.
+// In a 40m transition outside the core, join the regional display/collision
+// surface to the exact core edge. Shared by browser and authoritative placement.
+export function stitchTerrainToCore(positions, coreLoop, width=40) {
+  if(!coreLoop?.length)return 0;
+  const bounds=[Math.min(...coreLoop.map(p=>p[0]))-width,Math.min(...coreLoop.map(p=>p[2]))-width,Math.max(...coreLoop.map(p=>p[0]))+width,Math.max(...coreLoop.map(p=>p[2]))+width];
+  let changed=0;
+  for(let n=0;n<positions.length;n+=3){
+    const x=positions[n],z=positions[n+2];if(x<bounds[0]||x>bounds[2]||z<bounds[1]||z>bounds[3])continue;
+    let distance=width,height=0;
+    for(let i=0;i<coreLoop.length;i++){
+      const a=coreLoop[i],b=coreLoop[(i+1)%coreLoop.length],dx=b[0]-a[0],dz=b[2]-a[2],length=dx*dx+dz*dz;
+      if(!length)continue;
+      const t=Math.max(0,Math.min(1,((x-a[0])*dx+(z-a[2])*dz)/length)),d=Math.hypot(x-a[0]-dx*t,z-a[2]-dz*t);
+      if(d<distance){distance=d;height=a[1]+(b[1]-a[1])*t;}
+    }
+    if(distance>=width)continue;
+    const t=distance/width,weight=t*t*(3-2*t);
+    positions[n+1]=height+(positions[n+1]-height)*weight;changed++;
+  }
+  return changed;
+}
+
 // A vertical seam closes the height difference between the original PLATEAU
 // rim and the live DEM. Its horizontal footprint is zero: no new flat ground.
 export function coreSeamWall(positions, uv, indices, coreLoop, tolerance=.003) {
@@ -42,23 +65,26 @@ export function coreSeamWall(positions, uv, indices, coreLoop, tolerance=.003) {
     const edge=edges.get(key)??{a,b,count:0};edge.count++;edges.set(key,edge);
     }
   }
-  const candidates=[...edges.values()].filter(e=>e.count===1);
+  // Clipping can leave coincident/T-junction edges with multiple incidents.
+  // All edges on the original rim participate in the height envelope.
+  const candidates=[...edges.values()].map(e=>({...e,p:[...positions.slice(e.a*3,e.a*3+3)],q:[...positions.slice(e.b*3,e.b*3+3)],pu:[...uv.slice(e.a*2,e.a*2+2)],qu:[...uv.slice(e.b*2,e.b*2+2)]}));
   for(let i=0;i<coreLoop.length;i++){
     const a=coreLoop[i],b=coreLoop[(i+1)%coreLoop.length],dx=b[0]-a[0],dz=b[2]-a[2],length=dx*dx+dz*dz,intervals=[];
     if(!length)continue;
     for(const edge of candidates){
-      const p=[...positions.slice(edge.a*3,edge.a*3+3)],q=[...positions.slice(edge.b*3,edge.b*3+3)];
+      const {p,q}=edge;
+      if(Math.max(p[0],q[0])<Math.min(a[0],b[0])-tolerance||Math.min(p[0],q[0])>Math.max(a[0],b[0])+tolerance||Math.max(p[2],q[2])<Math.min(a[2],b[2])-tolerance||Math.min(p[2],q[2])>Math.max(a[2],b[2])+tolerance)continue;
       const t0=((p[0]-a[0])*dx+(p[2]-a[2])*dz)/length,t1=((q[0]-a[0])*dx+(q[2]-a[2])*dz)/length;
       if(Math.hypot(p[0]-a[0]-dx*t0,p[2]-a[2]-dz*t0)>tolerance||Math.hypot(q[0]-a[0]-dx*t1,q[2]-a[2]-dz*t1)>tolerance||Math.abs(t1-t0)<1e-9)continue;
       const from=Math.max(0,Math.min(t0,t1)),to=Math.min(1,Math.max(t0,t1));if(to-from<1e-9)continue;
-      intervals.push({from,to,p,q,t0,t1,pu:[...uv.slice(edge.a*2,edge.a*2+2)],qu:[...uv.slice(edge.b*2,edge.b*2+2)]});
+      intervals.push({from,to,p,q,t0,t1,pu:edge.pu,qu:edge.qu});
     }
-    // Triangle clipping can leave T-junctions along one straight rim. Merge
-    // coverage intervals so those internal edges cannot create duplicate walls.
-    intervals.sort((x,y)=>x.from-y.from||y.to-x.to);let cursor=0;
-    for(const edge of intervals){
-      const from=Math.max(cursor,edge.from),to=edge.to;if(to-from<1e-9)continue;cursor=to;
-      const at=t=>{const f=(t-edge.t0)/(edge.t1-edge.t0);return {bottom:[a[0]+dx*t,edge.p[1]+(edge.q[1]-edge.p[1])*f,a[2]+dz*t],top:[a[0]+dx*t,a[1]+(b[1]-a[1])*t,a[2]+dz*t],uv:edge.pu.map((v,k)=>v+(edge.qu[k]-v)*f)};};
+    const stops=[...new Set(intervals.flatMap(e=>[e.from,e.to]))].sort((x,y)=>x-y);
+    for(let j=0;j+1<stops.length;j++){
+      const from=stops[j],to=stops[j+1],middle=(from+to)/2,cover=intervals.filter(e=>e.from<=middle&&e.to>=middle);
+      if(!cover.length||to-from<1e-9)continue;
+      const edge=cover[0];
+      const at=t=>{const f=(t-edge.t0)/(edge.t1-edge.t0),heights=[a[1]+(b[1]-a[1])*t,...cover.map(e=>e.p[1]+(e.q[1]-e.p[1])*(t-e.t0)/(e.t1-e.t0))];return {bottom:[a[0]+dx*t,Math.min(...heights),a[2]+dz*t],top:[a[0]+dx*t,Math.max(...heights),a[2]+dz*t],uv:edge.pu.map((v,k)=>v+(edge.qu[k]-v)*f)};};
       const p=at(from),q=at(to);if(Math.max(Math.abs(p.top[1]-p.bottom[1]),Math.abs(q.top[1]-q.bottom[1]))<.001)continue;
       result.positions.push(...p.bottom,...q.bottom,...p.top,...q.bottom,...q.top,...p.top);
       result.uv.push(...p.uv,...q.uv,...p.uv,...q.uv,...q.uv,...p.uv);
