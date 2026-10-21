@@ -35,6 +35,7 @@ export function createStreetScenery({scene,getEnvironment}) {
   const lamps=[0x3ee0a4,0xffcf55,0xff5650].map(color=>make(new THREE.SphereGeometry(.23,8,6),color,16,true));
   const lightPoles=make(new THREE.CylinderGeometry(.085,.15,1,6),0x647278,40),lightArms=make(new THREE.BoxGeometry(1,1,1),0x647278,40);
   const lightHeads=make(new THREE.BoxGeometry(1.1,.18,.5),0x485860,40),lightLenses=make(new THREE.BoxGeometry(.87,.035,.39),0xffe3a0,40,true);
+  const lightHalos=make(new THREE.SphereGeometry(.5,8,6),0xffdc96,40,true);lightHalos.material.transparent=true;lightHalos.material.opacity=.13;lightHalos.material.depthWrite=false;
   const grass=make(grassGeometry(),0xffffff,360);grass.material.side=THREE.DoubleSide;
   const wind={value:0};grass.material.onBeforeCompile=shader=>{shader.uniforms.grassTime=wind;shader.vertexShader='uniform float grassTime;\n'+shader.vertexShader;shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',`#include <begin_vertex>
     transformed.x+=sin(grassTime*1.7+instanceMatrix[3].x*.13+instanceMatrix[3].z*.09)*position.y*.14;`);};grass.material.customProgramCacheKey=()=> 'okazaki-grass-wind-v1';
@@ -48,6 +49,7 @@ export function createStreetScenery({scene,getEnvironment}) {
     update({position,quality,enabled,time,objects=[],timeOfDay='day',terrainVersion=null,paused=false}) {
       const nextMode=`${enabled}:${quality}`;if(nextMode!==mode){mode=nextMode;last=-Infinity;reset();}
       visible=Boolean(enabled&&quality!=='performance'&&data);group.visible=visible;if(!visible)return;
+      lightHalos.visible=timeOfDay==='evening';
       wind.value=time/1000;
       const [treeLimit,signalLimit]=sceneryLimits[quality]??sceneryLimits.balanced,[lightLimit,grassLimit]=extras[quality]??extras.balanced;
       const limits={tree:treeLimit,signal:signalLimit,light:lightLimit,grass:grassLimit};
@@ -81,6 +83,7 @@ export function createStreetScenery({scene,getEnvironment}) {
           }else if(kind==='light') {
             put(lightPoles,i,x,y+3.5,z,1,7,1);put(lightArms,i,x-cx*.9,y+6.9,z+sz*.9,1.9,.12,.12,angle);
             put(lightHeads,i,x-cx*1.8,y+6.84,z+sz*1.8,1,1,1,angle);put(lightLenses,i,x-cx*1.8,y+6.73,z+sz*1.8,1,1,1,angle);
+            put(lightHalos,i,x-cx*1.8,y+6.73,z+sz*1.8,1.7,.7,1.3,angle);
           }else if(kind==='grass') {
             put(grass,i,x,y+.015,z,1,1,1,angle);tint.setHSL(.22+Math.abs(Math.sin(x))*.08,.35,.27+Math.abs(Math.sin(z))*.09);grass.setColorAt(i,tint);
           }else {
@@ -96,7 +99,7 @@ export function createStreetScenery({scene,getEnvironment}) {
         lightLenses.material.color.set(timeOfDay==='evening'?0xffdf8c:0xc7d5cc);
       }
     },
-    getState:()=>({loaded,visible,trees:trunks.count,signals:poles.count,lights:lightPoles.count,grass:grass.count,pending:queue.length}),
+    getState:()=>({loaded,visible,trees:trunks.count,signals:poles.count,lights:lightPoles.count,litHalos:visible&&lightHalos.visible?lightHalos.count:0,grass:grass.count,pending:queue.length}),
     dispose(){group.children.forEach(m=>{m.geometry.dispose();m.material.dispose();m.dispose();});group.removeFromParent();}
   };
 }

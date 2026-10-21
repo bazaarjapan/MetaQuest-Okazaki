@@ -5,7 +5,33 @@ import {sceneryCandidates,sceneryLimits,createStreetScenery} from '../src/street
 import {validExhibitText} from '../src/workshop-presentation.js';
 import * as THREE from 'three';
 import {createSurfaceIndex} from '../src/placement.js';
-import {exhibitLabelWidth} from '../src/exhibit-labels.js';
+import {exhibitLabelWidth,exhibitDescriptionLines,createExhibitLabels} from '../src/exhibit-labels.js';
+import {cityFogRange} from '../src/city-atmosphere.js';
+
+test('near exhibit descriptions wrap unicode safely and keep plates bounded',()=>{
+ assert.deepEqual(exhibitDescriptionLines('駅の作品です'),['駅の作品です']);
+ assert.equal(exhibitDescriptionLines('😀'.repeat(100)).length,4);
+ assert.ok(exhibitDescriptionLines('あ'.repeat(240)).at(-1).endsWith('…'));
+ assert.deepEqual(exhibitDescriptionLines(null),[]);
+});
+test('day and evening haze keep nearby work clear and hide the streaming edge',()=>{
+ for(const r of [1800,2400,3200]){
+  const day=cityFogRange(r),evening=cityFogRange(r,true);assert.ok(day.near>=500&&day.near<=900);assert.ok(evening.near<day.near);assert.equal(day.far,r+500);
+ }
+});
+test('near plates expand safely and dispose the resized texture when moving away',()=>{
+ const previous=globalThis.document,ctx={clearRect(){},fillRect(){},fillText(){}};
+ globalThis.document={createElement:()=>({getContext:()=>ctx})};
+ const scene=new THREE.Scene(),labels=createExhibitLabels(scene),camera=new THREE.PerspectiveCamera(55,1,.1,1000);
+ camera.position.set(0,5,10);camera.lookAt(0,1,0);camera.updateMatrixWorld();
+ const object={id:'work',title:'光の駅',authorName:'作者',description:'みんなが集まる駅です。',position:[0,0,0],bounds:{min:[-1,0,-1],max:[1,2,1]}};
+ try{
+  labels.update({objects:[object],position:{x:0,z:3},time:0,camera,viewportHeight:800,maxPixels:300});
+  assert.equal(labels.getState().expanded,1);const texture=scene.children[0].material.map;let disposed=false;texture.addEventListener('dispose',()=>disposed=true);
+  labels.update({objects:[object],position:{x:0,z:30},time:500,camera,viewportHeight:800,maxPixels:300});
+  assert.equal(labels.getState().expanded,0);assert.ok(disposed);assert.notEqual(scene.children[0].material.map,texture);assert.ok(labels.getState().maxScreenWidth<=220.001);
+ }finally{labels.dispose();globalThis.document=previous;}assert.equal(scene.children.length,0);
+});
 test('exhibit labels cap their projected width at close range and preserve the world size limit',()=>{
  for(const height of [320,720,1400])for(const fov of [35,60,90])for(const depth of [.05,1,4,20,100]){
   const camera=new THREE.PerspectiveCamera(fov,1,0.01,1000),projectionY=camera.projectionMatrix.elements[5];

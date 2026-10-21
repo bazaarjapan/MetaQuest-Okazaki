@@ -137,7 +137,9 @@ try{
  await until("window.__okazaki.getState().workshop.locatedName!==null",60000);
  check('teacher can travel safely beside student work',!(await state()).free);
  await until('window.__okazaki.getState().exhibits.count===1');
- check('nearby exhibit labels stay within their screen width cap',(await state()).exhibits.maxScreenWidth<=220.001);
+ await until('window.__okazaki.getState().exhibits.expanded===1');
+ check('nearby work opens an author and description plate',(await state()).exhibits.expanded===1);
+ check('nearby exhibit labels stay within their screen width cap',(await state()).exhibits.maxScreenWidth<=300.001);
  await browser('screenshot','test-results/street-exhibit.png');
  await until('window.__okazaki.getState().radar?.people.length===1');
  const studentMarker=(await state()).radar.people[0];

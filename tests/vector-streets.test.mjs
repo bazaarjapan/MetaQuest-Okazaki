@@ -17,6 +17,11 @@ test('subdivision preserves source route and limits each terrain query to twenty
  const data={roads:[{line:[[0,0],[55,0]],width:9}],rails:[]},before=JSON.stringify(data),segments=streetSegments(data);
  assert.deepEqual(segments.map(s=>s.length),[20,20,15]);assert.deepEqual(segments.map(s=>s.along),[0,20,40]);assert.equal(JSON.stringify(data),before);
 });
+test('raised rails include top and side geometry without extending outside real ground',()=>{
+ const mesh=terrain(),index=createSurfaceIndex(mesh.geometry.attributes.position.array,mesh.geometry.index.array),points=projectSurfacePolygon(index,streetRectangle([-5,5],[15,5],.18),.02,.14);
+ assert.ok(points.length>36);
+ for(let i=0;i<points.length;i+=3){const [x,y,z]=points.slice(i,i+3),h=(x+z)/10;assert.ok(x>=0&&x<=10);assert.ok(y>=h+.02-1e-6&&y<=h+.16+1e-6);}
+});
 test('near streets render six untextured geometry layers and release them in performance mode',()=>{
  const scene=new THREE.Scene(),streets=createVectorStreets({scene}),mesh=terrain();
  streets.setData({roads:[{line:[[1,5],[9,5]],width:3}],rails:[{line:[[5,1],[5,9]],width:5}],junctions:[],crossings:[]});

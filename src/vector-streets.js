@@ -23,7 +23,7 @@ export function createVectorStreets({scene,fetchImpl=globalThis.fetch,getIndex=(
  const palette=[0xc9cfbf,0x586567,0x88918a,0x5c5c53,0xd7ded9,0xede5bd];
  const center={value:new THREE.Vector3()},range={value:220};
  const meshes=palette.map((color,i)=>{
-  const material=new THREE.MeshStandardMaterial({color,roughness:1,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
+  const material=new THREE.MeshStandardMaterial({color,roughness:i===4?.35:1,metalness:i===4?.65:0,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
   material.onBeforeCompile=shader=>{shader.uniforms.streetCenter=center;shader.uniforms.streetRange=range;shader.vertexShader='varying vec3 vStreetWorld;\n'+shader.vertexShader;shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvStreetWorld=(modelMatrix*vec4(position,1.)).xyz;');shader.fragmentShader='uniform vec3 streetCenter;uniform float streetRange;varying vec3 vStreetWorld;\n'+shader.fragmentShader;shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\ndiffuseColor.a*=1.-smoothstep(streetRange-35.,streetRange,length(vStreetWorld.xz-streetCenter.xz));');};
   material.customProgramCacheKey=()=> 'draped-vector-streets-v1';
   const mesh=new THREE.Mesh(new THREE.BufferGeometry(),material);mesh.renderOrder=i+1;mesh.frustumCulled=false;group.add(mesh);return mesh;
@@ -47,7 +47,7 @@ export function createVectorStreets({scene,fetchImpl=globalThis.fetch,getIndex=(
  const clear=()=>{for(const g of pending?.geometries??[])g.dispose();pending=null;for(const mesh of meshes){mesh.geometry.dispose();mesh.geometry=new THREE.BufferGeometry();}shown=0;};
  function ground(mesh){const shared=getIndex(mesh);if(shared)return shared;if(!indexes.has(mesh.geometry))indexes.set(mesh.geometry,createSurfaceIndex(mesh.geometry.attributes.position.array,mesh.geometry.index?Uint32Array.from(mesh.geometry.index.array):null));return indexes.get(mesh.geometry);}
  function draw(buffers,grounds,layer,polygon){if(polygon.length<3)return;for(const index of grounds){
-  const positions=projectSurfacePolygon(index,polygon,.015+layer*.005);buffers[layer].push(...positions);
+  const positions=projectSurfacePolygon(index,polygon,.015+layer*.005,layer===4?.14:layer===3?.07:0);buffers[layer].push(...positions);
   // Build normals during the bounded projection jobs, not in one costly final
   // computeVertexNormals pass over the complete neighbourhood.
   for(let i=0;i<positions.length;i+=9){const ux=positions[i+3]-positions[i],uy=positions[i+4]-positions[i+1],uz=positions[i+5]-positions[i+2],vx=positions[i+6]-positions[i],vy=positions[i+7]-positions[i+1],vz=positions[i+8]-positions[i+2],nx=uy*vz-uz*vy,ny=uz*vx-ux*vz,nz=ux*vy-uy*vx,length=Math.hypot(nx,ny,nz)||1;for(let k=0;k<3;k++)buffers[layer].normals.push(nx/length,ny/length,nz/length);}

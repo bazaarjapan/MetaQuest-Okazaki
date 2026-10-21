@@ -62,6 +62,7 @@ export function createRegionStreamer(THREE, parentGroup, {
   textureLoader,
   heightLoader = applyLiveTerrainHeight,
   fieldUniform = {value:0},
+  eveningUniform = {value:0},
   terrainTexture = tile => ({url:`/region/${tile.texture}`}),
   terrainLimit = quality => quality === 'high' ? 16 : 9,
   terrainAnisotropy = () => 2,
@@ -73,6 +74,7 @@ export function createRegionStreamer(THREE, parentGroup, {
   const loader = textureLoader ?? (typeof globalThis.createImageBitmap === "function" && typeof THREE.Texture === "function"
     ? loadBrowserTexture : new THREE.TextureLoader());
   const buildingMaterial = createFieldBuildingMaterial(THREE,fieldUniform,{
+    eveningUniform,
     color: new THREE.Color(0.72, 0.76, 0.78).multiplyScalar(0.84), roughness: 1, metalness: 0,
   });
   let tiles = new Map();

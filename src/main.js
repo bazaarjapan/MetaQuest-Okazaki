@@ -39,7 +39,7 @@ import { createVRControllerPointer } from "./vr-controller-pointer.js";
 import { createStreetScenery } from "./street-scenery.js";
 import { createAmbientTraffic } from "./ambient-traffic.js";
 import { createMovementAudio } from "./movement-audio.js";
-import { createCitySky } from "./city-atmosphere.js";
+import { createCitySky, cityFogRange } from "./city-atmosphere.js";
 import { createWorldRadar } from "./world-radar.js";
 import { createExhibitLabels } from "./exhibit-labels.js";
 import "./style.css";
@@ -88,6 +88,7 @@ try { preferenceStorage = window.localStorage; } catch { /* Optional preference 
 let quality = readQuality(preferenceStorage);
 let fieldStyle=readFieldStyle(preferenceStorage),fieldManifest=null;
 const fieldUniform={value:fieldStyle==='game'?1:0};
+const eveningUniform={value:0};
 const state = {
   ready: false,
   current: "overview",
@@ -157,7 +158,7 @@ scene.add(city);
 const regionGroup = new THREE.Group();
 regionGroup.name = "streamed-okazaki-region";
 scene.add(regionGroup);
-const regionStreamer = createRegionStreamer(THREE, regionGroup,{fieldUniform,
+const regionStreamer = createRegionStreamer(THREE, regionGroup,{fieldUniform,eveningUniform,
   terrainLimit:q=>fieldStyle==='game'?Math.min(q==='high'?16:9,8):(q==='high'?16:9),
   terrainAnisotropy:()=>Math.min(quality.anisotropy,renderer.capabilities.getMaxAnisotropy()),
   terrainTexture:tile=>({url:fieldStyle==='game'&&fieldManifest?.region[tile.id]
@@ -345,6 +346,8 @@ let timeOfDay="day";
 function setTimeOfDay(value) {
   timeOfDay=value==="evening"?"evening":"day";
   const evening=timeOfDay==="evening";
+  eveningUniform.value=evening?1:0;
+  Object.assign(scene.fog,cityFogRange(regionProfiles[quality.id].radius,evening));
   citySky.set(evening);
   skyLight.color.set(evening?0xffd6b3:0xdff2ff);skyLight.groundColor.set(evening?0x77748d:0x879080);skyLight.intensity=evening?1.4:1.7;
   sun.color.set(evening?0xffba7c:0xfff2da);sun.intensity=evening?2:2.3;
@@ -498,7 +501,7 @@ async function loadCity() {
     const materialOptions={color,map,roughness:1,metalness:0};
     const mesh = new THREE.Mesh(
       geometry,
-      gameBuilding?createFieldBuildingMaterial(THREE,fieldUniform,materialOptions):new THREE.MeshStandardMaterial(materialOptions),
+      gameBuilding?createFieldBuildingMaterial(THREE,fieldUniform,{...materialOptions,eveningUniform}):new THREE.MeshStandardMaterial(materialOptions),
     );
     mesh.name = p.name;
     mesh.castShadow = p.texture !== "Texture-001.png";
@@ -609,8 +612,7 @@ function applyRegionViewRange() {
   const radius = regionProfiles[quality.id].radius;
   camera.far = radius + 1200;
   camera.updateProjectionMatrix();
-  scene.fog.near = radius * 0.65;
-  scene.fog.far = radius + 500;
+  Object.assign(scene.fog,cityFogRange(radius,timeOfDay==='evening'));
   controls.maxDistance = radius + 500;
 }
 function drawDesktopRegionMap() {
@@ -1417,7 +1419,7 @@ renderer.setAnimationLoop((time, frame) => {
       grounded:!state.xr&&soundMovement.mode==='creative'&&soundMovement.grounded,
       flying:state.xr||soundMovement.mode==='drone'||soundMovement.flying,boosting:soundMovement.animation==='boost'});
     exhibitLabels.update({objects:schoolState.objects,position:userPosition(),time,enabled:activityAllowed,
-      camera:state.xr?null:camera,viewportHeight:viewport.clientHeight,maxPixels:Math.min(220,viewport.clientWidth*.4)});
+      camera:state.xr?null:camera,viewportHeight:viewport.clientHeight,maxPixels:Math.min(300,viewport.clientWidth*.65)});
     radar.update({position:userPosition(),yaw:creative.getState().mode==="creative"?creative.getState().yaw:
       new THREE.Euler().setFromQuaternion(camera.getWorldQuaternion(new THREE.Quaternion()),"YXZ").y,
       objects:schoolState.objects,participants:schoolState.connection==="connected"?schoolState.participants:[],
@@ -1541,7 +1543,7 @@ window.__okazaki = {
     touch: touchControls.getState(),
     guide: { position: panel.position.toArray(), size: vrFieldPanel.getState().size },
     hud: controllerHud.getState(),
-    nearField:nearField.getState(),vectorStreets:vectorStreets.getState(),
+    nearField:nearField.getState(),vectorStreets:vectorStreets.getState(),atmosphere:{fogNear:scene.fog.near,fogFar:scene.fog.far,windowGlow:eveningUniform.value},
     quality: { ...quality, terrainFile, shadows: renderer.shadowMap.enabled,
       terrainSize: terrainMesh?.material.map?.image
         ? [terrainMesh.material.map.image.width, terrainMesh.material.map.image.height] : null,

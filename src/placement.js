@@ -147,7 +147,7 @@ function query(data, box, budget) {
 
 // Drape decorative vector polygons on actual loaded ground, clipping every
 // face at the terrain edges. Missing ground stays empty; no sampled flat fill.
-export function projectSurfacePolygon(index, polygon, offset = 0) {
+export function projectSurfacePolygon(index, polygon, offset = 0, depth = 0) {
   if(!Array.isArray(polygon)||polygon.length<3||polygon.length>16||!polygon.every(p=>p.length===2&&p.every(Number.isFinite)))throw Error('Invalid surface polygon');
   const data=getIndex(index),positions=[];
   for(const id of query(data,xzBounds(polygon),{checks:0})){
@@ -156,7 +156,11 @@ export function projectSurfacePolygon(index, polygon, offset = 0) {
     const ordered=cross(polygon[0],polygon[1],polygon[2])<0?[...polygon].reverse():polygon;
     const clipped=clipTriangle(ordered,outline);
     if(clipped.length<3||polygonArea(clipped)<=EPSILON)continue;
-    for(let i=1;i+1<clipped.length;i++)for(const p of [clipped[0],clipped[i+1],clipped[i]])positions.push(p[0],height(points,...p)+offset,p[1]);
+    for(let i=1;i+1<clipped.length;i++)for(const p of [clipped[0],clipped[i+1],clipped[i]])positions.push(p[0],height(points,...p)+offset+depth,p[1]);
+    if(depth>0)for(let i=0;i<clipped.length;i++){
+      const a=clipped[i],b=clipped[(i+1)%clipped.length],ay=height(points,...a)+offset,by=height(points,...b)+offset;
+      positions.push(a[0],ay,a[1],a[0],ay+depth,a[1],b[0],by,b[1],b[0],by,b[1],a[0],ay+depth,a[1],b[0],by+depth,b[1]);
+    }
   }
   return positions;
 }
