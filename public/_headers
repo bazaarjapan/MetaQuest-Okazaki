@@ -8,3 +8,7 @@
   Cache-Control: public, max-age=3600
 /region/*
   Cache-Control: public, max-age=3600
+/region/terrain.json
+  Cache-Control: no-cache
+/region/buildings.json
+  Cache-Control: no-cache

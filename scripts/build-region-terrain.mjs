@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 import sharp from "sharp";
 import * as THREE from "three";
+import polygonClipping from 'polygon-clipping';
 import { tileToLonLat, lonLatToTile, lonLatToWorld } from "./lib/region-geo.mjs";
 import { decodeDemRgb } from "../src/terrain-height.js";
 import { terrainBoundaryLoops } from "../src/terrain-boundary.js";
@@ -130,7 +131,41 @@ export function outsideFootprint(triangle,masks) {
   return pieces;
 }
 
-export function geometry(x, y, rectangle, masks=null) {
+// Polygon subtraction introduces T-junctions. Split the neighbouring face at
+// every shared edge vertex before sampling heights, so both sides stay joined
+// even when DEM samples or the core transition are not coplanar.
+export function conformTerrainEdges(vertices, indices) {
+  const count=vertices.length,result=[];
+  for(let i=0;i<indices.length;i+=3){
+    const ids=indices.slice(i,i+3),ring=[];
+    for(let j=0;j<3;j++){
+      const a=vertices[ids[j]],b=vertices[ids[(j+1)%3]],dx=b[0]-a[0],dz=b[2]-a[2],length=dx*dx+dz*dz,edge=[];
+      ring.push(ids[j]);if(length<1e-12)continue;
+      for(let k=0;k<count;k++){
+        const p=vertices[k],t=((p[0]-a[0])*dx+(p[2]-a[2])*dz)/length;
+        if(t>1e-9&&t<1-1e-9&&Math.hypot(p[0]-a[0]-t*dx,p[2]-a[2]-t*dz)<.001)edge.push({k,t});
+      }
+      edge.sort((a,b)=>a.t-b.t);let previous=-Infinity;
+      for(const p of edge)if((p.t-previous)*Math.sqrt(length)>1e-5){ring.push(p.k);previous=p.t;}
+    }
+    if(ring.length===3){result.push(...ids);continue;}
+    const center=vertices.length;vertices.push(vertices[ids[0]].map((_,k)=>ids.reduce((s,id)=>s+vertices[id][k],0)/3));
+    for(let j=0;j<ring.length;j++)result.push(center,ring[j],ring[(j+1)%ring.length]);
+  }
+  return result;
+}
+
+function outsideCoreTriangle(triangle,loop){
+  const polygons=polygonClipping.difference([triangle.map(p=>[p[0],p[2]])],[loop.map(p=>[p[0],p[2]])]);
+  const a=triangle[0],b=triangle[1],c=triangle[2],den=(b[2]-c[2])*(a[0]-c[0])+(c[0]-b[0])*(a[2]-c[2]);
+  return polygons.flatMap(polygon=>{
+    const rings=polygon.map(ring=>ring.slice(0,-1).map(p=>new THREE.Vector2(...p))),flat=rings.flat();
+    const points=flat.map(p=>{const u=((b[2]-c[2])*(p.x-c[0])+(c[0]-b[0])*(p.y-c[2]))/den,v=((c[2]-a[2])*(p.x-c[0])+(a[0]-c[0])*(p.y-c[2]))/den;return [p.x,0,p.y,a[3]*u+b[3]*v+c[3]*(1-u-v),a[4]*u+b[4]*v+c[4]*(1-u-v)];});
+    return THREE.ShapeUtils.triangulateShape(rings[0],rings.slice(1)).map(ids=>[points[ids[0]],points[ids[2]],points[ids[1]]]);
+  });
+}
+
+export function geometry(x, y, rectangle, masks=null, coreLoop=null) {
   const points = [];
   for (let row = 0; row <= 16; row++) for (let column = 0; column <= 16; column++) {
     const u = column / 16, v = row / 16;
@@ -141,7 +176,7 @@ export function geometry(x, y, rectangle, masks=null) {
   const vertices = [], indices = [], vertexMap = new Map();
   const add = (polygon) => {
     const mapped = polygon.map((point) => {
-      const key = `${point[0].toFixed(6)},${point[2].toFixed(6)},${point[3].toFixed(9)},${point[4].toFixed(9)}`;
+      const key = `${point[0].toFixed(8)},${point[2].toFixed(8)}`;
       if (!vertexMap.has(key)) { vertexMap.set(key, vertices.length); vertices.push(point); }
       return vertexMap.get(key);
     });
@@ -154,9 +189,22 @@ export function geometry(x, y, rectangle, masks=null) {
     const a = row * 17 + column, b = a + 1, c = a + 17, d = c + 1;
     for (const triangle of [[points[a], points[c], points[b]], [points[b], points[c], points[d]]]) {
       const intersects=Math.max(...triangle.map(p=>p[0]))>=rectangle[0]&&Math.min(...triangle.map(p=>p[0]))<=rectangle[2]&&Math.max(...triangle.map(p=>p[2]))>=rectangle[1]&&Math.min(...triangle.map(p=>p[2]))<=rectangle[3];
-      for (const polygon of masks?(intersects?outsideFootprint(triangle,masks):[triangle]):outsideRectangle(triangle, rectangle)) add(polygon);
+      for (const polygon of coreLoop?(intersects?outsideCoreTriangle(triangle,coreLoop):[triangle]):masks?(intersects?outsideFootprint(triangle,masks):[triangle]):outsideRectangle(triangle, rectangle)) add(polygon);
     }
   }
+  // Core heights vary at every original rim vertex. Regional boundary faces
+  // must include those vertices rather than bridging over their height detail.
+  for(const p of coreLoop??[]){
+    if(vertices.some(v=>Math.hypot(v[0]-p[0],v[2]-p[2])<.0001))continue;
+    let inserted=false;
+    for(let n=0;n<indices.length&&!inserted;n+=3)for(let j=0;j<3&&!inserted;j++){
+      const a=vertices[indices[n+j]],b=vertices[indices[n+(j+1)%3]],dx=b[0]-a[0],dz=b[2]-a[2],length=dx*dx+dz*dz;
+      if(!length)continue;const t=((p[0]-a[0])*dx+(p[2]-a[2])*dz)/length;
+      if(t<=0||t>=1||Math.hypot(p[0]-a[0]-t*dx,p[2]-a[2]-t*dz)>.0001)continue;
+      vertices.push(a.map((v,k)=>v+(b[k]-v)*t));inserted=true;
+    }
+  }
+  const conformed=masks?conformTerrainEdges(vertices,indices):indices;
   const position = new Float32Array(vertices.length * 3), uv = new Float32Array(vertices.length * 2);
   const bounds = [Infinity, Infinity, -Infinity, -Infinity];
   for (let index = 0; index < vertices.length; index++) {
@@ -164,7 +212,7 @@ export function geometry(x, y, rectangle, masks=null) {
     bounds[0] = Math.min(bounds[0], vertices[index][0]); bounds[2] = Math.max(bounds[2], vertices[index][0]);
     bounds[1] = Math.min(bounds[1], vertices[index][2]); bounds[3] = Math.max(bounds[3], vertices[index][2]);
   }
-  const index = Uint32Array.from(indices);
+  const index = Uint32Array.from(conformed);
   const mesh = new THREE.BufferGeometry();
   mesh.setAttribute("position", new THREE.BufferAttribute(position, 3));
   mesh.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
@@ -172,7 +220,7 @@ export function geometry(x, y, rectangle, masks=null) {
   const normal = mesh.getAttribute("normal").array;
   const buffer = Buffer.concat([position, normal, uv, index].map((array) => Buffer.from(array.buffer, array.byteOffset, array.byteLength)));
   mesh.dispose();
-  return { buffer, vertices: vertices.length, indices: indices.length, triangles: indices.length / 3, bounds };
+  return { buffer, vertices: vertices.length, indices: index.length, triangles: index.length / 3, bounds };
 }
 
 async function main() {
@@ -191,7 +239,7 @@ async function main() {
   if (tasks.length > 200) throw new Error("This baker is explicitly bounded to the official Okazaki dataset (at most 200 ground chunks)");
   console.log(JSON.stringify({ sourceTileset, geographicBounds, zoom, extent, groundTiles: tasks.length, mode: "public flat template; elevation loaded live from GSI" }, null, 2));
   await fs.mkdir(cache, { recursive: true }); await fs.writeFile(tilesetCache, tilesetBuffer);
-  const {rectangle,masks} = await coreTerrainFootprint();
+  const {rectangle,masks,loop} = await coreTerrainFootprint();
   // Read-only/non-public DEM validation also includes the south/east neighbours
   // which the live renderer needs to sample identical heights on tile seams.
   const demTasks = [];
@@ -209,7 +257,7 @@ async function main() {
   if (!Number.isFinite(minHeight)) throw new Error("All validation DEM samples are NoData");
   await fs.mkdir(output, { recursive: true });
   const tiles = await bounded(tasks, async ({ x, y }, index) => {
-    const id = `g-${zoom}-${x}-${y}`, generated = geometry(x, y, rectangle, masks);
+    const id = `g-${zoom}-${x}-${y}`, generated = geometry(x, y, rectangle, masks, loop);
     if (!generated.triangles) throw new Error(`${id} is wholly excluded by core terrain`);
     let layer = "seamlessphoto", photo = await sourceImage(layer, x, y, true);
     if (!photo) { layer = "std"; photo = await sourceImage(layer, x, y); }

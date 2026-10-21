@@ -22,6 +22,9 @@ export function createAvatarLabel(THREE, { parent, documentTarget = globalThis.d
     texture.generateMipmaps = false; texture.minFilter = THREE.LinearFilter;
     material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false, toneMapped: false });
     sprite = new THREE.Sprite(material); sprite.name = "school-avatar-nickname";
+    // Streets fade without writing depth and use orders 1–6. Draw names after
+    // those layers, while keeping depth testing against opaque buildings.
+    sprite.renderOrder = 100;
     sprite.position.set(0, 2.16, 0); sprite.scale.set(1.4, .35, 1); parent.add(sprite);
   }
   function setName(value) {

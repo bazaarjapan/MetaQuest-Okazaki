@@ -1,4 +1,5 @@
 import { createSurfaceIndex } from "../src/placement.js";
+import { terrainBoundaryLoops } from "../src/terrain-boundary.js";
 import { fail, sha256 } from "./school-common.mjs";
 
 // These are the existing verified PLATEAU model bytes, not a generated flat ground
@@ -32,13 +33,14 @@ export async function loadCorePlacement(binding) {
   const task = (async () => {
     const manifest = JSON.parse(new TextDecoder().decode(await checkedAsset(binding, "manifest.json")));
     const obstacles = [];
-    let terrain = null, bounds = null;
+    let terrain = null, bounds = null, rim = null;
     for (const part of manifest.parts) {
       if (!Object.hasOwn(CORE_SOURCE_HASHES, part.file)) fail(503, "invalid_core_mesh");
       const decoded = decodeCoreMesh(await checkedAsset(binding, part.file), part);
       const index = createSurfaceIndex(decoded.positions, decoded.indices);
       if (part.texture === "Texture-001.png") {
         terrain = index;
+        rim = terrainBoundaryLoops(decoded.positions,decoded.indices)[0];
         let minX = Infinity, minZ = Infinity, maxX = -Infinity, maxZ = -Infinity;
         for (let i = 0; i < decoded.positions.length; i += 3) {
           minX = Math.min(minX, decoded.positions[i]); maxX = Math.max(maxX, decoded.positions[i]);
@@ -48,7 +50,7 @@ export async function loadCorePlacement(binding) {
       } else obstacles.push(index);
     }
     if (!terrain || obstacles.length !== 4 || !bounds.every(Number.isFinite)) fail(503, "placement_source_unavailable");
-    return { terrain, obstacles, bounds };
+    return { terrain, obstacles, bounds, rim };
   })();
   surfaces.set(binding, task);
   try { return await task; }

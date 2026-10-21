@@ -2,7 +2,7 @@ import { planRegionTiles, regionProfiles } from "./region-plan.js";
 import { textureMemoryBytes } from "./quality.js";
 import { applyLiveTerrainHeight } from "./terrain-height.js";
 import { createFieldBuildingMaterial,decorateBuildingGeometry } from "./field-style.js";
-import { terrainBoundaryLoops, coreSeamWall } from "./terrain-boundary.js";
+import { terrainBoundaryLoops, coreSeamWall, stitchTerrainToCore } from "./terrain-boundary.js";
 
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
 const MAX_TERRAIN_TEXTURE_BYTES = 32 * 1024 * 1024;
@@ -257,7 +257,7 @@ export function createRegionStreamer(THREE, parentGroup, {
       task.controller.abort();
     }, 45000);
     try {
-      const response = await fetchImpl(`/region/${tile.file}`, { signal: task.controller.signal });
+      const response = await fetchImpl(`/region/${tile.file}${tile.sha256?'?v='+tile.sha256:''}`, { signal: task.controller.signal });
       if (!live(task)) return;
       if (!response.ok) throw new Error(`Region request failed (${response.status})`);
       const advertised = Number(response.headers?.get("content-length"));
@@ -274,6 +274,9 @@ export function createRegionStreamer(THREE, parentGroup, {
         if (!live(task)) return;
       }
       let decodedBytes = 0;
+      if(tile.type==='terrain'&&coreLoop&&stitchTerrainToCore(geometry.attributes.position.array,coreLoop)){
+        geometry.attributes.position.needsUpdate=true;geometry.computeVertexNormals();geometry.computeBoundingBox();geometry.computeBoundingSphere();
+      }
       const seamData=tile.type==='terrain'&&coreLoop?coreSeamWall(geometry.attributes.position.array,geometry.attributes.uv.array,geometry.index.array,coreLoop):null;
       const seamTriangles=(seamData?.positions.length??0)/9;
       if (tile.type === "terrain" && tile.texture) {

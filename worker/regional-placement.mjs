@@ -3,10 +3,11 @@ import {interpolateElevation,validateDemTile} from '../src/terrain-height.js';
 import {loadCorePlacement} from './placement-source.mjs';
 import {fail,sha256} from './school-common.mjs';
 import {decodeDemPng} from './dem-png.mjs';
+import {stitchTerrainToCore} from '../src/terrain-boundary.js';
 
 export const REGION_SOURCE_HASHES=Object.freeze({
   'buildings.json':'d7033f6448eafd98b8cf64918a2637d7efc93bcd67f415a5bb48d4429f8b6f87',
-  'terrain.json':'862e39a7ebdfeb688ff3765fd40b102fad104bbad39a39acf340d0a36b209283',
+  'terrain.json':'a872d2ef3e963b5508aea551e41d89c896bee4df5aee43418a2704c6ebbe38a6',
 });
 export const REGION_PLACEMENT_BOUNDS=Object.freeze([-4818.7919921875,-12503.6240234375,20255.958984375,6905.88623046875]);
 const loaders=new WeakMap();
@@ -101,7 +102,7 @@ export function createRegionPlacementLoader(binding,{fetchImpl=fetch}={}) {
       if(placementIntersects(core.bounds,box)){ground.push(core.terrain);obstacles.push(...core.obstacles);}
       for(const tile of needed){
         const mesh=decodeRegionMesh(await checked(tile.file,tile.sha256),tile);
-        if(tile.type==='terrain')await applyDemHeight(mesh,tile,getDem);
+        if(tile.type==='terrain'){await applyDemHeight(mesh,tile,getDem);stitchTerrainToCore(mesh.positions,core.rim);}
         const index=clippedIndex(mesh,box);if(index)(tile.type==='terrain'?ground:obstacles).push(index);
       }
       return {terrain:ground,obstacles,bounds:buildings.bounds};

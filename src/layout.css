@@ -2,7 +2,7 @@
 [hidden] { display: none !important; }
 button, select, input, a { touch-action: manipulation; }
 select:focus-visible { outline: 3px solid #d48b1c; outline-offset: 2px; }
-body { height: 100dvh; display: grid; grid-template-rows: 60px minmax(0,1fr) 30px; overflow: hidden; }
+body { height: 100dvh; display: grid; grid-template-columns: minmax(0,1fr); grid-template-rows: 60px minmax(0,1fr) 30px; overflow: hidden; }
 header { height: auto; padding: 0 20px; gap: 18px; }
 .brand { gap: 10px; }
 .mark { width: 34px; height: 34px; font-size: 21px; }
@@ -10,6 +10,14 @@ header { height: auto; padding: 0 20px; gap: 18px; }
 .brand strong { font-size: 17px; }
 .edition { font-size: 12px; }
 .quiet { font-size: 12px; padding: 8px 12px; }
+header .brand { min-width: 0; margin-right: auto; }
+header .brand > span:last-child { min-width: 0; }
+header .brand strong { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+header .quiet { flex: none; margin-left: 0; }
+@media (max-width: 480px) {
+ header:has(#school-quick-logout:not([hidden])) .brand > span:last-child { display: none; }
+ header:has(#school-quick-logout:not([hidden])) .quiet { padding: 8px 7px; }
+}
 main { height: 100%; min-height: 0; grid-template-columns: minmax(0,1fr) 310px; }
 #viewport { min-height: 0; height: 100%; }
 #viewport > canvas { position: absolute; inset: 0; }

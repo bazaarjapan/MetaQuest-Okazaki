@@ -436,7 +436,7 @@ function fail(error) {
 }
 $("#retry").onclick = () => location.reload();
 async function fetchChecked(url, type) {
-  const response = await fetch(url, { signal: AbortSignal.timeout(45000) });
+  const response = await fetch(url, { signal: AbortSignal.timeout(45000), ...(type==='json'?{cache:'no-cache'}:{}) });
   if (!response.ok)
     throw new Error(
       `モデルの取得に失敗しました（${response.status}）。再読み込みをお試しください。`,
@@ -1532,7 +1532,7 @@ window.__okazaki = {
     panelVisible: panel.visible && vrFieldPanel.getState().expanded,
     vrPanel: vrFieldPanel.getState(),
     pointers: { left: controllerPointers.left.getState(), right: controllerPointers.right.getState() },
-    version: "1.10.8",
+    version: "1.10.9",
     vrReturn: { buttonVisible: vrReturnButton.getState().visible,
       holdProgress: vrReturnButton.getState().progress, exiting: xrExitPending,
       hasResume: hasVRResume, view: lastXRView ? {

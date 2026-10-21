@@ -106,6 +106,9 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
   const body = element("div", undefined, "school-body");
   body.append(description, status, movementStatus, loginTabs, content);
   const footer = element("div", undefined, "school-footer"); footer.append(privacy);
+  const logout = command("ログアウト", () => perform(() => client.logout(), "ログアウトしました。操作を再開するにはログインしてください。"), "school-logout");
+  logout.hidden = true; footer.append(logout);
+  const quickLogout = document.querySelector("#school-quick-logout");
   dialog.append(heading, body, footer); document.body.append(dialog);
   const summary = document.querySelector("#school-summary");
   let state = client.getState(), renderKey = "", busy = false, googleGeneration = 0;
@@ -128,6 +131,7 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
   }
   function refreshDisabled() {
     for (const item of dialog.querySelectorAll("button[data-school-action]")) item.disabled = busy || item.dataset.unavailable === "true";
+    if (quickLogout) quickLogout.disabled = busy;
   }
   function command(text, handler, id, unavailable = false) {
     const node = actionButton(text, handler, id); node.dataset.schoolAction = "true"; node.dataset.unavailable = String(unavailable); return node;
@@ -201,8 +205,7 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
     const color = inputField("色", { type: "color", value: state.user.color, id: "school-avatar-color" });
     row.append(name.label, color.label); section.append(row);
     const actions = element("div", undefined, "school-actions");
-    actions.append(command(state.user.namePending ? "この名前でワールドに入る" : "アバターを保存", () => perform(() => client.updateAvatar({ name: name.input.value, color: color.input.value }), "名前と色を保存しました。次回も同じIDで続きを開けます。"), "school-avatar-save"),
-      command("ログアウト", () => perform(() => client.logout(), "ログアウトしました。操作を再開するにはログインしてください。"), "school-logout"));
+    actions.append(command(state.user.namePending ? "この名前でワールドに入る" : "アバターを保存", () => perform(() => client.updateAvatar({ name: name.input.value, color: color.input.value }), "名前と色を保存しました。次回も同じIDで続きを開けます。"), "school-avatar-save"));
     section.append(actions); content.append(section);
   }
   function renderEntry() {
@@ -360,6 +363,8 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
     if (participantLabel) participantLabel.textContent = `参加者 ${state.participants.length}人（生徒最大30人） · 作品 ${state.objects.length}点`;
     if (summary) summary.textContent = state.user ? `${state.user.role === "teacher" ? "先生" : "生徒"} · ${state.world ? `${state.world.name} · ${description}` : "未参加"}` : "未ログイン：ログイン後に操作できます";
     if (button) button.textContent = state.user ? "共同教室・アカウント" : "共同教室 / ログイン";
+    logout.hidden = !state.user;
+    if (quickLogout) quickLogout.hidden = !state.user;
     for (const node of dialog.querySelectorAll("#school-world-save,#school-world-restore,#school-restore-confirm")) node.dataset.unavailable = String(state.connection !== "connected");
     refreshDisabled();
   }
@@ -393,7 +398,10 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
     if (!dialog.open) dialog.showModal(); return true;
   }
   const clickOpen = () => { open().catch(() => {}); };
+  // Opening first releases movement/pointer lock and makes any failure visible.
+  const clickLogout = async () => { if (busy || !state.user || !await open()) return; logout.click(); };
   button?.addEventListener("click", clickOpen);
+  quickLogout?.addEventListener("click", clickLogout);
   const unsubscribe = client.subscribe(render);
   dialog.addEventListener("close", () => {
     googleGeneration++;
@@ -404,5 +412,5 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
     try { globalThis.google?.accounts?.id?.cancel(); } catch { /* No global revoke. */ }
   });
   return { open, close: () => dialog.close(), isOpen: () => dialog.open, dialog,
-    destroy: () => { unsubscribe(); googleGeneration++; button?.removeEventListener("click", clickOpen); dialog.remove(); } };
+    destroy: () => { unsubscribe(); googleGeneration++; button?.removeEventListener("click", clickOpen); quickLogout?.removeEventListener("click", clickLogout); dialog.remove(); } };
 }
