@@ -22,6 +22,17 @@ test('raised rails include top and side geometry without extending outside real 
  assert.ok(points.length>36);
  for(let i=0;i<points.length;i+=3){const [x,y,z]=points.slice(i,i+3),h=(x+z)/10;assert.ok(x>=0&&x<=10);assert.ok(y>=h+.02-1e-6&&y<=h+.16+1e-6);}
 });
+test('raised streets never extrude the internal diagonal of the terrain mesh',()=>{
+ const mesh=terrain(),index=createSurfaceIndex(mesh.geometry.attributes.position.array,mesh.geometry.index.array);
+ const points=projectSurfacePolygon(index,[[2,2],[8,2],[8,8],[2,8]],.02,.14);let sides=0;
+ for(let i=0;i<points.length;i+=9){
+  const p=[points.slice(i,i+3),points.slice(i+3,i+6),points.slice(i+6,i+9)];
+  const area=(p[1][0]-p[0][0])*(p[2][2]-p[0][2])-(p[2][0]-p[0][0])*(p[1][2]-p[0][2]);
+  if(Math.abs(area)>1e-8)continue;
+  sides++;assert.ok([2,8].some(v=>p.every(q=>Math.abs(q[0]-v)<1e-6)||p.every(q=>Math.abs(q[2]-v)<1e-6)),'every wall belongs to the original outline');
+ }
+ assert.equal(sides,8,'only the four outer walls, not duplicate internal diagonal walls');
+});
 test('near streets render six untextured geometry layers and release them in performance mode',()=>{
  const scene=new THREE.Scene(),streets=createVectorStreets({scene}),mesh=terrain();
  streets.setData({roads:[{line:[[1,5],[9,5]],width:3}],rails:[{line:[[5,1],[5,9]],width:5}],junctions:[],crossings:[]});

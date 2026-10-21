@@ -154,11 +154,25 @@ export function projectSurfacePolygon(index, polygon, offset = 0, depth = 0) {
     const points=triangle(data,id),outline=projected(points);
     if(cross(...outline)>=-EPSILON)continue;
     const ordered=cross(polygon[0],polygon[1],polygon[2])<0?[...polygon].reverse():polygon;
-    const clipped=clipTriangle(ordered,outline);
+    const clipped=clipTriangle(ordered,outline).filter((p,i,a)=>i===0||Math.hypot(p[0]-a[i-1][0],p[1]-a[i-1][1])>EPSILON);
+    if(clipped.length>1&&Math.hypot(clipped[0][0]-clipped.at(-1)[0],clipped[0][1]-clipped.at(-1)[1])<=EPSILON)clipped.pop();
     if(clipped.length<3||polygonArea(clipped)<=EPSILON)continue;
-    for(let i=1;i+1<clipped.length;i++)for(const p of [clipped[0],clipped[i+1],clipped[i]])positions.push(p[0],height(points,...p)+offset+depth,p[1]);
+    for(let i=1;i+1<clipped.length;i++){
+      if(Math.abs(cross(clipped[0],clipped[i],clipped[i+1]))<=EPSILON)continue;
+      for(const p of [clipped[0],clipped[i+1],clipped[i]])positions.push(p[0],height(points,...p)+offset+depth,p[1]);
+    }
     if(depth>0)for(let i=0;i<clipped.length;i++){
       const a=clipped[i],b=clipped[(i+1)%clipped.length],ay=height(points,...a)+offset,by=height(points,...b)+offset;
+      // A terrain triangle is only a clipping partition, not a prism edge.
+      // Extrude pieces of the original outline, never internal terrain cuts.
+      const boundary=polygon.some((p,j)=>{
+        const q=polygon[(j+1)%polygon.length],dx=q[0]-p[0],dz=q[1]-p[1],length=Math.hypot(dx,dz);
+        if(length<1e-8)return false;
+        return [a,b].every(v=>Math.abs(cross(p,q,v))/length<1e-6&&
+          (v[0]-p[0])*dx+(v[1]-p[1])*dz>=-1e-6&&
+          (v[0]-q[0])*dx+(v[1]-q[1])*dz<=1e-6);
+      });
+      if(!boundary)continue;
       positions.push(a[0],ay,a[1],a[0],ay+depth,a[1],b[0],by,b[1],b[0],by,b[1],a[0],ay+depth,a[1],b[0],by+depth,b[1]);
     }
   }
