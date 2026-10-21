@@ -3,6 +3,7 @@ import { textureMemoryBytes } from "./quality.js";
 import { applyLiveTerrainHeight } from "./terrain-height.js";
 import { createFieldBuildingMaterial,decorateBuildingGeometry } from "./field-style.js";
 import { terrainBoundaryLoops, coreSeamWall, stitchTerrainToCore } from "./terrain-boundary.js";
+import { applyCityGroundMaterial } from './city-surface-map.js';
 
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
 const MAX_TERRAIN_TEXTURE_BYTES = 32 * 1024 * 1024;
@@ -63,6 +64,7 @@ export function createRegionStreamer(THREE, parentGroup, {
   heightLoader = applyLiveTerrainHeight,
   fieldUniform = {value:0},
   eveningUniform = {value:0},
+  citySurfaceUniforms = null,
   terrainTexture = tile => ({url:`/region/${tile.texture}`}),
   terrainLimit = quality => quality === 'high' ? 16 : 9,
   terrainAnisotropy = () => 2,
@@ -74,7 +76,7 @@ export function createRegionStreamer(THREE, parentGroup, {
   const loader = textureLoader ?? (typeof globalThis.createImageBitmap === "function" && typeof THREE.Texture === "function"
     ? loadBrowserTexture : new THREE.TextureLoader());
   const buildingMaterial = createFieldBuildingMaterial(THREE,fieldUniform,{
-    eveningUniform,
+    eveningUniform,citySurfaceUniforms,
     color: new THREE.Color(0.72, 0.76, 0.78).multiplyScalar(0.84), roughness: 1, metalness: 0,
   });
   let tiles = new Map();
@@ -305,6 +307,7 @@ export function createRegionStreamer(THREE, parentGroup, {
       material = tile.type === "terrain"
         ? new THREE.MeshStandardMaterial({ color: map ? 0xffffff : 0x879080, map, roughness: 1, metalness: 0 })
         : buildingMaterial;
+      if(tile.type==='terrain'&&citySurfaceUniforms)applyCityGroundMaterial(material,citySurfaceUniforms,fieldUniform);
       const mesh = new THREE.Mesh(geometry, material);
       let seam=null;
       if(seamTriangles){

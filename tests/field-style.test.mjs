@@ -33,7 +33,7 @@ test('shared shader bypasses original photos in game mode and retains photo/blac
   assert.match(shader.fragmentShader,/if\(fieldGame>\.5\)/);
   assert.equal(shader.uniforms.fieldGame,uniform);assert.equal(material.map,map);assert.equal(material.color.getHex(),0);
   uniform.value=0;assert.equal(shader.uniforms.fieldGame.value,0);assert.equal(material.map,map);
-  assert.equal(material.userData.fieldBuilding,true);assert.equal(material.customProgramCacheKey(),'okazaki-field-building-v5');material.dispose();map.dispose();
+  assert.equal(material.userData.fieldBuilding,true);assert.equal(material.customProgramCacheKey(),'okazaki-field-building-v6');material.dispose();map.dispose();
 });
 
 test('facades retain low-wing roof heights even when they connect to a taller building',()=>{

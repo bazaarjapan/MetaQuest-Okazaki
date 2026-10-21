@@ -1,4 +1,5 @@
 import {textureMemoryBytes} from './quality.js';
+import {applyCityGroundMaterial} from './city-surface-map.js';
 
 // Clip in the original UV space, interpolating the existing DEM surface rather
 // than inventing a second flat ground. Original arrays are never modified.
@@ -50,7 +51,7 @@ export function chooseNearField(candidates,position,quality='high',current=null)
   return best??null;
 }
 
-export function createNearField(THREE,{fetchImpl=globalThis.fetch,maxAnisotropy=16}={}) {
+export function createNearField(THREE,{fetchImpl=globalThis.fetch,maxAnisotropy=16,citySurfaceUniforms=null,gameUniform={value:1}}={}) {
   let cache=new WeakMap(),current=null,task=null,target=null,lastTime=-Infinity,disposed=false;
   let requested=0,errors=0,lastError=null;
   const failures=new Map();
@@ -88,6 +89,7 @@ export function createNearField(THREE,{fetchImpl=globalThis.fetch,maxAnisotropy=
       geometry.setAttribute('normal',new THREE.BufferAttribute(new Float32Array(next.normals),3));
       geometry.setAttribute('uv',new THREE.BufferAttribute(new Float32Array(next.uv),2));
       material=new THREE.MeshStandardMaterial({map:texture,roughness:1,metalness:0,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1});
+      if(citySurfaceUniforms)applyCityGroundMaterial(material,citySurfaceUniforms,gameUniform);
       mesh=new THREE.Mesh(geometry,material);mesh.name='near-field-detail';mesh.receiveShadow=next.source.receiveShadow;
       // Child transform keeps exact alignment even if a source group moves.
       next.source.add(mesh);

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import {createSurfaceIndex,projectSurfacePolygon} from './placement.js';
+import {attachCitySurfaceShader} from './city-surface-map.js';
 
 export function streetRectangle(a,b,width,offset=0){
  const dx=b[0]-a[0],dz=b[1]-a[1],length=Math.hypot(dx,dz);if(length<1e-6)return [];
@@ -18,14 +19,16 @@ export function streetSegments(data){
  }
  return result;
 }
-export function createVectorStreets({scene,fetchImpl=globalThis.fetch,getIndex=()=>null}){
+export function createVectorStreets({scene,fetchImpl=globalThis.fetch,getIndex=()=>null,citySurfaceUniforms=null}){
  const group=new THREE.Group();group.name='vector-streets';scene.add(group);
  const palette=[0xc9cfbf,0x586567,0x88918a,0x5c5c53,0xd7ded9,0xede5bd];
  const center={value:new THREE.Vector3()},range={value:220};
  const meshes=palette.map((color,i)=>{
   const material=new THREE.MeshStandardMaterial({color,roughness:i===4?.35:1,metalness:i===4?.65:0,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
   material.onBeforeCompile=shader=>{shader.uniforms.streetCenter=center;shader.uniforms.streetRange=range;shader.vertexShader='varying vec3 vStreetWorld;\n'+shader.vertexShader;shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvStreetWorld=(modelMatrix*vec4(position,1.)).xyz;');shader.fragmentShader='uniform vec3 streetCenter;uniform float streetRange;varying vec3 vStreetWorld;\n'+shader.fragmentShader;shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\ndiffuseColor.a*=1.-smoothstep(streetRange-35.,streetRange,length(vStreetWorld.xz-streetCenter.xz));');};
-  material.customProgramCacheKey=()=> 'draped-vector-streets-v1';
+  const compile=material.onBeforeCompile;
+  material.onBeforeCompile=shader=>{compile(shader);if(citySurfaceUniforms&&[0,1,5].includes(i)){attachCitySurfaceShader(shader,citySurfaceUniforms);shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\ndiffuseColor.a*=1.-cityBuilding(vStreetWorld.xz);');}};
+  material.customProgramCacheKey=()=> 'draped-vector-streets-v2'+(citySurfaceUniforms&&[0,1,5].includes(i)?'-clearance':'');
   const mesh=new THREE.Mesh(new THREE.BufferGeometry(),material);mesh.renderOrder=i+1;mesh.frustumCulled=false;group.add(mesh);return mesh;
  });
  let data=null,segments=[],version='',last=null,pending=null,shown=0,checks=0,manifest=null,revision=0,disposed=false;
