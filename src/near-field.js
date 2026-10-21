@@ -50,7 +50,7 @@ export function chooseNearField(candidates,position,quality='high',current=null)
   return best??null;
 }
 
-export function createNearField(THREE,{fetchImpl=globalThis.fetch,maxAnisotropy=8}={}) {
+export function createNearField(THREE,{fetchImpl=globalThis.fetch,maxAnisotropy=16}={}) {
   let cache=new WeakMap(),current=null,task=null,target=null,lastTime=-Infinity,disposed=false;
   let requested=0,errors=0,lastError=null;
   const failures=new Map();
@@ -82,7 +82,7 @@ export function createNearField(THREE,{fetchImpl=globalThis.fetch,maxAnisotropy=
       if(controller.signal.aborted||disposed||target?.key!==next.key||target?.source!==next.source)return;
       if(bitmap.width!==width||bitmap.height!==height||textureMemoryBytes(width,height)>budget)throw Error('Invalid detail texture dimensions');
       texture=new THREE.Texture(bitmap);texture.flipY=false;texture.colorSpace=THREE.SRGBColorSpace;
-      texture.anisotropy=Math.min(next.quality==='high'?8:4,maxAnisotropy);texture.needsUpdate=true;
+      texture.anisotropy=Math.min(next.quality==='high'?16:8,maxAnisotropy);texture.needsUpdate=true;
       geometry=new THREE.BufferGeometry();
       geometry.setAttribute('position',new THREE.BufferAttribute(new Float32Array(next.positions),3));
       geometry.setAttribute('normal',new THREE.BufferAttribute(new Float32Array(next.normals),3));
@@ -121,7 +121,7 @@ export function createNearField(THREE,{fetchImpl=globalThis.fetch,maxAnisotropy=
     if(!target)release();pump();
   }
   return {update,getState:()=>({resident:Number(Boolean(current)),loading:Number(Boolean(task)),id:current?.id??null,
-    quality:current?.quality??null,textureBytes:current?.textureBytes??0,loadingTextureBytes:task?budget:0,textureBudget:budget,requested,errors,lastError,
+    quality:current?.quality??null,width:current?.bitmap.width??0,anisotropy:current?.texture.anisotropy??0,textureBytes:current?.textureBytes??0,loadingTextureBytes:task?budget:0,textureBudget:budget,requested,errors,lastError,
     source:current?.source.userData.regionTileId??(current?'core':null)}),
     dispose(){disposed=true;target=null;task?.controller.abort();release();cache=new WeakMap();failures.clear();}};
 }

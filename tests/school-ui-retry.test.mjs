@@ -57,6 +57,13 @@ function harness(initial, retry, extraClient = {}) {
 }
 const guest = { configured: false, user: null, world: null, worlds: [], snapshots: [], participants: [], objects: [],
   connection: "guest", error: "school_unavailable" };
+test("role-specific entry opens only the chosen form and tabs preserve entered student ID",async()=>{
+  const initial={...guest,configured:true,singleClassroom:true,error:null},h=harness(initial,async()=>initial);
+  await h.ui.open('teacher');assert.equal(h.find('student-login-panel').hidden,true);assert.equal(h.find('teacher-login-panel').hidden,false);
+  h.find('student-login-tab').click();h.find('student-login-id').value='my-student-id';
+  h.find('teacher-login-tab').click();h.find('student-login-tab').click();assert.equal(h.find('student-login-id').value,'my-student-id');
+  assert.equal(h.find('student-login-panel').hidden,false);assert.equal(h.find('teacher-login-panel').hidden,true);assert.equal(h.gisLoads,0);h.ui.destroy();
+});
 
 test("guest failed initialization leaves an accessible explicit retry, without loading GIS", async () => {
   const h = harness(guest, async () => ({ ...guest, configured: true, error: null }));
@@ -68,6 +75,14 @@ test("guest failed initialization leaves an accessible explicit retry, without l
   assert.equal(h.calls.length, 1); assert.equal(h.calls[0].recheck, true);
   assert.equal(h.find("school-login").disabled, false); assert.equal(h.find("school-retry").disabled, false);
   assert.equal(h.gisLoads, 0); h.ui.destroy();
+});
+
+test("student entry keeps retry visible before classroom configuration and retains the requested role",async()=>{
+  const ready={...guest,configured:true,singleClassroom:true,error:null};
+  const h=harness(guest,async()=>ready);
+  await h.ui.open('student');assert.equal(h.find('teacher-login-panel').hidden,false);
+  h.find('school-retry').click();await tick();await tick();
+  assert.equal(h.find('student-login-panel').hidden,false);assert.equal(h.find('teacher-login-panel').hidden,true);h.ui.destroy();
 });
 test("an unsuccessful explicit retry remains a safe guest and can be retried again", async () => {
   const h = harness(guest, async () => ({ ...guest }));

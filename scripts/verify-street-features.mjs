@@ -74,7 +74,7 @@ try{
  await until("!document.querySelector('#student-issued-credentials').hidden");
  const secret=await evaluate("document.querySelector('#student-issued-credentials').value.split('\\n')[1].split('\\t')");
  session=sessions[1];await launch(fixtures.origin);await until("document.querySelector('#student-login-id')");
- if(!await evaluate("document.querySelector('#school-dialog').open"))await browser('click','#login-gate button');
+ if(!await evaluate("document.querySelector('#school-dialog').open"))await browser('click','#login-gate [data-login-role=student]');
  await browser('fill','#student-login-id',secret[0]);await browser('fill','#student-password',secret[1]);
  await browser('click','#school-dialog form button');await until("document.querySelector('#school-avatar-name')");
  await browser('fill','#school-avatar-name','レーダー検証生徒');await browser('click','#school-avatar-save');
@@ -137,7 +137,9 @@ try{
  await until("window.__okazaki.getState().workshop.locatedName!==null",60000);
  check('teacher can travel safely beside student work',!(await state()).free);
  await until('window.__okazaki.getState().exhibits.count===1');
- check('nearby exhibit labels stay within their screen width cap',(await state()).exhibits.maxScreenWidth<=220.001);
+ await until('window.__okazaki.getState().exhibits.expanded===1');
+ check('nearby work opens an author and description plate',(await state()).exhibits.expanded===1);
+ check('nearby exhibit labels stay within their screen width cap',(await state()).exhibits.maxScreenWidth<=300.001);
  await browser('screenshot','test-results/street-exhibit.png');
  await until('window.__okazaki.getState().radar?.people.length===1');
  const studentMarker=(await state()).radar.people[0];

@@ -79,15 +79,17 @@ export function decorateBuildingGeometry(THREE,geometry) {
   geometry.setAttribute('fieldSpan',new THREE.BufferAttribute(spans,2));
 }
 export function createFieldBuildingMaterial(THREE,uniform,options={}) {
-  const material=new THREE.MeshStandardMaterial({roughness:1,metalness:0,...options});
+  const {eveningUniform={value:0},...materialOptions}=options;
+  const material=new THREE.MeshStandardMaterial({roughness:1,metalness:0,...materialOptions});
   material.userData??={};material.userData.fieldBuilding=true;
   material.onBeforeCompile=shader=>{
     shader.uniforms.fieldGame=uniform;
+    shader.uniforms.fieldEvening=eveningUniform;
     shader.vertexShader='attribute vec3 fieldColor; attribute vec2 fieldSpan; varying vec2 vFieldSpan; varying vec3 vFieldColor; varying vec3 vFieldPosition; varying vec3 vFieldNormal;\n'+shader.vertexShader;
     shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',`#include <begin_vertex>
       vFieldColor=fieldColor;vFieldPosition=(modelMatrix*vec4(position,1.0)).xyz;vFieldNormal=normalize(mat3(modelMatrix)*normal);
       vFieldSpan=vec2((modelMatrix*vec4(position.x,fieldSpan.x,position.z,1.0)).y,(modelMatrix*vec4(position.x,fieldSpan.y,position.z,1.0)).y);`);
-    shader.fragmentShader='uniform float fieldGame; varying vec2 vFieldSpan; varying vec3 vFieldColor; varying vec3 vFieldPosition; varying vec3 vFieldNormal;\n'+shader.fragmentShader;
+    shader.fragmentShader='uniform float fieldGame; uniform float fieldEvening; varying vec2 vFieldSpan; varying vec3 vFieldColor; varying vec3 vFieldPosition; varying vec3 vFieldNormal;\n'+shader.fragmentShader;
     // Keep the original map bound for photo mode, but do not sample or multiply
     // it into a game-style facade. The uniform switches both modes atomically.
     shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>',`if(fieldGame<.5){
@@ -113,6 +115,8 @@ export function createFieldBuildingMaterial(THREE,uniform,options={}) {
         float frame=windowMask*(1.0-smoothstep(.035,.065,abs(cell.x-.44)));
         paint=mix(paint,glass,windowMask*(1.0-roof)*nearView*.85);
         paint=mix(paint,vec3(.48,.53,.49),frame*(1.0-roof)*nearView*.6);
+        float occupied=step(.3,fract(sin(dot(floor(wall/vec2(2.0,3.2)),vec2(12.9898,78.233)))*43758.5453));
+        totalEmissiveRadiance+=vec3(1.0,.52,.16)*windowMask*(1.0-roof)*nearView*occupied*fieldEvening*1.3;
         float roofDistance=vFieldSpan.y-vFieldPosition.y;
         float coping=(1.0-smoothstep(.16,.27,roofDistance))*(1.0-roof);
         paint=mix(paint,vec3(.48,.51,.49),coping*.8);
@@ -122,6 +126,6 @@ export function createFieldBuildingMaterial(THREE,uniform,options={}) {
         diffuseColor.rgb=paint;
       }`);
   };
-  material.customProgramCacheKey=()=> 'okazaki-field-building-v4';
+  material.customProgramCacheKey=()=> 'okazaki-field-building-v5';
   return material;
 }

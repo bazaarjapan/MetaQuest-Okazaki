@@ -11,3 +11,6 @@
 *.gz binary
 *.br binary
 *.zip binary
+# This generated manifest is pinned by byte digest in the Worker.
+public/region/terrain.json text eol=lf
+public/field/vectors-*.json text eol=lf

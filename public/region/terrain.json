@@ -35,21 +35,21 @@
   },
   "sourceDateNote": "PLATEAU buildings are 2020; live GSI DEM and seamless imagery can have different capture/update dates. Download times are not acquisition dates. DEM orthometric heights can differ from 2020 city terrain.",
   "coreExclusion": {
-    "type": "exact rectangle clipping at original Mesh-004 x/z bounding box",
+    "type": "exact original Mesh-004 footprint clipping",
     "bounds": [
       -319.74005126953125,
       -380.5672912597656,
       314.71429443359375,
       371.3279724121094
     ],
-    "note": "The original terrain footprint is not guaranteed to be exactly rectangular. Small boundary gaps are possible; no full grid cell is discarded."
+    "note": "Only the actual original terrain footprint is excluded; its bounding-box corner strips remain covered by live DEM terrain."
   },
   "groundGrid": "17 by 17 per z14 source tile, source latitude/longitude projected into the original Unity coordinate system",
   "photoUpsampling": false,
   "elevationNoDataPolicy": "Live terrain fails to load if a vertex has no valid DEM sample; partial bilinear samples are renormalized and reported, never silently filled with zero",
   "imageryFallbackTiles": 0,
-  "totalTriangles": 80460,
-  "totalGeometryBytes": 2417008,
+  "totalTriangles": 81977,
+  "totalGeometryBytes": 2477772,
   "totalTextureBytes": 2724050,
   "tiles": [
     {
@@ -2726,17 +2726,17 @@
       "zoom": 14,
       "x": 14433,
       "y": 6493,
-      "vertices": 322,
-      "indices": 1686,
-      "triangles": 562,
-      "bytes": 17048,
+      "vertices": 684,
+      "indices": 2937,
+      "triangles": 979,
+      "bytes": 33636,
       "bounds": [
         -2275.264808521138,
         -1547.2463748071896,
         -267.4531500896378,
         451.5155293965945
       ],
-      "sha256": "2328e08530620b37346cbb811d712365329bc78bbfeb471bbde1e7b003520b98",
+      "sha256": "99eb38cb938a4423a57c70d739be3bf90bf1ea86acb0a7d333f5a3e8b0b46785",
       "heightMode": "live-gsi-dem",
       "heightRange": null,
       "templateHeight": 0,
@@ -2757,17 +2757,17 @@
       "zoom": 14,
       "x": 14434,
       "y": 6493,
-      "vertices": 317,
-      "indices": 1614,
-      "triangles": 538,
-      "bytes": 16600,
+      "vertices": 1285,
+      "indices": 4914,
+      "triangles": 1638,
+      "bytes": 60776,
       "bounds": [
         -267.7196752206305,
         -1546.7581962770928,
         1739.8253957409574,
         451.59676311425574
       ],
-      "sha256": "a9b3bed0c2ca58780e1d4a1ed3108070fe1b2477993eb38227ce888203e51127",
+      "sha256": "6281d5eb62219c42eb854a09d026a0de10dedaf631ea96f30bd10fe453998d82",
       "heightMode": "live-gsi-dem",
       "heightRange": null,
       "templateHeight": 0,

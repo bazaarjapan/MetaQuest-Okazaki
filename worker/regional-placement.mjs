@@ -1,4 +1,4 @@
-import {createSurfaceIndex,placementContains,placementFootprint,placementIntersects} from '../src/placement.js';
+import {createSurfaceIndex,placementContains,placementFootprint,placementIntersects,terrainCoversBox} from '../src/placement.js';
 import {interpolateElevation,validateDemTile} from '../src/terrain-height.js';
 import {loadCorePlacement} from './placement-source.mjs';
 import {fail,sha256} from './school-common.mjs';
@@ -6,7 +6,7 @@ import {decodeDemPng} from './dem-png.mjs';
 
 export const REGION_SOURCE_HASHES=Object.freeze({
   'buildings.json':'d7033f6448eafd98b8cf64918a2637d7efc93bcd67f415a5bb48d4429f8b6f87',
-  'terrain.json':'c2782bb05ee9e0d0473dd118c873f754340d69603f808b16bafdf5df211aeff4',
+  'terrain.json':'862e39a7ebdfeb688ff3765fd40b102fad104bbad39a39acf340d0a36b209283',
 });
 export const REGION_PLACEMENT_BOUNDS=Object.freeze([-4818.7919921875,-12503.6240234375,20255.958984375,6905.88623046875]);
 const loaders=new WeakMap();
@@ -89,7 +89,7 @@ export function createRegionPlacementLoader(binding,{fetchImpl=fetch}={}) {
   return async candidate=>{
     const core=await loadCorePlacement(binding);let box;
     try{box=placementFootprint(candidate);}catch(error){return {...core,error:error.message};}
-    if(placementContains(core.bounds,box))return core;
+    if(placementContains(core.bounds,box)&&terrainCoversBox(core.terrain,box))return core;
     if(!placementContains(REGION_PLACEMENT_BOUNDS,box))return {...core,error:'Object is outside the editable region'};
     try{
       if(!manifests)manifests=Promise.all(Object.entries(REGION_SOURCE_HASHES).map(async([file,hash])=>JSON.parse(new TextDecoder().decode(await checked(file,hash))))).catch(error=>{manifests=null;throw error;});

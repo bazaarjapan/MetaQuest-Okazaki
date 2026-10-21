@@ -144,6 +144,40 @@ function query(data, box, budget) {
   for (const id of candidates) { if (++budget.checks > MAX_CHECKS) throw new Error("Placement geometry is too complex"); if (overlap(data.boxes[id], box)) result.push(id); }
   return result;
 }
+
+// Drape decorative vector polygons on actual loaded ground, clipping every
+// face at the terrain edges. Missing ground stays empty; no sampled flat fill.
+export function projectSurfacePolygon(index, polygon, offset = 0, depth = 0) {
+  if(!Array.isArray(polygon)||polygon.length<3||polygon.length>16||!polygon.every(p=>p.length===2&&p.every(Number.isFinite)))throw Error('Invalid surface polygon');
+  const data=getIndex(index),positions=[];
+  for(const id of query(data,xzBounds(polygon),{checks:0})){
+    const points=triangle(data,id),outline=projected(points);
+    if(cross(...outline)>=-EPSILON)continue;
+    const ordered=cross(polygon[0],polygon[1],polygon[2])<0?[...polygon].reverse():polygon;
+    const clipped=clipTriangle(ordered,outline).filter((p,i,a)=>i===0||Math.hypot(p[0]-a[i-1][0],p[1]-a[i-1][1])>EPSILON);
+    if(clipped.length>1&&Math.hypot(clipped[0][0]-clipped.at(-1)[0],clipped[0][1]-clipped.at(-1)[1])<=EPSILON)clipped.pop();
+    if(clipped.length<3||polygonArea(clipped)<=EPSILON)continue;
+    for(let i=1;i+1<clipped.length;i++){
+      if(Math.abs(cross(clipped[0],clipped[i],clipped[i+1]))<=EPSILON)continue;
+      for(const p of [clipped[0],clipped[i+1],clipped[i]])positions.push(p[0],height(points,...p)+offset+depth,p[1]);
+    }
+    if(depth>0)for(let i=0;i<clipped.length;i++){
+      const a=clipped[i],b=clipped[(i+1)%clipped.length],ay=height(points,...a)+offset,by=height(points,...b)+offset;
+      // A terrain triangle is only a clipping partition, not a prism edge.
+      // Extrude pieces of the original outline, never internal terrain cuts.
+      const boundary=polygon.some((p,j)=>{
+        const q=polygon[(j+1)%polygon.length],dx=q[0]-p[0],dz=q[1]-p[1],length=Math.hypot(dx,dz);
+        if(length<1e-8)return false;
+        return [a,b].every(v=>Math.abs(cross(p,q,v))/length<1e-6&&
+          (v[0]-p[0])*dx+(v[1]-p[1])*dz>=-1e-6&&
+          (v[0]-q[0])*dx+(v[1]-q[1])*dz<=1e-6);
+      });
+      if(!boundary)continue;
+      positions.push(a[0],ay,a[1],a[0],ay+depth,a[1],b[0],by,b[1],b[0],by,b[1],a[0],ay+depth,a[1],b[0],by+depth,b[1]);
+    }
+  }
+  return positions;
+}
 function triangleTouchesRectangle(points, box) {
   if (!overlap(xzBounds(points), box)) return false;
   const rectangle = [[box[0], box[1]], [box[2], box[1]], [box[2], box[3]], [box[0], box[3]]];
@@ -181,6 +215,17 @@ export function placementFootprint(candidate) {
 }
 export const placementIntersects=(a,b)=>a[0]<=b[2]&&a[2]>=b[0]&&a[1]<=b[3]&&a[3]>=b[1];
 export const placementContains=(outer,inner)=>inner[0]>=outer[0]&&inner[1]>=outer[1]&&inner[2]<=outer[2]&&inner[3]<=outer[3];
+
+// A bounding rectangle can include empty strips outside an irregular mesh.
+// Use the same exact triangle coverage test before selecting core-only ground.
+export function terrainCoversBox(terrain, box) {
+  const [x0,z0,x1,z1]=box;
+  const x=(x0+x1)/2,z=(z0+z1)/2,dx=Math.max((x1-x0)/2,5e-6),dz=Math.max((z1-z0)/2,5e-6);
+  // Local coordinates preserve thin vertical work even far from the origin.
+  const positions=new Float32Array([-dx,0,-dz,dx,0,-dz,dx,0,dz,-dx,0,-dz,dx,0,dz,-dx,0,dz]);
+  return validatePlacement({positions,position:[x,0,z],rotation:[0,0,0],scale:[1,1,1]},
+    {terrain,obstacles:[],bounds:[x0-.01,z0-.01,x1+.01,z1+.01]}).valid;
+}
 
 /**
  * Validate real transformed triangles. Returns {valid, position, bounds, error}.

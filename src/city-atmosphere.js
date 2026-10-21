@@ -1,4 +1,7 @@
 // A small gradient sky gives real DEM hills a readable horizon in both eyes.
+export function cityFogRange(radius,evening=false){
+  return {near:Math.min(evening?650:900,radius*.4),far:radius+500};
+}
 export function createCitySky(THREE,scene,documentTarget=document) {
   const canvas=documentTarget.createElement('canvas');canvas.width=256;canvas.height=128;
   const context=canvas.getContext('2d');

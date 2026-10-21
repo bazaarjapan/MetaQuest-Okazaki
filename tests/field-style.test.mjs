@@ -33,7 +33,7 @@ test('shared shader bypasses original photos in game mode and retains photo/blac
   assert.match(shader.fragmentShader,/if\(fieldGame>\.5\)/);
   assert.equal(shader.uniforms.fieldGame,uniform);assert.equal(material.map,map);assert.equal(material.color.getHex(),0);
   uniform.value=0;assert.equal(shader.uniforms.fieldGame.value,0);assert.equal(material.map,map);
-  assert.equal(material.userData.fieldBuilding,true);assert.equal(material.customProgramCacheKey(),'okazaki-field-building-v4');material.dispose();map.dispose();
+  assert.equal(material.userData.fieldBuilding,true);assert.equal(material.customProgramCacheKey(),'okazaki-field-building-v5');material.dispose();map.dispose();
 });
 
 test('facades retain low-wing roof heights even when they connect to a taller building',()=>{
@@ -44,6 +44,14 @@ test('facades retain low-wing roof heights even when they connect to a taller bu
   assert.ok(Math.abs(result.ceilings[0]-24.1)<.001);assert.ok(Math.abs(result.ceilings[2]-28.7)<.001);
   // Split wall/roof copies at the same vertical corner agree on the roof.
   assert.equal(result.spans[1],result.spans[5]);
+});
+
+test('evening window emission follows the shared uniform while photo mode remains unchanged',()=>{
+ const eveningUniform={value:0},material=createFieldBuildingMaterial(THREE,{value:1},{eveningUniform});
+ const shader={uniforms:{},vertexShader:THREE.ShaderLib.standard.vertexShader,fragmentShader:THREE.ShaderLib.standard.fragmentShader};material.onBeforeCompile(shader);
+ assert.equal(shader.uniforms.fieldEvening,eveningUniform);assert.match(shader.fragmentShader,/totalEmissiveRadiance\+=.*fieldEvening/);
+ assert.ok(shader.fragmentShader.indexOf('vec3 totalEmissiveRadiance')<shader.fragmentShader.indexOf('totalEmissiveRadiance+='));
+ eveningUniform.value=1;assert.equal(shader.uniforms.fieldEvening.value,1);material.dispose();
 });
 test('game atlas respects every quality profile with legacy manifest fallback',()=>{
   const manifest={core:{file:'station.webp'},profiles:{performance:{file:'station-performance.webp'},balanced:{file:'station-balanced.webp'},high:{file:'station.webp'}}};
