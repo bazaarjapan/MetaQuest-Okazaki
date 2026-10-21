@@ -13,6 +13,7 @@ import { createRegionStreamer } from "./region-stream.js";
 import { createRegionalPlacementEnvironment } from "./placement-region.js";
 import { findWorkLanding } from "./workshop-landing.js";
 import {createNearField} from './near-field.js';
+import {createVectorStreets} from './vector-streets.js';
 import {createTerrainSampler} from './ground-sampler.js';
 import { clampToRegion, regionProfiles } from "./region-plan.js";
 import { drawRegionMap, mapToWorld } from "./region-map.js";
@@ -54,7 +55,7 @@ const locationHud = createLocationHud($("#current-location"), $("#current-locati
 let stationPosition = null;
 $("#device-control-note").hidden = !questBrowser;
 let activityAllowed = false;
-const activityGate = createActivityGate({ onOpen: () => schoolUI?.open(), onLock: () => {
+const activityGate = createActivityGate({ onOpen: role => schoolUI?.open(role), onLock: () => {
   activityAllowed = false;
   setFree(false); controls.enabled = false;
   for (const dialog of document.querySelectorAll("dialog[open]:not(#school-dialog)")) dialog.close();
@@ -222,6 +223,7 @@ let schoolUI;
 let placementEnvironment = { terrain: null, obstacles: [], bounds: [-320, -381, 315, 372], terrainMeshes: [] };
 const regionalPlacementEnvironment=createRegionalPlacementEnvironment({getCore:()=>placementEnvironment,getManifest:()=>regionManifest,getMeshes:()=>regionStreamer.getMeshes()});
 const streetScenery=createStreetScenery({scene,getEnvironment:regionalPlacementEnvironment});
+const vectorStreets=createVectorStreets({scene,getIndex:mesh=>mesh===terrainMesh?placementEnvironment.terrain:null});
 const ambientTraffic=createAmbientTraffic({scene,getEnvironment:regionalPlacementEnvironment});
 const movementAudio=createMovementAudio({storage:preferenceStorage,isAllowed:()=>activityAllowed});
 let ambientMotion=true;
@@ -362,6 +364,7 @@ fetch("/field/scenery.json").then(response=>{if(!response.ok)throw Error("scener
   button.onclick=()=>{if(!activityAllowed||state.xr||xrEntering)return;const item=data.landmarks.find(p=>p.name===select.value);if(item)visitRegionPoint(item.x,item.z);};
   label.append(select);$("#panel-region").append(label,button);
 }).catch(()=>{ /* Optional scenery stays absent; original city remains available. */ });
+fetch('/field/vector-streets.json').then(response=>{if(!response.ok)throw Error('streets unavailable');return response.json();}).then(data=>vectorStreets.setManifest(data)).catch(()=>{});
 const presence = createSchoolPresence(THREE, { scene, client: schoolClient });
 const vrWorkshop = createVRWorkshop(THREE, { camera, workshop, client: schoolClient,
   embedded: true,
@@ -500,7 +503,7 @@ async function loadCity() {
     mesh.name = p.name;
     mesh.castShadow = p.texture !== "Texture-001.png";
     mesh.receiveShadow = true;
-    if (p.texture === "Texture-001.png") terrainMesh = mesh;
+    if (p.texture === "Texture-001.png") { terrainMesh = mesh; regionStreamer.setCoreTerrain(geometry); }
     // Real geometry edges improve readability without inventing facade detail.
     if (!p.texture && p.vertices > 30000) {
       const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geometry, 35),
@@ -1404,6 +1407,7 @@ renderer.setAnimationLoop((time, frame) => {
     nearField.update({position:userPosition(),quality:quality.id,enabled:fieldStyle==='game'&&!state.qualityLoading,
       manifest:fieldManifest,core:terrainMesh,terrain:regionStreamer.getGroundMeshes(),time});
     const sceneryGeometryVersion=`${terrainMesh?.geometry.id}:${regionStreamer.getMeshes().map(m=>m.geometry.id).join(',')}`;
+    vectorStreets.update({position:userPosition(),quality:quality.id,enabled:fieldStyle==='game'&&!state.qualityLoading,terrain:[terrainMesh,...regionStreamer.getGroundMeshes()].filter(Boolean),terrainVersion:`${terrainMesh?.geometry.id}:${regionStreamer.getGroundMeshes().map(m=>m.geometry.id).join(',')}`});
     const editingWorld=adaptiveUi.getState().open||Boolean(document.querySelector('dialog[open]'));
     streetScenery.update({position:userPosition(),quality:quality.id,enabled:fieldStyle==="game"&&!state.qualityLoading,time,objects:schoolState.objects,timeOfDay,terrainVersion:sceneryGeometryVersion,paused:editingWorld||document.hidden});
     ambientTraffic.update({position:userPosition(),quality:quality.id,active:activityAllowed&&ambientMotion&&fieldStyle==='game'&&!state.qualityLoading&&!document.hidden&&!editingWorld,time,objects:schoolState.objects,
@@ -1526,7 +1530,7 @@ window.__okazaki = {
     panelVisible: panel.visible && vrFieldPanel.getState().expanded,
     vrPanel: vrFieldPanel.getState(),
     pointers: { left: controllerPointers.left.getState(), right: controllerPointers.right.getState() },
-    version: "1.10.7",
+    version: "1.10.8",
     vrReturn: { buttonVisible: vrReturnButton.getState().visible,
       holdProgress: vrReturnButton.getState().progress, exiting: xrExitPending,
       hasResume: hasVRResume, view: lastXRView ? {
@@ -1537,7 +1541,7 @@ window.__okazaki = {
     touch: touchControls.getState(),
     guide: { position: panel.position.toArray(), size: vrFieldPanel.getState().size },
     hud: controllerHud.getState(),
-    nearField:nearField.getState(),
+    nearField:nearField.getState(),vectorStreets:vectorStreets.getState(),
     quality: { ...quality, terrainFile, shadows: renderer.shadowMap.enabled,
       terrainSize: terrainMesh?.material.map?.image
         ? [terrainMesh.material.map.image.width, terrainMesh.material.map.image.height] : null,

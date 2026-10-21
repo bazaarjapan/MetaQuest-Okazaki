@@ -1,4 +1,4 @@
-import {createSurfaceIndex,placementContains,placementFootprint,placementIntersects} from './placement.js';
+import {createSurfaceIndex,placementContains,placementFootprint,placementIntersects,terrainCoversBox} from './placement.js';
 
 // Read only trusted, fully loaded meshes. Missing nearby buildings must never
 // mean "empty land" just because the renderer has not streamed them yet.
@@ -14,7 +14,7 @@ export function createRegionalPlacementEnvironment({getCore,getManifest,getMeshe
     if(!candidate)return {...core,bounds:manifest?.bounds??core.bounds,terrainMeshes};
     try {
       const box=placementFootprint(candidate);
-      if(placementContains(core.bounds,box))return {...core,terrainMeshes};
+      if(placementContains(core.bounds,box)&&terrainCoversBox(core.terrain,box))return {...core,terrainMeshes};
       if(!manifest || !placementContains(manifest.bounds,box))return {...core,terrainMeshes,error:'Object is outside the editable region'};
       const needed=manifest.tiles.filter(t=>placementIntersects(t.bounds,box));
       const resident=new Map(meshes.map(m=>[m.userData.regionTileId,m]));

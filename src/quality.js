@@ -18,7 +18,7 @@ export const qualityProfiles = Object.freeze({
     xrScale: 1,
     foveation: 0.5,
     dpr: 1.5,
-    anisotropy: 4,
+    anisotropy: 8,
   }),
   high: Object.freeze({
     id: "high",
@@ -27,7 +27,7 @@ export const qualityProfiles = Object.freeze({
     xrScale: 1.2,
     foveation: 0.3,
     dpr: 2,
-    anisotropy: 8,
+    anisotropy: 16,
   }),
 });
 

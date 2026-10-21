@@ -40,13 +40,15 @@ test('distant hills in a regional height range do not steal the core near patch'
 test('real Three geometry overlay loads, downsamples balanced, swaps and disposes without touching ground',async()=>{
   const old=globalThis.createImageBitmap,bitmaps=[];
   globalThis.createImageBitmap=async(blob,options)=>{const b={width:options.resizeWidth,height:options.resizeHeight,closed:false,close(){this.closed=true;}};bitmaps.push(b);return b;};
-  const near=createNearField(THREE,{fetchImpl:async()=>({ok:true,arrayBuffer:async()=>content.buffer})}),ground=source();
+  const near=createNearField(THREE,{maxAnisotropy:12,fetchImpl:async()=>({ok:true,arrayBuffer:async()=>content.buffer})}),ground=source();
   try{
     near.update({position:[5,30,5],manifest,terrain:[ground],time:0});await settle();
     assert.equal(near.getState().resident,1);assert.equal(near.getState().source,'g0');
     assert.equal(ground.children[0].material.map.image.width,2048);assert.equal(ground.children[0].geometry.index,null);
+    assert.equal(ground.children[0].material.map.anisotropy,12,'limited by actual GPU capability');
     near.update({position:[5,30,5],quality:'balanced',manifest,terrain:[ground],time:700});await settle();
     assert.equal(bitmaps[0].closed,true);assert.equal(ground.children[0].material.map.image.width,1024);
+    assert.equal(ground.children[0].material.map.anisotropy,8);
     near.update({position:[5,30,5],enabled:false,manifest,terrain:[ground],time:1400});
     assert.equal(ground.children.length,0);assert.ok(bitmaps.every(b=>b.closed));assert.equal(ground.geometry.attributes.position.count,4);
   }finally{near.dispose();globalThis.createImageBitmap=old;}

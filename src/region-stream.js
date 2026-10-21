@@ -2,6 +2,7 @@ import { planRegionTiles, regionProfiles } from "./region-plan.js";
 import { textureMemoryBytes } from "./quality.js";
 import { applyLiveTerrainHeight } from "./terrain-height.js";
 import { createFieldBuildingMaterial,decorateBuildingGeometry } from "./field-style.js";
+import { terrainBoundaryLoops, coreSeamWall } from "./terrain-boundary.js";
 
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
 const MAX_TERRAIN_TEXTURE_BYTES = 32 * 1024 * 1024;
@@ -85,6 +86,7 @@ export function createRegionStreamer(THREE, parentGroup, {
   let errors = 0;
   let lastError = null;
   let requested = 0;
+  let coreLoop = null;
   const resident = new Map();
   const loading = new Map();
   const negativeCache = new Map();
@@ -99,6 +101,7 @@ export function createRegionStreamer(THREE, parentGroup, {
   function release(entry) {
     parentGroup.remove(entry.mesh);
     entry.mesh.geometry.dispose();
+    entry.seam?.geometry.dispose(); entry.seam?.material.dispose();
     if (entry.type === "terrain") {
       releaseTexture(entry.mesh.material.map);
       entry.mesh.material.dispose();
@@ -114,12 +117,13 @@ export function createRegionStreamer(THREE, parentGroup, {
 
   function totals() {
     let triangles = 0, buildingTriangles = 0, terrainTriangles = 0;
-    let geometryBytes = 0, sourceBytes = 0, textureBytes = 0, buildings = 0, terrain = 0;
+    let geometryBytes = 0, sourceBytes = 0, textureBytes = 0, buildings = 0, terrain = 0, seamTriangles = 0;
     for (const entry of resident.values()) {
       triangles += entry.triangles;
       geometryBytes += entry.geometryBytes;
       sourceBytes += entry.bytes;
       textureBytes += entry.textureBytes;
+      seamTriangles += (entry.seam?.geometry.attributes.position.count??0)/3;
       if (entry.type === "building") {
         buildingTriangles += entry.triangles;
         buildings += 1;
@@ -128,7 +132,7 @@ export function createRegionStreamer(THREE, parentGroup, {
         terrain += 1;
       }
     }
-    return { triangles, buildingTriangles, terrainTriangles, geometryBytes, sourceBytes, textureBytes, buildings, terrain };
+    return { triangles, buildingTriangles, terrainTriangles, geometryBytes, sourceBytes, textureBytes, buildings, terrain, seamTriangles };
   }
 
   function live(task) {
@@ -268,6 +272,8 @@ export function createRegionStreamer(THREE, parentGroup, {
         if (!live(task)) return;
       }
       let decodedBytes = 0;
+      const seamData=tile.type==='terrain'&&coreLoop?coreSeamWall(geometry.attributes.position.array,geometry.attributes.uv.array,geometry.index.array,coreLoop):null;
+      const seamTriangles=(seamData?.positions.length??0)/9;
       if (tile.type === "terrain" && tile.texture) {
         map = await loadTexture(terrainTexture(tile).url, task.controller.signal);
         if (!live(task)) return;
@@ -288,13 +294,21 @@ export function createRegionStreamer(THREE, parentGroup, {
       const poolSize = tile.type === "building" ? current.buildings : current.terrain;
       const poolTriangles = tile.type === "building" ? current.buildingTriangles : current.terrainTriangles;
       const poolLimit = tile.type === "building" ? profile.maxResident : terrainMax;
-      if (poolSize >= poolLimit || poolTriangles + tile.triangles > profile.maxTriangles ||
+      if (poolSize >= poolLimit || poolTriangles + tile.triangles + seamTriangles > profile.maxTriangles ||
         current.textureBytes + decodedBytes > MAX_TERRAIN_TEXTURE_BYTES)
         throw new Error("Region resident resource budget reached");
       material = tile.type === "terrain"
         ? new THREE.MeshStandardMaterial({ color: map ? 0xffffff : 0x879080, map, roughness: 1, metalness: 0 })
         : buildingMaterial;
       const mesh = new THREE.Mesh(geometry, material);
+      let seam=null;
+      if(seamTriangles){
+        const seamGeometry=new THREE.BufferGeometry();
+        seamGeometry.setAttribute('position',new THREE.BufferAttribute(new Float32Array(seamData.positions),3));
+        seamGeometry.setAttribute('uv',new THREE.BufferAttribute(new Float32Array(seamData.uv),2));seamGeometry.computeVertexNormals();
+        const seamMaterial=material.clone();seamMaterial.side=THREE.DoubleSide;
+        seam=new THREE.Mesh(seamGeometry,seamMaterial);seam.name='core-terrain-height-seam';mesh.add(seam);
+      }
       mesh.name = `region-${tile.type}-${tile.id}`;
       mesh.castShadow = false;
       mesh.receiveShadow = false;
@@ -306,8 +320,8 @@ export function createRegionStreamer(THREE, parentGroup, {
       parentGroup.add(mesh);
       const geometryBytes = (tile.format === "region-building-v1"
         ? tile.vertices * 15 + tile.indices * 4 : tile.bytes) + (geometry.attributes.fieldColor?.array.byteLength ?? 0);
-      resident.set(tile.id, { mesh, type: tile.type, triangles: tile.triangles,
-        bytes: tile.bytes, geometryBytes, textureBytes: decodedBytes });
+      resident.set(tile.id, { mesh, seam, type: tile.type, triangles: tile.triangles+seamTriangles,
+        bytes: tile.bytes, geometryBytes:geometryBytes+(seamData?.positions.length??0)*4*8/3, textureBytes: decodedBytes });
       geometry = map = material = null;
       negativeCache.delete(tile.id);
     } catch (error) {
@@ -427,7 +441,12 @@ export function createRegionStreamer(THREE, parentGroup, {
     buildingMaterial.dispose();
   }
 
-  return { setManifest, update, getState,
+  function setCoreTerrain(geometry) {
+    const loops=terrainBoundaryLoops(geometry.attributes.position.array,geometry.index?.array);
+    if(loops.length!==1)throw new Error('Expected one original core terrain rim');
+    coreLoop=loops[0];
+  }
+  return { setManifest, setCoreTerrain, update, getState,
     getGroundMeshes: () => [...resident.values()].filter((entry) => entry.type === "terrain").map((entry) => entry.mesh),
     getMeshes: () => [...resident.values()].map((entry) => entry.mesh), dispose };
 }

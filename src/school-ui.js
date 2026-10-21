@@ -80,8 +80,33 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
   const movementStatus = element("p", "", "school-note"); movementStatus.id = "school-movement-status"; movementStatus.hidden = true;
   movementStatus.setAttribute("role", "status"); movementStatus.setAttribute("aria-live", "polite");
   const content = element("div", undefined, "school-content");
+  const loginTabs = element("div", undefined, "school-login-tabs");
+  loginTabs.setAttribute("role", "tablist"); loginTabs.setAttribute("aria-label", "ログイン方法");
+  let loginRole = "student", studentPanel = null, teacherPanel = null;
+  const roleButtons = new Map();
+  function selectLoginRole(role, focus = false) {
+    loginRole = role;
+    for (const [id, tab] of roleButtons) {
+      tab.setAttribute("aria-selected", String(id === role)); tab.tabIndex = id === role ? 0 : -1;
+    }
+    if (studentPanel) studentPanel.hidden = Boolean(state.singleClassroom) && role !== "student";
+    if (teacherPanel) teacherPanel.hidden = Boolean(state.singleClassroom) && role !== "teacher";
+    if (focus) roleButtons.get(role).focus();
+  }
+  for (const [role, label] of [["student", "生徒としてログイン"], ["teacher", "先生としてログイン"]]) {
+    const tab = actionButton(label, () => selectLoginRole(role), `${role}-login-tab`);
+    tab.setAttribute("role", "tab"); tab.setAttribute("aria-controls", `${role}-login-panel`);
+    tab.addEventListener("keydown", event => {
+      if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+      event.preventDefault(); selectLoginRole(event.key === "Home" ? "student" : event.key === "End" ? "teacher" : loginRole === "student" ? "teacher" : "student", true);
+    });
+    roleButtons.set(role, tab); loginTabs.append(tab);
+  }
   const privacy = element("a", "ログイン・作品保存について（プライバシー）"); privacy.href = "/privacy.html";
-  dialog.append(heading, description, status, movementStatus, content, privacy); document.body.append(dialog);
+  const body = element("div", undefined, "school-body");
+  body.append(description, status, movementStatus, loginTabs, content);
+  const footer = element("div", undefined, "school-footer"); footer.append(privacy);
+  dialog.append(heading, body, footer); document.body.append(dialog);
   const summary = document.querySelector("#school-summary");
   let state = client.getState(), renderKey = "", busy = false, googleGeneration = 0;
   let googleHost = null, participantLabel = null, roomConnection = null;
@@ -125,13 +150,15 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
             host.replaceChildren(element("p", "ログインを表示し直してから再試行してください。", "school-note"));
           }
         } });
-      googleId.renderButton(host, { type: "standard", theme: "outline", size: "large", text: "signin_with", shape: "rectangular", width: Math.max(220, Math.min(320, dialog.clientWidth - 50)), locale: "ja" });
+      googleId.renderButton(host, { type: "standard", theme: "outline", size: "large", text: "signin_with", shape: "rectangular", width: Math.max(220, Math.min(320, host.clientWidth || dialog.clientWidth - 50)), locale: "ja" });
       setStatus("Googleのボタンでログインしてください。");
     });
   }
   function renderGuest() {
+    studentPanel = teacherPanel = null;
     if (state.singleClassroom) {
       const form = element("form", undefined, "school-section");
+      form.id = "student-login-panel"; form.setAttribute("role", "tabpanel"); form.setAttribute("aria-labelledby", "student-login-tab"); studentPanel = form;
       form.append(element("h3", "生徒：IDで入る"));
       form.append(element("p", "初回はログイン後に名前を決めます。次回は同じID・パスワードで、名前・自分のSTL・配置した場所を引き継げます。", "school-note"));
       const id = inputField("ID", { id: "student-login-id", maxLength: 40 }); id.input.autocomplete = "username";
@@ -145,6 +172,8 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
       content.append(form);
     }
     const section = element("section", undefined, "school-section");
+    section.id = "teacher-login-panel"; teacherPanel = section;
+    if (state.singleClassroom) { section.setAttribute("role", "tabpanel"); section.setAttribute("aria-labelledby", "teacher-login-tab"); }
     section.append(element("h3", state.singleClassroom ? "先生：Googleで入る" : "1. Googleでログイン"), element("p", "先生として登録済みのGoogleアカウントを使います。", "school-note"));
     section.append(element("p", "Googleの確認画面では、既存プロジェクトの共通アプリ名「教職員異動検索」が表示される場合があります。このアプリでは基本的な本人確認だけを行います。", "school-note"));
     const googleButton = command("Googleログインを表示", showGoogleButton, "school-login", !state.configured);
@@ -158,6 +187,7 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
     section.append(googleButton, retryButton, googleHost);
     if (inviteCode) section.append(element("p", `招待コード ${inviteCode} を受け取りました。ログイン後、「この教室に参加」を押してください。`, "school-note"));
     content.append(section);
+    if (state.singleClassroom) selectLoginRole(loginRole);
   }
   function renderAccount() {
     const section = element("section", undefined, "school-section");
@@ -335,6 +365,8 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
   }
   function render(next, event) {
     state = next;
+    dialog.dataset.view = state.user ? "account" : "login";
+    loginTabs.hidden = Boolean(state.user) || !state.singleClassroom;
     if (credentialsOwner !== state.user?.id) { issuedCredentials = []; credentialsOwner = state.user?.id; }
     updateMovementStatus();
     // High-frequency single-player pose updates only affect the 3D scene. They
@@ -351,12 +383,13 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
     if (state.error) setStatus(explainSchoolError(state.error), true);
     else if (event === "auth" || event === "state") setStatus(state.user ? (state.user.namePending ? "頭の上に表示する名前を決めてください。" : "ログイン中です。みんなのワールドに接続します。") : "ログインすると、街の移動・VR・作品づくりを始められます。");
   }
-  async function open() {
+  async function open(role) {
     const allowed = await onBeforeOpen();
     if (allowed === false) {
       if (summary) summary.textContent = "ログイン・教室の操作は、VRを終了して2Dブラウザへ戻ってから行ってください。";
       return false;
     }
+    if (!state.user && (role === "student" || role === "teacher")) selectLoginRole(role);
     if (!dialog.open) dialog.showModal(); return true;
   }
   const clickOpen = () => { open().catch(() => {}); };

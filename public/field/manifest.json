@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-10-20T13:11:59.363Z",
+  "generatedAt": "2026-10-21T02:25:23.315Z",
   "source": "国土地理院最適化ベクトルタイル",
   "sourceUrl": "https://cyberjapandata.gsi.go.jp/xyz/optimal_bvmap-v1/optimal_bvmap-v1.pmtiles",
   "attributionUrl": "https://github.com/gsi-cyberjapan/optimal_bvmap",
@@ -60,10 +60,10 @@
     "core": [
       {
         "file": "near-core-0-0.webp",
-        "bytes": 79202,
-        "sha256": "fe47c3fc8d7645658ad3c1041d76c66264c7f6bd9bdd200e740bca0d2b4f2dd2",
-        "width": 1024,
-        "height": 1024,
+        "bytes": 151888,
+        "sha256": "a689d175d27db8bfa9610b5135c675cbe469172e7541aca0f363bcb1806e8c8d",
+        "width": 2048,
+        "height": 2048,
         "counts": {
           "WA": 45,
           "RvrCL": 291,
@@ -82,10 +82,10 @@
       },
       {
         "file": "near-core-1-0.webp",
-        "bytes": 64420,
-        "sha256": "41fe77e93e68bf1bf9d5e1f86dda226b11741b3a83e6a2012d786fa295ffe121",
-        "width": 1024,
-        "height": 1024,
+        "bytes": 122922,
+        "sha256": "d8fc1a9e3dffa849085319d007d83d7a51206f686064e6e20f3efd141c0158e2",
+        "width": 2048,
+        "height": 2048,
         "counts": {
           "WA": 45,
           "RvrCL": 291,
@@ -104,10 +104,10 @@
       },
       {
         "file": "near-core-2-0.webp",
-        "bytes": 118686,
-        "sha256": "f62914f23c1ea0c04c5be6924bbfc992a5b1be41e97d8f7a53f0900768c3eec6",
-        "width": 1024,
-        "height": 1024,
+        "bytes": 224360,
+        "sha256": "e679dece7020c67d87930b5b5066c68f347e6ec450034203698fec4f80d4e13b",
+        "width": 2048,
+        "height": 2048,
         "counts": {
           "WA": 23,
           "RvrCL": 16,
@@ -126,10 +126,10 @@
       },
       {
         "file": "near-core-3-0.webp",
-        "bytes": 161134,
-        "sha256": "1ac93cfe1be59929dffb3a357813714660b583b3ea7296961b5e2f6bef3bfd6b",
-        "width": 1024,
-        "height": 1024,
+        "bytes": 312958,
+        "sha256": "1a0ee461a96883ef520d938a7a72f8a4625b4c0acf80122b932dbf3032c46393",
+        "width": 2048,
+        "height": 2048,
         "counts": {
           "WA": 23,
           "RvrCL": 16,
@@ -148,10 +148,10 @@
       },
       {
         "file": "near-core-4-0.webp",
-        "bytes": 86672,
-        "sha256": "316e39585790d545ed644546acc3899978a317c7b90361843193855954a156c6",
-        "width": 1024,
-        "height": 1024,
+        "bytes": 166726,
+        "sha256": "af8e8fe2a8a1cb81ec7720a17e841b30342ca7ca2f5491637f0208d0e75d120d",
+        "width": 2048,
+        "height": 2048,
         "counts": {
           "WA": 23,
           "RvrCL": 16,
@@ -170,10 +170,10 @@
       },
       {
         "file": "near-core-5-0.webp",
-        "bytes": 76010,
-        "sha256": "9c1faf901bf5573f109efc5675a132f18fd9394c86330f62dd2ee5d21289910e",
-        "width": 1024,
-        "height": 1024,
+        "bytes": 144302,
+        "sha256": "64b588d12ac31251b434c4f4f8d6c8628da5472e09f38f8f6deb7fedae365121",
+        "width": 2048,
+        "height": 2048,
         "counts": {
           "WA": 23,
           "RvrCL": 16,
@@ -192,10 +192,10 @@
       },
       {
         "file": "near-core-0-1.webp",
-        "bytes": 69644,
-        "sha256": "12b45c501caba902a28655c2ff8508408da757e1b63168d102015eca111c6cf0",
-        "width": 1024,
-        "height": 1024,
+        "bytes": 134734,
+        "sha256": "96630e64a5a11c5a787351d3f8b86c3c013d686d98b0ef57c928fad10a3af8ac",
+        "width": 2048,
+        "height": 2048,
         "counts": {
           "WA": 45,
           "RvrCL": 291,
@@ -214,10 +214,10 @@
       },
       {
         "file": "near-core-1-1.webp",
-        "bytes": 81656,
-        "sha256": "9260f56f043469c1c0ccf3bcea135b70aec0293315b388da2f1517f9f183dcc3",
-        "width": 1024,
-        "height": 1024,
+        "bytes": 151692,
+        "sha256": "c413245ee8af3b7c2df700ce21b8fa137b7dfe99c8e33a0af600d286e2f7d51a",
+        "width": 2048,
+        "height": 2048,
         "counts": {
           "WA": 45,
           "RvrCL": 291,
@@ -236,10 +236,10 @@
       },
       {
         "file": "near-core-2-1.webp",
-        "bytes": 90494,
-        "sha256": "8b983e28a30195db397cba3a139d3acf43280ce19b20d85346fed4ba108c90dd",
-        "width": 1024,
-        "height": 1024,
+        "bytes": 175652,
+        "sha256": "5040f00a585e1f454cbca1c6d874163293715f4f5cd3cd5744dc31b234689f8b",
+        "width": 2048,
+        "height": 2048,
         "counts": {
           "WA": 23,
           "RvrCL": 16,
@@ -258,10 +258,10 @@
       },
       {
         "file": "near-core-3-1.webp",
-        "bytes": 117116,
-        "sha256": "1ce36af3edfbe017c7cd55a8ec9f006d2f0a69469a23d31bb59be6597e03f7b2",
-        "width": 1024,
-        "height": 1024,
+        "bytes": 226138,
+        "sha256": "0065aa490bfd769760337661a5398c41b332ebbd4f8c0cdc115318bf3e7a0b64",
+        "width": 2048,
+        "height": 2048,
         "counts": {
           "WA": 23,
           "RvrCL": 16,
@@ -280,10 +280,10 @@
       },
       {
         "file": "near-core-4-1.webp",
-        "bytes": 90460,
-        "sha256": "f68df4a085bbc0ceea0338dea1022a52fa4ba2a6926c16001f34f64096e20bbb",
-        "width": 1024,
-        "height": 1024,
+        "bytes": 173942,
+        "sha256": "2ea64e99daddf697d319af09e6abaed15a182ac0323e61c2d4b1ab39eb80e1c4",
+        "width": 2048,
+        "height": 2048,
         "counts": {
           "WA": 23,
           "RvrCL": 16,
@@ -302,10 +302,10 @@
       },
       {
         "file": "near-core-5-1.webp",
-        "bytes": 73478,
-        "sha256": "e04279a6c0881253b03d193664ab47df0ffecb4fdb8c526737f128cd240cd92c",
-        "width": 1024,
-        "height": 1024,
+        "bytes": 141790,
+        "sha256": "9e87e0ee0db0f23b31cc8a3954c86fc36e10952807f688a31d99d64842af9582",
+        "width": 2048,
+        "height": 2048,
         "counts": {
           "WA": 23,
           "RvrCL": 16,
@@ -324,10 +324,10 @@
       },
       {
         "file": "near-core-0-2.webp",
-        "bytes": 71932,
-        "sha256": "347dbfb0f91dd73c6280b53af3f581dd89e6286b300c4b765de2a003a5e5e59c",
-        "width": 1024,
-        "height": 1024,
+        "bytes": 138034,
+        "sha256": "25cbcc356619614dd956b4519e83c5c686756146a7ee25411624ac306cabe81f",
+        "width": 2048,
+        "height": 2048,
         "counts": {
           "WA": 45,
           "RvrCL": 291,
@@ -346,10 +346,10 @@
       },
       {
         "file": "near-core-1-2.webp",
-        "bytes": 98064,
-        "sha256": "ca3544aadf535bbc455ada5841c372e01d5ecb3e93f930f10688e109a0e52f62",
-        "width": 1024,
-        "height": 1024,
+        "bytes": 184586,
+        "sha256": "0a7a6f0d27748fe7c2d3c04881d30b43f2a5c55b85937d6cb7c7ec5341bfc677",
+        "width": 2048,
+        "height": 2048,
         "counts": {
           "WA": 45,
           "RvrCL": 291,
@@ -368,10 +368,10 @@
       },
       {
         "file": "near-core-2-2.webp",
-        "bytes": 86204,
-        "sha256": "be6d976e702b6b61540fe788474566c84cd83e285812fb529b8f1c627f8e1912",
-        "width": 1024,
-        "height": 1024,
+        "bytes": 165038,
+        "sha256": "cb524c0774af366e6d1fed28abb9e6561405758a00698e29dbe402295d78910d",
+        "width": 2048,
+        "height": 2048,
         "counts": {
           "WA": 23,
           "RvrCL": 16,
@@ -390,10 +390,10 @@
       },
       {
         "file": "near-core-3-2.webp",
-        "bytes": 136992,
-        "sha256": "282542d8d4534926f1365e2528b8ff2577ee4b18103bf9f242cf6b514a2f6493",
-        "width": 1024,
-        "height": 1024,
+        "bytes": 259840,
+        "sha256": "e7233cca43d252e06fae3e385d7d0da1556a7a7b3df4fea305b6754d02cc808f",
+        "width": 2048,
+        "height": 2048,
         "counts": {
           "WA": 23,
           "RvrCL": 16,
@@ -412,10 +412,10 @@
       },
       {
         "file": "near-core-4-2.webp",
-        "bytes": 75248,
-        "sha256": "f40f6fd051c107de0244be75d6edb7eb32238c5450a2326838c2d9e6f485faa2",
-        "width": 1024,
-        "height": 1024,
+        "bytes": 143092,
+        "sha256": "dd6573aabc9b54e646b756d77e977829e5dc5939431a3fd2d1ae0fa279e753a9",
+        "width": 2048,
+        "height": 2048,
         "counts": {
           "WA": 23,
           "RvrCL": 16,
@@ -434,10 +434,10 @@
       },
       {
         "file": "near-core-5-2.webp",
-        "bytes": 74440,
-        "sha256": "f0e74c0ffbe0d8c1ac3a507e6f7d7eabc5a777038fa4d762ef5a9f0f2479d2bf",
-        "width": 1024,
-        "height": 1024,
+        "bytes": 141486,
+        "sha256": "a832c3fcf630d124abb2965b4ea1022286464c9a264cfebe4b6798dbbf609642",
+        "width": 2048,
+        "height": 2048,
         "counts": {
           "WA": 23,
           "RvrCL": 16,
@@ -456,10 +456,10 @@
       },
       {
         "file": "near-core-0-3.webp",
-        "bytes": 96182,
-        "sha256": "810f4559c8a63d7ce49dfd581ce4f618238176d279e339423408223c5172f1a7",
-        "width": 1024,
-        "height": 1024,
+        "bytes": 181576,
+        "sha256": "0b2819c4259834d32e6b9ac4ee622fc2c8d17d958df169ec8f637184f26b2bf1",
+        "width": 2048,
+        "height": 2048,
         "counts": {
           "WA": 45,
           "RvrCL": 291,
@@ -478,10 +478,10 @@
       },
       {
         "file": "near-core-1-3.webp",
-        "bytes": 89930,
-        "sha256": "88d50a7ef03ee9c267038c3368b2c3f72e807a85aa16a19294ef97dd3d9cad7d",
-        "width": 1024,
-        "height": 1024,
+        "bytes": 173326,
+        "sha256": "cffd59f5f3311bbf696e1f66ddde26e29832ffff33d34de2c90a963fcbaadbb5",
+        "width": 2048,
+        "height": 2048,
         "counts": {
           "WA": 45,
           "RvrCL": 291,
@@ -500,10 +500,10 @@
       },
       {
         "file": "near-core-2-3.webp",
-        "bytes": 86348,
-        "sha256": "9dd5cdaf70efebfb7ea06597af2e6713c4b00ac9a5649fc4334ef43b995873ed",
-        "width": 1024,
-        "height": 1024,
+        "bytes": 164658,
+        "sha256": "49ac6cdbf8be1435b9cf949b4b2d00ecfd476d8412a1bc389cbf9cd53f025c1f",
+        "width": 2048,
+        "height": 2048,
         "counts": {
           "WA": 23,
           "RvrCL": 16,
@@ -522,10 +522,10 @@
       },
       {
         "file": "near-core-3-3.webp",
-        "bytes": 123864,
-        "sha256": "e0a3294f0c0f57b479d535ece01ce07360ec17a3fadf102e4bbcbd08037d5713",
-        "width": 1024,
-        "height": 1024,
+        "bytes": 238008,
+        "sha256": "bc239116720ef39847a58a880998a360472def101b94d7bb9426116056b84f18",
+        "width": 2048,
+        "height": 2048,
         "counts": {
           "WA": 23,
           "RvrCL": 16,
@@ -544,10 +544,10 @@
       },
       {
         "file": "near-core-4-3.webp",
-        "bytes": 89468,
-        "sha256": "1c27ffe45d5c78e9d63db58a57045a1076292ddcc2dd929076bb52029c7aa040",
-        "width": 1024,
-        "height": 1024,
+        "bytes": 168798,
+        "sha256": "5f8fe321fccacd3eab2c7470fc9c62b5a17316f6fcc9517ab5b76367e46ad19b",
+        "width": 2048,
+        "height": 2048,
         "counts": {
           "WA": 23,
           "RvrCL": 16,
@@ -566,10 +566,10 @@
       },
       {
         "file": "near-core-5-3.webp",
-        "bytes": 125710,
-        "sha256": "7db92f4f0d3da315e82714a0a207975d05c4d9d6eedac50ab10f0ad01ed06e98",
-        "width": 1024,
-        "height": 1024,
+        "bytes": 236812,
+        "sha256": "ea326a9c12beab959cab6d1f32021b87f9c9f32926697146e760d4d9f1b3affc",
+        "width": 2048,
+        "height": 2048,
         "counts": {
           "WA": 23,
           "RvrCL": 16,

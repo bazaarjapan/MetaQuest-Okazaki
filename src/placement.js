@@ -144,6 +144,22 @@ function query(data, box, budget) {
   for (const id of candidates) { if (++budget.checks > MAX_CHECKS) throw new Error("Placement geometry is too complex"); if (overlap(data.boxes[id], box)) result.push(id); }
   return result;
 }
+
+// Drape decorative vector polygons on actual loaded ground, clipping every
+// face at the terrain edges. Missing ground stays empty; no sampled flat fill.
+export function projectSurfacePolygon(index, polygon, offset = 0) {
+  if(!Array.isArray(polygon)||polygon.length<3||polygon.length>16||!polygon.every(p=>p.length===2&&p.every(Number.isFinite)))throw Error('Invalid surface polygon');
+  const data=getIndex(index),positions=[];
+  for(const id of query(data,xzBounds(polygon),{checks:0})){
+    const points=triangle(data,id),outline=projected(points);
+    if(cross(...outline)>=-EPSILON)continue;
+    const ordered=cross(polygon[0],polygon[1],polygon[2])<0?[...polygon].reverse():polygon;
+    const clipped=clipTriangle(ordered,outline);
+    if(clipped.length<3||polygonArea(clipped)<=EPSILON)continue;
+    for(let i=1;i+1<clipped.length;i++)for(const p of [clipped[0],clipped[i+1],clipped[i]])positions.push(p[0],height(points,...p)+offset,p[1]);
+  }
+  return positions;
+}
 function triangleTouchesRectangle(points, box) {
   if (!overlap(xzBounds(points), box)) return false;
   const rectangle = [[box[0], box[1]], [box[2], box[1]], [box[2], box[3]], [box[0], box[3]]];
@@ -181,6 +197,17 @@ export function placementFootprint(candidate) {
 }
 export const placementIntersects=(a,b)=>a[0]<=b[2]&&a[2]>=b[0]&&a[1]<=b[3]&&a[3]>=b[1];
 export const placementContains=(outer,inner)=>inner[0]>=outer[0]&&inner[1]>=outer[1]&&inner[2]<=outer[2]&&inner[3]<=outer[3];
+
+// A bounding rectangle can include empty strips outside an irregular mesh.
+// Use the same exact triangle coverage test before selecting core-only ground.
+export function terrainCoversBox(terrain, box) {
+  const [x0,z0,x1,z1]=box;
+  const x=(x0+x1)/2,z=(z0+z1)/2,dx=Math.max((x1-x0)/2,5e-6),dz=Math.max((z1-z0)/2,5e-6);
+  // Local coordinates preserve thin vertical work even far from the origin.
+  const positions=new Float32Array([-dx,0,-dz,dx,0,-dz,dx,0,dz,-dx,0,-dz,dx,0,dz,-dx,0,dz]);
+  return validatePlacement({positions,position:[x,0,z],rotation:[0,0,0],scale:[1,1,1]},
+    {terrain,obstacles:[],bounds:[x0-.01,z0-.01,x1+.01,z1+.01]}).valid;
+}
 
 /**
  * Validate real transformed triangles. Returns {valid, position, bounds, error}.

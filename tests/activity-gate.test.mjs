@@ -2,6 +2,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { worldActivityAllowed,createActivityGate } from "../src/activity-gate.js";
 const connected={user:{id:"student",name:"青"},world:{id:"world"},connection:"connected"};
+test("separate role entry buttons select a login form without granting world access",()=>{
+  const calls=[],buttons=['student','teacher'].map(role=>({dataset:{loginRole:role},addEventListener(_,fn){this.click=fn;},removeEventListener(){}}));
+  const gate=createActivityGate({documentTarget:{querySelector:()=>({querySelector:()=>({}),querySelectorAll:()=>buttons}),querySelectorAll:()=>[]},windowTarget:{addEventListener(){},removeEventListener(){}},onOpen:role=>calls.push(role)});
+  gate.update({user:null});buttons[0].click();buttons[1].click();assert.deepEqual(calls,['student','teacher']);assert.equal(gate.isAllowed(),false);
+  gate.update({...connected,user:{namePending:true}});assert.equal(buttons[1].hidden,true);
+  gate.update({user:null});assert.equal(buttons[1].hidden,false);gate.destroy();
+});
 test("world controls require named identity, connected room and ready model",()=>{
   assert.equal(worldActivityAllowed(connected),true);
   for(const state of [null,{}, {...connected,user:null},{...connected,user:{namePending:true}},
@@ -10,7 +17,7 @@ test("world controls require named identity, connected room and ready model",()=
 });
 test("gate blocks world inputs but leaves login and name form operable, and relocks on logout",()=>{
   const listeners=new Map(),button={addEventListener(){},removeEventListener(){}},message={},surfaces=[{},{}];
-  const node={hidden:false,querySelector:s=>s==="p"?message:button};
+  const node={hidden:false,querySelector:s=>s==="p"?message:button,querySelectorAll:()=>[button]};
   let locks=0;
   const gate=createActivityGate({documentTarget:{querySelector:()=>node,querySelectorAll:()=>surfaces},
     windowTarget:{addEventListener:(type,fn)=>listeners.set(type,fn),removeEventListener:type=>listeners.delete(type)},onOpen(){},onLock(){locks++;}});
@@ -28,7 +35,7 @@ test("gate blocks world inputs but leaves login and name form operable, and relo
 test("model or WebGL failure has an operable retry without unlocking world controls",()=>{
   let click,retries=0;
   const button={addEventListener:(_,fn)=>{click=fn;},removeEventListener(){}},message={};
-  const gate=createActivityGate({documentTarget:{querySelector:()=>({querySelector:s=>s==="p"?message:button}),querySelectorAll:()=>[]},
+  const gate=createActivityGate({documentTarget:{querySelector:()=>({querySelector:s=>s==="p"?message:button,querySelectorAll:()=>[button]}),querySelectorAll:()=>[]},
     windowTarget:{addEventListener(){},removeEventListener(){}},onOpen(){throw Error("must not open uninitialized account UI");},onRetry(){retries++;}});
   gate.setError("通信を確認してください。");
   assert.equal(gate.update(connected),false);

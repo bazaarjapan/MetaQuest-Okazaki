@@ -31,7 +31,7 @@ test("profiles are immutable and renderer settings remain within safe bounds", (
     assert.ok(profile.xrScale >= 0.85 && profile.xrScale <= 1.2);
     assert.ok(profile.foveation >= 0 && profile.foveation <= 1);
     assert.ok(profile.dpr >= 1 && profile.dpr <= 2);
-    assert.ok([2, 4, 8].includes(profile.anisotropy));
+    assert.ok([2, 8, 16].includes(profile.anisotropy));
   }
 });
 

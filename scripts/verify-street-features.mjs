@@ -74,7 +74,7 @@ try{
  await until("!document.querySelector('#student-issued-credentials').hidden");
  const secret=await evaluate("document.querySelector('#student-issued-credentials').value.split('\\n')[1].split('\\t')");
  session=sessions[1];await launch(fixtures.origin);await until("document.querySelector('#student-login-id')");
- if(!await evaluate("document.querySelector('#school-dialog').open"))await browser('click','#login-gate button');
+ if(!await evaluate("document.querySelector('#school-dialog').open"))await browser('click','#login-gate [data-login-role=student]');
  await browser('fill','#student-login-id',secret[0]);await browser('fill','#student-password',secret[1]);
  await browser('click','#school-dialog form button');await until("document.querySelector('#school-avatar-name')");
  await browser('fill','#school-avatar-name','レーダー検証生徒');await browser('click','#school-avatar-save');

@@ -6,6 +6,7 @@ import sharp from "sharp";
 import * as THREE from "three";
 import { tileToLonLat, lonLatToTile, lonLatToWorld } from "./lib/region-geo.mjs";
 import { decodeDemRgb } from "../src/terrain-height.js";
+import { terrainBoundaryLoops } from "../src/terrain-boundary.js";
 
 const app = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const cache = path.join(app, ".cache", "region");
@@ -90,7 +91,7 @@ export function outsideRectangle(triangle, rectangle) {
   return pieces;
 }
 
-async function coreExtent() {
+export async function coreTerrainFootprint() {
   const manifest = JSON.parse(await fs.readFile(path.join(app, "public", "city", "manifest.json"), "utf8"));
   const item = manifest.parts.find((part) => part.texture === "Texture-001.png");
   const buffer = await fs.readFile(path.join(app, "public", "city", item.file));
@@ -100,10 +101,36 @@ async function coreExtent() {
     rectangle[0] = Math.min(rectangle[0], positions[index * 3]); rectangle[2] = Math.max(rectangle[2], positions[index * 3]);
     rectangle[1] = Math.min(rectangle[1], positions[index * 3 + 2]); rectangle[3] = Math.max(rectangle[3], positions[index * 3 + 2]);
   }
-  return rectangle;
+  const indices=new Uint32Array(buffer.buffer,buffer.byteOffset+item.vertices*32,item.indices);
+  const loops=terrainBoundaryLoops(positions,indices);
+  if(loops.length!==1)throw Error('Expected one original terrain boundary');
+  const points=loops[0].map(p=>new THREE.Vector2(p[0],p[2]));
+  const masks=THREE.ShapeUtils.triangulateShape(points,[]).map(ids=>ids.map(i=>loops[0][i]));
+  return {rectangle,loop:loops[0],masks};
 }
 
-function geometry(x, y, rectangle) {
+// Subtract the actual rim, interpolating all XYZ/UV components at each cut.
+export function outsideFootprint(triangle,masks) {
+  const area=p=>Math.abs(p.reduce((s,a,i)=>{const b=p[(i+1)%p.length];return s+a[0]*b[2]-b[0]*a[2];},0))/2;
+  let pieces=[triangle];
+  for(const mask of masks){
+    const signed=mask.reduce((s,a,i)=>{const b=mask[(i+1)%3];return s+a[0]*b[2]-b[0]*a[2];},0);
+    const rim=signed<0?[mask[0],mask[2],mask[1]]:mask, next=[];
+    for(const polygon of pieces){
+      if(Math.max(...polygon.map(p=>p[0]))<Math.min(...rim.map(p=>p[0]))||Math.min(...polygon.map(p=>p[0]))>Math.max(...rim.map(p=>p[0]))||Math.max(...polygon.map(p=>p[2]))<Math.min(...rim.map(p=>p[2]))||Math.min(...polygon.map(p=>p[2]))>Math.max(...rim.map(p=>p[2]))){next.push(polygon);continue;}
+      let inside=polygon;
+      for(let i=0;i<3&&inside.length;i++){
+        const a=rim[i],b=rim[(i+1)%3],distance=p=>(b[0]-a[0])*(p[2]-a[2])-(b[2]-a[2])*(p[0]-a[0]);
+        const cut=keep=>{const out=[];for(let j=0;j<inside.length;j++){const p=inside[j],q=inside[(j+1)%inside.length],dp=distance(p),dq=distance(q),ip=keep?dp>=0:dp<=0,iq=keep?dq>=0:dq<=0;if(ip)out.push(p);if(ip!==iq){const t=dp/(dp-dq);out.push(p.map((v,k)=>v+(q[k]-v)*t));}}return out;};
+        const outside=cut(false);if(outside.length>=3&&area(outside)>1e-8)next.push(outside);inside=cut(true);
+      }
+    }
+    pieces=next;if(!pieces.length)break;
+  }
+  return pieces;
+}
+
+export function geometry(x, y, rectangle, masks=null) {
   const points = [];
   for (let row = 0; row <= 16; row++) for (let column = 0; column <= 16; column++) {
     const u = column / 16, v = row / 16;
@@ -118,12 +145,16 @@ function geometry(x, y, rectangle) {
       if (!vertexMap.has(key)) { vertexMap.set(key, vertices.length); vertices.push(point); }
       return vertexMap.get(key);
     });
-    for (let index = 1; index < polygon.length - 1; index++) indices.push(mapped[0], mapped[index], mapped[index + 1]);
+    for (let index = 1; index < polygon.length - 1; index++) {
+      const [a,b,c]=[polygon[0],polygon[index],polygon[index+1]];
+      if(Math.abs((b[0]-a[0])*(c[2]-a[2])-(b[2]-a[2])*(c[0]-a[0]))>1e-8)indices.push(mapped[0], mapped[index], mapped[index + 1]);
+    }
   };
   for (let row = 0; row < 16; row++) for (let column = 0; column < 16; column++) {
     const a = row * 17 + column, b = a + 1, c = a + 17, d = c + 1;
     for (const triangle of [[points[a], points[c], points[b]], [points[b], points[c], points[d]]]) {
-      for (const polygon of outsideRectangle(triangle, rectangle)) add(polygon);
+      const intersects=Math.max(...triangle.map(p=>p[0]))>=rectangle[0]&&Math.min(...triangle.map(p=>p[0]))<=rectangle[2]&&Math.max(...triangle.map(p=>p[2]))>=rectangle[1]&&Math.min(...triangle.map(p=>p[2]))<=rectangle[3];
+      for (const polygon of masks?(intersects?outsideFootprint(triangle,masks):[triangle]):outsideRectangle(triangle, rectangle)) add(polygon);
     }
   }
   const position = new Float32Array(vertices.length * 3), uv = new Float32Array(vertices.length * 2);
@@ -160,7 +191,7 @@ async function main() {
   if (tasks.length > 200) throw new Error("This baker is explicitly bounded to the official Okazaki dataset (at most 200 ground chunks)");
   console.log(JSON.stringify({ sourceTileset, geographicBounds, zoom, extent, groundTiles: tasks.length, mode: "public flat template; elevation loaded live from GSI" }, null, 2));
   await fs.mkdir(cache, { recursive: true }); await fs.writeFile(tilesetCache, tilesetBuffer);
-  const rectangle = await coreExtent();
+  const {rectangle,masks} = await coreTerrainFootprint();
   // Read-only/non-public DEM validation also includes the south/east neighbours
   // which the live renderer needs to sample identical heights on tile seams.
   const demTasks = [];
@@ -178,7 +209,7 @@ async function main() {
   if (!Number.isFinite(minHeight)) throw new Error("All validation DEM samples are NoData");
   await fs.mkdir(output, { recursive: true });
   const tiles = await bounded(tasks, async ({ x, y }, index) => {
-    const id = `g-${zoom}-${x}-${y}`, generated = geometry(x, y, rectangle);
+    const id = `g-${zoom}-${x}-${y}`, generated = geometry(x, y, rectangle, masks);
     if (!generated.triangles) throw new Error(`${id} is wholly excluded by core terrain`);
     let layer = "seamlessphoto", photo = await sourceImage(layer, x, y, true);
     if (!photo) { layer = "std"; photo = await sourceImage(layer, x, y); }
@@ -201,8 +232,8 @@ async function main() {
     heightMode: "live-gsi-dem", elevationDataPubliclyPackaged: false,
     privateSourceValidation: { tiles: demTasks.length, noDataPixels, allFiniteSamplesPresent: Number.isFinite(minHeight), acquisitionDate: null },
     sourceDateNote: "PLATEAU buildings are 2020; live GSI DEM and seamless imagery can have different capture/update dates. Download times are not acquisition dates. DEM orthometric heights can differ from 2020 city terrain.",
-    coreExclusion: { type: "exact rectangle clipping at original Mesh-004 x/z bounding box", bounds: rectangle,
-      note: "The original terrain footprint is not guaranteed to be exactly rectangular. Small boundary gaps are possible; no full grid cell is discarded." },
+    coreExclusion: { type: "exact original Mesh-004 footprint clipping", bounds: rectangle,
+      note: "Only the actual original terrain footprint is excluded; its bounding-box corner strips remain covered by live DEM terrain." },
     groundGrid: "17 by 17 per z14 source tile, source latitude/longitude projected into the original Unity coordinate system",
     photoUpsampling: false, elevationNoDataPolicy: "Live terrain fails to load if a vertex has no valid DEM sample; partial bilinear samples are renormalized and reported, never silently filled with zero",
     imageryFallbackTiles: tiles.filter((tile) => tile.imageryFallback).length,

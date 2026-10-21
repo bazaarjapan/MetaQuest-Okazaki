@@ -15,6 +15,8 @@ const source='https://cyberjapandata.gsi.go.jp/xyz/optimal_bvmap-v1/optimal_bvma
 const cache=path.join(root,'.cache','game-field'),output=path.join(root,'public','field');
 const archive=new PMTiles(source),tiles=new Map(),sourceRecords=[];
 const hash=b=>createHash('sha256').update(b).digest('hex');
+const coreDetailOnly=process.argv.includes('--core-detail-only');
+const previous=coreDetailOnly?JSON.parse(await fs.readFile(path.join(output,'manifest.json'),'utf8')):null;
 await fs.mkdir(cache,{recursive:true});await fs.mkdir(output,{recursive:true});
 async function load(z,x,y) {
   const key=`${z}-${x}-${y}`; if(tiles.has(key))return tiles.get(key);
@@ -45,22 +47,22 @@ async function render(view,file) {
 const detail=JSON.parse(await fs.readFile(path.join(root,'public/city/detail.json'),'utf8'));
 const atlas=detail.originalAtlas;
 if(atlas.zoom!==16||atlas.xMin!==57735||atlas.yMin!==25974||!detail.uvValidation.webAtlasExactPixelEquality)throw Error('Core georeference must be verified');
-const core=await render({zoom:16,x:atlas.xMin,y:atlas.yMin,unit:1024,width:3072,height:2048,latitude:34.926},'station.webp');
-const profiles={high:{...core}};
-for(const [id,width,height] of [['performance',768,512],['balanced',1536,1024]]) {
+const core=previous?.core??await render({zoom:16,x:atlas.xMin,y:atlas.yMin,unit:1024,width:3072,height:2048,latitude:34.926},'station.webp');
+const profiles=previous?.profiles??{high:{...core}};
+for(const [id,width,height] of (coreDetailOnly?[]:[['performance',768,512],['balanced',1536,1024]])) {
   const file=`station-${id}.webp`;
   const bytes=await sharp(path.join(output,core.file)).resize(width,height).webp({lossless:true}).toBuffer();
   await fs.writeFile(path.join(output,file),bytes);
   profiles[id]={file,width,height,bytes:bytes.length,sha256:hash(bytes)};
 }
 const terrain=JSON.parse(await fs.readFile(path.join(root,'public/region/terrain.json'),'utf8'));
-const region={};let cursor=0;
-const near={core:[],region:{}};
+const region=previous?.region??{};let cursor=0;
+const near={core:[],region:previous?.near.region??{}};
 for(let y=0;y<4;y++)for(let x=0;x<6;x++) {
-  const patch=await render({zoom:16,x:atlas.xMin+x/2,y:atlas.yMin+y/2,unit:2048,width:1024,height:1024,latitude:34.926},`near-core-${x}-${y}.webp`);
+  const patch=await render({zoom:16,x:atlas.xMin+x/2,y:atlas.yMin+y/2,unit:4096,width:2048,height:2048,latitude:34.926},`near-core-${x}-${y}.webp`);
   near.core.push({...patch,rect:[x/6,1-(y+1)/4,(x+1)/6,1-y/4]});
 }
-await Promise.all(Array.from({length:3},async()=>{while(cursor<terrain.tiles.length){
+await Promise.all(Array.from({length:coreDetailOnly?0:3},async()=>{while(cursor<terrain.tiles.length){
   const tile=terrain.tiles[cursor++];
   if(tile.zoom!==14)throw Error('Unexpected region tile zoom');
   const latitude=tileToLonLat(tile.x+.5,tile.y+.5,tile.zoom)[1];
@@ -73,6 +75,6 @@ const manifest={version:1,generatedAt:new Date().toISOString(),source:'国土地
   featureCodeUrl:'https://maps.gsi.go.jp/help/pdf/vector/optbv_featurecodes.pdf',
   processing:'道路中心線と幅員・鉄道中心線・水域・河川中心線をゲーム風に描画。分岐方向から交差点の横断歩道・停止線を生成。幅員不明時は幅員区分の代表値。色・有機的な草模様・川岸・水面・道路標示・枕木は装飾。トンネル・地下水路・枯れ川は非表示。橋の高さは再現しない。',
   geography:'既存PLATEAU地形と同じ北向きMercator UV。元の地形・建築形状・写真は保持。',
-  core,profiles,near,region:Object.fromEntries(Object.entries(region).sort(([a],[b])=>a.localeCompare(b))),sourceTiles:sourceRecords.sort((a,b)=>a.x-b.x||a.y-b.y)};
+  core,profiles,near,region:Object.fromEntries(Object.entries(region).sort(([a],[b])=>a.localeCompare(b))),sourceTiles:previous?.sourceTiles??sourceRecords.sort((a,b)=>a.x-b.x||a.y-b.y)};
 await fs.writeFile(path.join(output,'manifest.json'),JSON.stringify(manifest,null,2)+'\n');
 console.log(JSON.stringify({generated:true,coreBytes:core.bytes,regionTiles:Object.keys(region).length,sourceTiles:sourceRecords.length,regionBytes:Object.values(region).reduce((sum,tile)=>sum+tile.bytes,0)}));
