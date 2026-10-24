@@ -40,7 +40,7 @@ export function createSchoolClient(options = {}) {
   const clearTimer = options.clearTimeoutImpl ?? globalThis.clearTimeout;
   const setEvery = options.setIntervalImpl ?? globalThis.setInterval;
   const clearEvery = options.clearIntervalImpl ?? globalThis.clearInterval;
-  const state = { configured: false, user: null, world: null, worlds: [], assets: [], objects: [], participants: [], snapshots: [], revision: 0, restoreCommit: null, snapshotSeq: 0, connection: "guest", error: null, movementWarning: null };
+  const state = { configured: false, user: null, world: null, worlds: [], assets: [], objects: [], participants: [], snapshots: [], revision: 0, restoreCommit: null, snapshotSeq: 0, connection: "guest", error: null, movementWarning: null, pendingSaves:0, saveError:false };
   const listeners = new Set(), pending = new Map();
   const readonlySnapshot = readonlySnapshotFactory();
   let csrf = null, nonce = null, clientId = null, authEpoch = 0, roomEpoch = 0;
@@ -73,6 +73,7 @@ export function createSchoolClient(options = {}) {
     for (const item of pending.values()) { clearTimer(item.timer); item.reject(new SchoolClientError(code)); }
     pending.clear(); retry = 0; poseSeq = 0; lastPoseAt = lastEditAt = -Infinity; lastFullStateRevision = -1; metadataRefresh = null;
     editTail = Promise.resolve();
+    state.pendingSaves=0;state.saveError=false;
     if (!keepWorld) { state.world = null; state.assets = []; state.objects = []; state.snapshots = []; state.revision = 0; }
     state.restoreCommit = null; state.participants = []; state.movementWarning = null; state.connection = state.user ? "idle" : "guest";
   }
@@ -402,11 +403,19 @@ export function createSchoolClient(options = {}) {
   }
   async function uploadAsset({ buffer, name, upAxis, units }) {
     const worldId = assertRoom(), epoch = authEpoch, room = roomEpoch;
+    return trackSave(async()=>{
     const result = await request(`/api/worlds/${worldId}/assets`, { method: "POST", body: buffer,
       headers: { "Content-Type": "model/stl", "X-Filename": encodeURIComponent(name), "X-Up-Axis": upAxis, "X-Units": units } });
     assertEpoch(epoch, room, worldId);
     if (!state.assets.some((asset) => asset.id === result.asset.id)) state.assets = [...state.assets, clone(result.asset)]; emit("assets");
     return clone(result.asset);
+    },epoch,room);
+  }
+  async function trackSave(task,epoch,room){
+    state.pendingSaves++;emit('saving');
+    try{const result=await task();if(epoch===authEpoch&&room===roomEpoch)state.saveError=false;return result;}
+    catch(error){if(epoch===authEpoch&&room===roomEpoch)state.saveError=true;throw error;}
+    finally{if(epoch===authEpoch&&room===roomEpoch){state.pendingSaves=Math.max(0,state.pendingSaves-1);emit('saving');}}
   }
   async function downloadAsset(assetId) {
     const worldId = assertRoom(), epoch = authEpoch, room = roomEpoch;
@@ -418,7 +427,8 @@ export function createSchoolClient(options = {}) {
     const worldId = assertRoom(), epoch = authEpoch, room = roomEpoch;
     if (!["object.create", "object.update", "object.delete", "object.paint", "object.describe"].includes(type)) return Promise.reject(new SchoolClientError("invalid_command"));
     const safeData = clone(data);
-    const work = editTail.catch(() => {}).then(async () => {
+    const previous = editTail;
+    const work = trackSave(()=>previous.catch(() => {}).then(async () => {
       assertEpoch(epoch, room, worldId);
       const wait = Math.max(0, lastEditAt + 275 - now());
       if (wait) await new Promise((resolve) => setTimer(resolve, wait));
@@ -434,7 +444,7 @@ export function createSchoolClient(options = {}) {
         pending.set(requestId, { resolve, reject, timer });
         try { socket.send(JSON.stringify(message)); } catch { pending.delete(requestId); clearTimer(timer); reject(new SchoolClientError("connection_lost")); }
       });
-    });
+    }),epoch,room);
     editTail = work; return work;
   }
   async function saveWorld() {

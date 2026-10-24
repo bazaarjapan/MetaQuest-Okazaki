@@ -27,6 +27,16 @@
 .school-note { font-size: .83rem; line-height: 1.6; color: #c5d4df; margin: 8px 0 12px; }
 .school-status { background: #1d394a; border-radius: 7px; padding: 10px; font-size: .85rem; line-height: 1.5; }
 .school-status.is-error { background: #5b2a28; color: #ffe5e1; }
+.school-autosave { padding: 12px; border: 1px solid #5fa995; border-radius: 8px; background: #193d37; font-size: .9rem; }
+.school-autosave.is-error { border-color: #d3a35b; background: #453b28; }
+.login-role-choices button { padding: 22px 18px; text-align: left; }
+.login-role-choices strong,.login-role-choices small { display: block; }
+.login-role-choices strong { font-size: 1.25rem; margin-bottom: 8px; }
+.login-role-choices small { font-size: .9rem; line-height: 1.5; }
+.login-autosave-note { font-size: .85rem; line-height: 1.6; }
+.school-dialog[data-view=login] { width: min(680px, calc(100vw - 32px)); }
+.school-dialog[data-view=login] .school-content { grid-template-columns: 1fr; }
+.school-dialog details > summary { cursor: pointer; font-weight: bold; }
 .school-content { display: grid; gap: 16px; margin: 14px 0 0; }
 .school-section { display: grid; align-content: start; min-width: 0; gap: 10px; border: 1px solid #385567; border-radius: 9px; padding: 13px; }
 .school-login-tabs { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; margin-top: 14px; }

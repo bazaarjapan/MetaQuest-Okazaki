@@ -3,11 +3,13 @@ import assert from "node:assert/strict";
 import { worldActivityAllowed,createActivityGate } from "../src/activity-gate.js";
 const connected={user:{id:"student",name:"青"},world:{id:"world"},connection:"connected"};
 test("separate role entry buttons select a login form without granting world access",()=>{
-  const calls=[],buttons=['student','teacher'].map(role=>({dataset:{loginRole:role},addEventListener(_,fn){this.click=fn;},removeEventListener(){}}));
+  const calls=[],buttons=['teacher','student'].map(role=>({innerHTML:`<strong>${role}の入り口</strong>`,dataset:{loginRole:role},addEventListener(_,fn){this.click=fn;},removeEventListener(){}}));
   const gate=createActivityGate({documentTarget:{querySelector:()=>({querySelector:()=>({}),querySelectorAll:()=>buttons}),querySelectorAll:()=>[]},windowTarget:{addEventListener(){},removeEventListener(){}},onOpen:role=>calls.push(role)});
-  gate.update({user:null});buttons[0].click();buttons[1].click();assert.deepEqual(calls,['student','teacher']);assert.equal(gate.isAllowed(),false);
+  gate.update({user:null});buttons[0].click();buttons[1].click();assert.deepEqual(calls,['teacher','student']);assert.equal(gate.isAllowed(),false);
+  assert.equal(buttons[0].innerHTML,'<strong>teacherの入り口</strong>');
   gate.update({...connected,user:{namePending:true}});assert.equal(buttons[1].hidden,true);
-  gate.update({user:null});assert.equal(buttons[1].hidden,false);gate.destroy();
+  buttons[0].innerHTML='名前を決める';
+  gate.update({user:null});assert.equal(buttons[1].hidden,false);assert.equal(buttons[0].innerHTML,'<strong>teacherの入り口</strong>');gate.destroy();
 });
 test("world controls require named identity, connected room and ready model",()=>{
   assert.equal(worldActivityAllowed(connected),true);

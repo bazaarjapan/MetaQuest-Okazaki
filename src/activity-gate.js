@@ -6,6 +6,7 @@ export function worldActivityAllowed(state, ready = true) {
 export function createActivityGate({ documentTarget = document, windowTarget = window, onOpen, onLock = () => {}, onRetry = () => windowTarget.location.reload() }) {
   const gate = documentTarget.querySelector("#login-gate");
   const message = gate.querySelector("p"), buttons = [...gate.querySelectorAll("button")], button = buttons[0];
+  const entryContents = new Map(buttons.map(item => [item, item.innerHTML]));
   const surfaces = [...documentTarget.querySelectorAll("body > header,body > main,body > nav,body > footer")];
   let allowed = false, loadError = null;
   const events = ["keydown","keyup","pointerdown","pointerup","pointermove","mousedown","mouseup","mousemove","click","dblclick","contextmenu","wheel","touchstart","touchmove","touchend"];
@@ -23,10 +24,12 @@ export function createActivityGate({ documentTarget = document, windowTarget = w
     gate.hidden = next;
     for (const surface of surfaces) if (surface.inert === next) surface.inert = !next;
     if (!next) {
-      message.textContent = loadError ? `街を読み込めませんでした。${loadError}` : !state?.user ? "生徒は先生から受け取ったID・パスワード、先生は登録済みのGoogleアカウントでログインしてください。" :
+      message.textContent = loadError ? `街を読み込めませんでした。${loadError}` : !state?.user ? "どちらの入り口から入りますか？" :
         state.user.namePending ? "最初にみんなに見える名前を決めてください。名前を保存してワールドに接続すると操作できます。" :
         !ready ? "街のデータを準備しています。接続が完了すると操作できます。" : "ワールドに接続中です。通信が戻るまで操作を停止しています。接続できない場合はアカウント画面で確認してください。";
-      button.textContent = loadError ? "ページを再読み込み" : !state?.user ? "生徒としてログイン" : state.user.namePending ? "名前を決める" : "アカウント・接続を確認";
+      if (!loadError && !state?.user && entryContents.get(button) !== undefined) {
+        for (const item of buttons) if (item.innerHTML !== entryContents.get(item)) item.innerHTML = entryContents.get(item);
+      } else button.textContent = loadError ? "ページを再読み込み" : !state?.user ? "ログイン" : state.user.namePending ? "名前を決める" : "アカウント・接続を確認";
       for (const item of buttons.slice(1)) item.hidden = Boolean(loadError || state?.user);
       if (wasAllowed) onLock();
     }
