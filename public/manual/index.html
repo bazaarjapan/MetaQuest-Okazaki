@@ -19,11 +19,11 @@
 </header>
 <main id="content">
   <section class="hero" aria-labelledby="title">
-    <div><p class="eyebrow">CLASSROOM FIELD GUIDE / 01</p><h1 id="title">まちづくりの<br>はじめかた。</h1><p class="lead">同じ街に集まって、自分の作品を置いてみよう。<br>先生の準備も、生徒の操作も、このページから。</p><p class="meta">対応：Web版 1.10.10 · 更新：2026年10月21日<br>このマニュアルはログインせずに読めます。</p></div>
+    <div><p class="eyebrow">CLASSROOM FIELD GUIDE / 01</p><h1 id="title">まちづくりの<br>はじめかた。</h1><p class="lead">同じ街に集まって、自分の作品を置いてみよう。<br>先生の準備も、生徒の操作も、このページから。</p><p class="meta">対応：Web版 1.10.11 · 更新：2026年10月24日<br>このマニュアルはログインせずに読めます。</p></div>
     <div class="field-drawing" aria-hidden="true"><div class="drawing-label">JR OKAZAKI / みんなのワールド</div><div class="map-grid"><i class="road r1"></i><i class="road r2"></i><i class="rail"></i><i class="building b1"></i><i class="building b2"></i><i class="building b3"></i><i class="building b4"></i><i class="building b5"></i><i class="model"></i></div><div class="drawing-caption"><span class="dot"></span> あなたのアイデアが、街の一部に。</div></div>
   </section>
   <nav class="role-grid" aria-label="立場から手順を選ぶ">
-    <a class="role-card teacher" href="#teacher"><span class="eyebrow">FOR TEACHERS</span><h2>先生はこちら <span aria-hidden="true">↘</span></h2><p>IDを配る → 授業を始める → 保存する</p></a>
+    <a class="role-card teacher" href="#teacher"><span class="eyebrow">FOR TEACHERS</span><h2>先生はこちら <span aria-hidden="true">↘</span></h2><p>Googleで入る → IDを配る → 自動保存で続ける</p></a>
     <a class="role-card student" href="#student"><span class="eyebrow">FOR STUDENTS</span><h2>生徒はこちら <span aria-hidden="true">↘</span></h2><p>ログインする → 動く → 作品を置く</p></a>
   </nav>
   <nav class="jump-nav" aria-label="マニュアルの目次"><a href="#pc">PC操作早見表</a><a href="#stl">STLを置く</a><a href="#quest">Quest・VR</a><a href="#mobile">スマホ</a><a href="#trouble">困ったとき</a></nav>
@@ -33,18 +33,18 @@
   <section id="teacher" class="chapter" aria-labelledby="teacher-title">
     <p class="section-label">01 / FOR TEACHERS</p><h2 id="teacher-title">先生の準備は、この4つ。</h2><p class="intro">ワールドは1つ。「岡崎 みんなのワールド」に先生と生徒が集まります。教室の作成や招待コードの入力は不要です。</p>
     <ol class="steps">
-      <li><h3>先生のGoogleアカウントで入る</h3><p><a href="/">街をひらく</a> →「先生としてログイン」→「Googleログインを表示」。<strong>先生として登録済みのアカウント</strong>を選びます。初回は表示名を決めて「この名前でワールドに入る」を押します。</p></li>
+      <li><h3>先生のGoogleアカウントで入る</h3><p><a href="/">街をひらく</a> →「先生の入り口」→ 表示されるGoogleのボタンでログイン。<strong>先生として登録済みのアカウント</strong>を選びます。初回は表示名を決めて「この名前でワールドに入る」を押します。</p></li>
       <li><h3>生徒のID・パスワードを発行する</h3><p>画面右上の「自分の名前 · ログイン中」を押してアカウント画面を開きます。「先生：生徒のIDを発行（最大30人）」で「発行する人数」を入力し、「ID・パスワードを発行」を押します。<strong>発行済みを含め最大30人</strong>です。</p><div class="callout caution"><strong>発行した直後に、安全に控えてください。</strong><p>パスワードは発行・再発行時だけ表示されます。後から同じパスワードを再表示できません。</p></div></li>
       <li><h3>一人に1組ずつ、安全に渡す</h3><p>生徒本人に、<strong>参加URL＋本人のID＋本人のパスワード</strong>だけを渡します。全員分の一覧をクラス全体に公開しないでください。このマニュアルのURLも一緒に配れます。</p><div class="share-box"><span>生徒に配る参加URL</span><a href="/">https://metaquest001.gigach.net/</a><button id="copy-class-url" type="button">参加URLをコピー</button><span id="copy-status" role="status"></span></div><p class="small">同じIDを別の生徒へ使い回さないでください。前の持ち主の作品も同じIDに紐づきます。生徒枠の削除・再割当ては未対応です。</p></li>
-      <li><h3>授業の区切りで復元ポイントを残す</h3><p>アカウント画面の「先生：クラウド保存・復元」→「授業の状態を保存」。全員の位置・作品の復元ポイントを残します。最新20件を保持します。</p></li>
+      <li><h3>そのまま授業を始める（自動保存）</h3><p>確定した作品と受け付けた位置は自動保存されます。先生が保存ボタンを押したり、毎回確認したりする必要はありません。管理画面の「自動保存 ON」で接続状態を確認できます。</p></li>
     </ol>
     <div class="two-up"><div class="note"><h3>ふだんの保存は自動</h3><p>STLの読み込みや、サーバーで確定した配置はクラウドに保存されます。次の授業も<strong>同じID</strong>で続けられます。半透明の配置前プレビューは下書きで、配置としては保存されません。</p></div><div class="note warning"><h3>「復元」は全員に影響します</h3><p>保存時点を選び「選んだ保存時点へ復元…」→確認後「全員のワールドを復元する」。<strong>全員の作品・位置が巻き戻ります。</strong>必ず声をかけ、必要なら現在の状態を先に保存してください。</p></div></div>
-    <p class="small">「共同教室・アカウント」→「生徒一覧を確認・更新」で、生徒ごとの配置作品・場所を確認できます。名前・IDで検索し、「作品を配置している生徒だけ」に絞れます。「作品を見に行く」で作品のそばへ移動。「生徒のホットバーへ戻す」で配置だけを解除し、持ち主が同じSTLを再利用できます。作品の色・説明・形の変更は持ち主だけが行えます。</p>
+    <p class="small">「共同教室・アカウント」を開くと、生徒一覧を自動で読み込みます。生徒ごとの配置作品・場所を、名前・IDで検索し、「作品を配置している生徒だけ」に絞れます。「作品を見に行く」で作品のそばへ移動。「生徒のホットバーへ戻す」で配置だけを解除し、持ち主が同じSTLを再利用できます。作品の色・説明・形の変更は持ち主だけが行えます。巻き戻しが必要なときだけ「詳細：復元ポイント・巻き戻し」を開きます。「復元ポイントを追加（任意）」は通常の自動保存とは別の、過去へ戻すための目印です（最新20件）。</p>
   </section>
   <section id="student" class="chapter" aria-labelledby="student-title">
     <p class="small">授業を終えるときは、画面上部の「ログアウト」を押します。「共同教室・アカウント」画面の下部からも、スクロールせずにログアウトできます。保存済みのSTL・配置作品・アカウントは残ります。</p>
     <p class="section-label">02 / FOR STUDENTS</p><h2 id="student-title">まずはログインして、街に入ろう。</h2>
-    <ol class="steps"><li><h3>先生からもらったIDでログイン</h3><p><a href="/">参加URL</a>を開き「生徒としてログイン」を押します。「生徒：IDで入る」に<strong>IDとパスワード</strong>を入力してログイン。生徒のGoogleアカウントは使いません。</p></li><li><h3>初めてのときだけ、名前を決める</h3><p>「頭の上に表示する名前」に1〜20文字のニックネームを入れ、「この名前でワールドに入る」を押します。先生・ほかの生徒と同じ名前は使えません。本名やメールアドレスではなく<strong>授業用のニックネーム</strong>を使いましょう。</p></li><li><h3>街の接続を待ち、3D画面をクリック</h3><p>「接続中：共同活動できます」になったら準備完了。PCは最初、キャラクターを後ろから見る視点です。3D画面をクリックして、<kbd>W</kbd> で前へ進んでみましょう。画面の向きを変えるときは右ドラッグです。</p></li></ol>
+    <ol class="steps"><li><h3>先生からもらったIDでログイン</h3><p><a href="/">参加URL</a>を開き「生徒の入り口」を押します。表示された画面に<strong>IDとパスワード</strong>を入力してログイン。生徒のGoogleアカウントは使いません。</p></li><li><h3>初めてのときだけ、名前を決める</h3><p>「頭の上に表示する名前」に1〜20文字のニックネームを入れ、「この名前でワールドに入る」を押します。先生・ほかの生徒と同じ名前は使えません。本名やメールアドレスではなく<strong>授業用のニックネーム</strong>を使いましょう。</p></li><li><h3>街の接続を待ち、3D画面をクリック</h3><p>「接続中：共同活動できます」になったら準備完了。PCは最初、キャラクターを後ろから見る視点です。3D画面をクリックして、<kbd>W</kbd> で前へ進んでみましょう。画面の向きを変えるときは右ドラッグです。</p></li></ol>
     <div class="callout"><strong>次回も同じID・パスワードで。</strong><p>名前・アバターの色・自分のSTL・確定した配置位置・回転・大きさを引き継ぎます。忘れたときは新しいIDを作らず、先生にパスワードの再発行を頼んでください。</p></div>
     <p class="small">ログイン前や接続が切れたときは、移動・視点操作・VR・作品づくりはできません。同じIDを別の端末で使うと、最後に接続した端末へ活動が移ります。</p>
   </section>
@@ -103,8 +103,8 @@
     <details><summary>迷子になった・街が写真のまま</summary><div class="details-body"><p>「メニュー」→「見学」→「開始地点に戻る」。QuestはYボタンでも戻れます。ゲーム風の見た目にするには「メニュー」→「設定」→「街のデザイン」でゲーム風を選択。古い表示ならページを再読み込みします。PCは <kbd>Ctrl</kbd> + <kbd>F5</kbd>（Macはブラウザーの再読み込み）を使います。下書きは先に確定してください。</p></div></details>
     <details><summary>次の授業で作品が見つからない</summary><div class="details-body"><p>前回と同じIDで入っているか確認します。確定していない下書きは残りません。先生が過去の保存時点へ復元した場合は、その時点の配置に戻っています。アカウントを作り直さず、先生と一緒に確認してください。</p></div></details>
   </section>
-  <section id="lesson" class="chapter" aria-labelledby="lesson-title"><p class="section-label">08 / BEFORE CLASS</p><h2 id="lesson-title">授業前のチェックリスト。</h2><p class="intro">まず2〜3台で練習。そのあと実際に使う台数で確認しましょう。</p><div class="checklist"><label><input type="checkbox">先生アカウントでログインできる</label><label><input type="checkbox">生徒に本人のID・パスワードと参加URLを渡した</label><label><input type="checkbox">生徒が名前を決め、同じ街に入れる</label><label><input type="checkbox">移動・見回し・STL読込・設置・回収を試した</label><label><input type="checkbox">一度ログアウトし、同じIDで作品が戻ることを確認した</label><label><input type="checkbox">「授業の状態を保存」で復元ポイントを残した</label><label><input type="checkbox">学校のネットワーク・機器の利用規定とVRの安全を確認した</label></div><p class="small">チェックはこのページを開いている間の目印です。クラウドには保存しません。印刷して配布することもできます。</p>
-    <div class="lesson-plan"><h3>45分授業の進め方の例</h3><ol><li><strong>0〜10分</strong> ログイン・名前登録・操作練習</li><li><strong>10〜20分</strong> 駅の東西を観察し、空きスペースを探す</li><li><strong>20〜35分</strong> 用意したSTLを配置・調整する</li><li><strong>35〜45分</strong> お互いの作品を見て発表・先生が状態を保存</li></ol></div>
+  <section id="lesson" class="chapter" aria-labelledby="lesson-title"><p class="section-label">08 / BEFORE CLASS</p><h2 id="lesson-title">授業前のチェックリスト。</h2><p class="intro">まず2〜3台で練習。そのあと実際に使う台数で確認しましょう。</p><div class="checklist"><label><input type="checkbox">先生アカウントでログインできる</label><label><input type="checkbox">生徒に本人のID・パスワードと参加URLを渡した</label><label><input type="checkbox">生徒が名前を決め、同じ街に入れる</label><label><input type="checkbox">移動・見回し・STL読込・設置・回収を試した</label><label><input type="checkbox">一度ログアウトし、同じIDで作品が戻ることを確認した</label><label><input type="checkbox">確定した作品が自動保存されている</label><label><input type="checkbox">学校のネットワーク・機器の利用規定とVRの安全を確認した</label></div><p class="small">チェックはこのページを開いている間の目印です。クラウドには保存しません。印刷して配布することもできます。</p>
+    <div class="lesson-plan"><h3>45分授業の進め方の例</h3><ol><li><strong>0〜10分</strong> ログイン・名前登録・操作練習</li><li><strong>10〜20分</strong> 駅の東西を観察し、空きスペースを探す</li><li><strong>20〜35分</strong> 用意したSTLを配置・調整する</li><li><strong>35〜45分</strong> お互いの作品を見て発表（保存は自動）</li></ol></div>
     <div class="callout caution"><strong>実装済みの範囲を確認して使ってください。</strong><p>生徒最大30人＋先生4人の接続枠がありますが、実教室30台での速度・Quest実機の快適性を保証するものではありません。音声会話・チャット・パスキー・生徒枠の削除／再割当ては未対応です。2020年度のPLATEAUを元にした教材で、建物の色・窓や地面のゲーム風表現は装飾です。現在の街・駅内部・橋の高さを完全再現するものではありません。</p></div>
   </section>
   <section class="finish"><p class="eyebrow">READY TO BUILD?</p><h2>準備ができたら、街へ。</h2><a class="button" href="/">岡崎 みんなのワールドをひらく ↗</a><a href="#title">ページの先頭へ ↑</a></section>

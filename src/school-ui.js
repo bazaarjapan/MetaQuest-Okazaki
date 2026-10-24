@@ -75,8 +75,9 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
   const heading = element("div", undefined, "school-heading");
   const title = element("h2", "共同教室", "school-title"); title.id = "school-title";
   const closeButton = actionButton("閉じる", () => dialog.close(), "school-close"); heading.append(title, closeButton);
-  const description = element("p", "みんなで1つのワールドを使います。操作はログイン後に使えます。生徒は先生から受け取ったID、先生は登録済みGoogleアカウントで入ります。", "school-note");
+  const description = element("p", "", "school-note");
   const status = element("p", "接続確認中…", "school-status"); status.id = "school-status"; status.setAttribute("role", "status"); status.setAttribute("aria-live", "polite");
+  const autosave=element('p','','school-autosave');autosave.id='school-autosave';autosave.setAttribute('role','status');
   const movementStatus = element("p", "", "school-note"); movementStatus.id = "school-movement-status"; movementStatus.hidden = true;
   movementStatus.setAttribute("role", "status"); movementStatus.setAttribute("aria-live", "polite");
   const content = element("div", undefined, "school-content");
@@ -86,6 +87,7 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
   const roleButtons = new Map();
   function selectLoginRole(role, focus = false) {
     loginRole = role;
+    if(!state.user){title.textContent=role==='teacher'?'先生の入り口':'生徒の入り口';description.textContent=role==='teacher'?'登録済みのGoogleアカウントで入ります。':'先生からもらったIDとパスワードを入力してください。';setStatus(role==='teacher'?'Googleのボタンでログインします。':'IDとパスワードを入力して「ワールドに入る」を押してください。');}
     for (const [id, tab] of roleButtons) {
       tab.setAttribute("aria-selected", String(id === role)); tab.tabIndex = id === role ? 0 : -1;
     }
@@ -93,18 +95,19 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
     if (teacherPanel) teacherPanel.hidden = Boolean(state.singleClassroom) && role !== "teacher";
     if (focus) roleButtons.get(role).focus();
   }
-  for (const [role, label] of [["student", "生徒としてログイン"], ["teacher", "先生としてログイン"]]) {
-    const tab = actionButton(label, () => selectLoginRole(role), `${role}-login-tab`);
+  for (const [role, label] of [["teacher", "先生の入り口"], ["student", "生徒の入り口"]]) {
+    const tab = actionButton(label, () => {selectLoginRole(role);if(role==='teacher'&&state.configured)void showGoogleButton();}, `${role}-login-tab`);
     tab.setAttribute("role", "tab"); tab.setAttribute("aria-controls", `${role}-login-panel`);
     tab.addEventListener("keydown", event => {
       if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
-      event.preventDefault(); selectLoginRole(event.key === "Home" ? "student" : event.key === "End" ? "teacher" : loginRole === "student" ? "teacher" : "student", true);
+      event.preventDefault(); selectLoginRole(event.key === "Home" ? "teacher" : event.key === "End" ? "student" : loginRole === "student" ? "teacher" : "student", true);
+      if(loginRole==='teacher'&&state.configured)void showGoogleButton();
     });
     roleButtons.set(role, tab); loginTabs.append(tab);
   }
   const privacy = element("a", "ログイン・作品保存について（プライバシー）"); privacy.href = "/privacy.html";
   const body = element("div", undefined, "school-body");
-  body.append(description, status, movementStatus, loginTabs, content);
+  body.append(description, status, autosave, movementStatus, loginTabs, content);
   const footer = element("div", undefined, "school-footer"); footer.append(privacy);
   const logout = command("ログアウト", () => perform(() => client.logout(), "ログアウトしました。操作を再開するにはログインしてください。"), "school-logout");
   logout.hidden = true; footer.append(logout);
@@ -115,6 +118,7 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
   let googleHost = null, participantLabel = null, roomConnection = null;
   let issuedCredentials = [], credentialsOwner = null;
   let updateRoster = () => {};
+  let loadRoster = async () => {};
   const inviteCode = parseSchoolInvite(globalThis.location?.href ?? "");
   function setStatus(text, error = false) { if (status.textContent !== text) status.textContent = text; status.classList.toggle("is-error", error); }
   function updateMovementStatus() {
@@ -137,24 +141,29 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
     const node = actionButton(text, handler, id); node.dataset.schoolAction = "true"; node.dataset.unavailable = String(unavailable); return node;
   }
   async function showGoogleButton() {
+    if(busy)return;
     const generation = ++googleGeneration;
+    googleHost?.replaceChildren();
+    const retryButton=dialog.querySelector('#school-login');if(retryButton)retryButton.hidden=false;
     await perform(async () => {
       const [login, googleId] = await Promise.all([client.prepareGoogleLogin(), loadGoogleIdentity()]);
-      if (generation !== googleGeneration || !dialog.open || client.getState().user) return;
+      if (generation !== googleGeneration || !dialog.open || client.getState().user || (state.singleClassroom&&loginRole!=='teacher')) return;
       const host = googleHost;
       if (!host?.isConnected) return;
       host.replaceChildren();
       googleId.initialize({ client_id: login.clientId, nonce: login.nonce, auto_select: false, ux_mode: "popup",
         callback: async (response) => {
-          if (generation !== googleGeneration || !dialog.open || !response?.credential) return;
+          if (generation !== googleGeneration || !dialog.open || !response?.credential || (state.singleClassroom&&loginRole!=='teacher')) return;
           // No One Tap, no access/refresh token storage, no external account
           // revocation: this GCP consent application is shared with another app.
           await perform(() => client.login(response.credential), "ログインしました。");
           if (!client.getState().user && generation === googleGeneration) {
             host.replaceChildren(element("p", "ログインを表示し直してから再試行してください。", "school-note"));
+            const retry=dialog.querySelector('#school-login');if(retry)retry.hidden=false;
           }
         } });
       googleId.renderButton(host, { type: "standard", theme: "outline", size: "large", text: "signin_with", shape: "rectangular", width: Math.max(220, Math.min(320, host.clientWidth || dialog.clientWidth - 50)), locale: "ja" });
+      const retry=dialog.querySelector('#school-login');if(retry)retry.hidden=true;
       setStatus("Googleのボタンでログインしてください。");
     });
   }
@@ -163,8 +172,7 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
     if (state.singleClassroom) {
       const form = element("form", undefined, "school-section");
       form.id = "student-login-panel"; form.setAttribute("role", "tabpanel"); form.setAttribute("aria-labelledby", "student-login-tab"); studentPanel = form;
-      form.append(element("h3", "生徒：IDで入る"));
-      form.append(element("p", "初回はログイン後に名前を決めます。次回は同じID・パスワードで、名前・自分のSTL・配置した場所を引き継げます。", "school-note"));
+      form.append(element("h3", "ID・パスワードでログイン"));
       const id = inputField("ID", { id: "student-login-id", maxLength: 40 }); id.input.autocomplete = "username";
       const password = inputField("パスワード", { id: "student-password", type: "password", maxLength: 128 }); password.input.autocomplete = "current-password";
       const submit = element("button", "ワールドに入る"); submit.type = "submit"; submit.dataset.schoolAction = "true";
@@ -178,9 +186,9 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
     const section = element("section", undefined, "school-section");
     section.id = "teacher-login-panel"; teacherPanel = section;
     if (state.singleClassroom) { section.setAttribute("role", "tabpanel"); section.setAttribute("aria-labelledby", "teacher-login-tab"); }
-    section.append(element("h3", state.singleClassroom ? "先生：Googleで入る" : "1. Googleでログイン"), element("p", "先生として登録済みのGoogleアカウントを使います。", "school-note"));
-    section.append(element("p", "Googleの確認画面では、既存プロジェクトの共通アプリ名「教職員異動検索」が表示される場合があります。このアプリでは基本的な本人確認だけを行います。", "school-note"));
-    const googleButton = command("Googleログインを表示", showGoogleButton, "school-login", !state.configured);
+    section.append(element("h3", state.singleClassroom ? "Googleアカウントでログイン" : "1. Googleでログイン"));
+    const help=element('details');help.append(element('summary','Googleの確認画面について'),element("p", "Googleの確認画面で「教職員異動検索」と表示される場合があります。登録済みの先生のGoogleアカウントを選んでください。", "school-note"));
+    const googleButton = command("Googleでログイン", showGoogleButton, "school-login", !state.configured);
     googleHost = element("div", undefined, "school-google"); googleHost.id = "school-google";
     const retryButton = command("共同教室に再接続・設定を再確認", () => perform(async () => {
       const next = await client.init({ recheck: true });
@@ -188,14 +196,15 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
     }, "共同教室の接続を確認しました。"), "school-retry");
     // This remains reachable even when initial config/session failed. It only
     // retries our own API; Google scripts stay lazy until the login button click.
-    section.append(googleButton, retryButton, googleHost);
+    const recovery=element('details');recovery.append(element('summary','ログインできないとき'),retryButton);
+    section.append(googleButton, googleHost, help, recovery);
     if (inviteCode) section.append(element("p", `招待コード ${inviteCode} を受け取りました。ログイン後、「この教室に参加」を押してください。`, "school-note"));
     content.append(section);
     if (state.singleClassroom) selectLoginRole(loginRole);
   }
   function renderAccount() {
-    const section = element("section", undefined, "school-section");
-    section.append(element("h3", state.user.role === "teacher" ? "先生としてログイン中" : "生徒としてログイン中"));
+    const section = element(state.user.namePending?'section':'details', undefined, "school-section");
+    section.append(element(state.user.namePending?'h3':'summary', state.user.namePending?'最初に、表示する名前を決めましょう':'名前・色の変更'));
     const row = element("div", undefined, "school-row");
     if (state.user.namePending) section.append(element("p", state.user.nameConflict
       ? "以前の名前がほかの人と重複しています。別の名前を決めてください。あなたのSTL・配置場所はそのまま残っています。"
@@ -268,6 +277,7 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
       if (!roster.isConnected || state.user?.id !== owner || state.world?.id !== world) return;
       students = result.students; filters.hidden = false; rosterKey = ""; updateRoster();
     }
+    loadRoster=refreshRoster;
     updateRoster = () => {
       if (!students || !roster.isConnected) return;
       const query = search.input.value.trim().normalize("NFKC").toLocaleLowerCase("ja");
@@ -324,8 +334,7 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
     participantLabel = element("p", undefined, "school-note"); participantLabel.id = "school-participants";
     roomConnection = element("p", undefined, "school-note"); roomConnection.id = "school-connection";
     section.append(participantLabel, roomConnection, element("p", "自分が読み込んだSTLだけを配置・変更できます。作品は教室に保存され、ほかの参加者にも見えます。", "school-note"));
-    const actions = element("div", undefined, "school-actions");
-    actions.append(command("教室を退出", () => client.leaveWorld(), "school-world-leave")); section.append(actions);
+    if(!state.singleClassroom){const actions = element("div", undefined, "school-actions");actions.append(command("教室を退出", () => client.leaveWorld(), "school-world-leave")); section.append(actions);}
     if (state.world.joinCode && state.user.role === "teacher") {
       if (!state.singleClassroom) {
       section.append(element("p", "生徒に配る参加コード", "school-note"));
@@ -337,8 +346,9 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
         catch { invite.input.focus(); invite.input.select(); setStatus("URL欄を選択しました。ブラウザのコピー操作でコピーしてください。"); }
       }, "school-invite-copy"));
       }
-      section.append(element("h3", "先生：クラウド保存・復元"), element("p", "配置は随時クラウドへ保存されます。「授業の状態を保存」は全員の位置・作品の復元ポイントを残します。", "school-note"));
-      section.append(command("授業の状態を保存", () => perform(() => client.saveWorld(), "全員の位置と作品を復元ポイントに保存しました。"), "school-world-save", state.connection !== "connected"));
+      const advanced=element('details');advanced.id='school-save-details';advanced.append(element('summary','詳細：復元ポイント・巻き戻し'),element("p", "通常の保存は自動です。保存ボタンを押す必要はありません。ここは授業を過去の状態へ戻したいときだけ使います。", "school-note"));
+      section.append(advanced);
+      advanced.append(command("復元ポイントを追加（任意）", () => perform(() => client.saveWorld(), "復元ポイントを追加しました。通常の自動保存は継続しています。"), "school-world-save", state.connection !== "connected"));
       if (state.snapshots.length) {
         const select = element("select"); select.id = "school-snapshot-list"; select.setAttribute("aria-label", "復元ポイント");
         for (const snapshot of state.snapshots) {
@@ -351,12 +361,15 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
           await client.restoreWorld(selectedSnapshot); confirmation.hidden = true;
         }, "全員のワールドを復元しました。"), "school-restore-confirm", state.connection !== "connected");
         confirmation.append(confirm, actionButton("取り消し", () => { confirmation.hidden = true; }));
-        section.append(select, command("選んだ保存時点へ復元…", () => { selectedSnapshot = select.value; confirmation.hidden = false; confirm.focus(); }, "school-world-restore", state.connection !== "connected"), confirmation);
+        advanced.append(select, command("選んだ保存時点へ復元…", () => { selectedSnapshot = select.value; confirmation.hidden = false; confirm.focus(); }, "school-world-restore", state.connection !== "connected"), confirmation);
       }
     }
     content.append(section);
   }
   function updateConnection() {
+    autosave.hidden=!state.user;
+    autosave.textContent=state.connection!=='connected'?'接続確認中：保存の完了を確認できません。':state.pendingSaves?'自動保存中…このままお待ちください。':state.saveError?'保存を確認できませんでした。作品の状態を確認して、もう一度操作してください。':'自動保存 ON · 確定した作品と位置を保存します。保存操作は不要です。';
+    autosave.classList.toggle('is-error',Boolean(state.saveError)||state.connection!=='connected');
     if (state.singleClassroom) { const entry = dialog.querySelector("#school-classroom-enter"); if (entry) entry.hidden = state.connection === "connected"; }
     const description = state.connection === "connected" ? "接続中：共同活動できます" : state.connection === "reconnecting" ? "再接続中：作品操作は一時停止" : state.world ? "接続待ち・停止中：作品操作はできません" : "教室を選んでください";
     if (roomConnection) roomConnection.textContent = description;
@@ -370,6 +383,7 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
   }
   function render(next, event) {
     state = next;
+    if(state.user){title.textContent=state.user.role==='teacher'?'先生の管理画面':'自分のアカウント';description.textContent='作品と位置は自動保存されます。普段の保存操作は不要です。';}
     dialog.dataset.view = state.user ? "account" : "login";
     loginTabs.hidden = Boolean(state.user) || !state.singleClassroom;
     if (credentialsOwner !== state.user?.id) { issuedCredentials = []; credentialsOwner = state.user?.id; }
@@ -380,8 +394,9 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
     const key = JSON.stringify({ configured: state.configured, user: state.user, world: state.world, worlds: state.worlds, snapshots: state.snapshots });
     if (key !== renderKey) {
       renderKey = key; googleGeneration++; googleHost = participantLabel = roomConnection = null;
-      content.replaceChildren();
+      content.replaceChildren();loadRoster=async()=>{};
       if (!state.user) renderGuest(); else { renderAccount(); renderEntry(); if (!state.user.namePending) renderRoom(); }
+      if(dialog.open&&state.user?.role==='teacher')void loadRoster().catch(error=>setStatus(explainSchoolError(error),true));
     }
     updateConnection();
     updateRoster();
@@ -395,7 +410,11 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
       return false;
     }
     if (!state.user && (role === "student" || role === "teacher")) selectLoginRole(role);
-    if (!dialog.open) dialog.showModal(); return true;
+    if (!dialog.open) dialog.showModal();
+    if(state.user?.role==='teacher'&&!state.user.namePending)void loadRoster().catch(error=>setStatus(explainSchoolError(error),true));
+    if(!state.user&&loginRole==='student')dialog.querySelector('#student-login-id')?.focus();
+    if(!state.user&&loginRole==='teacher'&&state.configured)void showGoogleButton();
+    return true;
   }
   const clickOpen = () => { open().catch(() => {}); };
   // Opening first releases movement/pointer lock and makes any failure visible.

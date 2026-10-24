@@ -359,6 +359,30 @@ test("uploaded assets appear immediately; UTF8 filename is encoded and raw bytes
   assert.equal(upload.headers["X-CSRF-Token"], "private-user-csrf"); assert.equal(upload.body, bytes);
   assert.deepEqual(new Uint8Array(await h.client.downloadAsset(ASSET)), new Uint8Array([1, 2, 3])); h.client.destroy();
 });
+
+test("autosave stays pending until upload and persisted edit acknowledgements finish",async()=>{
+  const h=harness();await h.join();const slow=deferred(),ws=h.sockets[0];
+  h.routes.set(`POST /api/worlds/${WORLD}/assets`,()=>slow.promise);
+  const upload=h.client.uploadAsset({buffer:new ArrayBuffer(1),name:'a.stl',upAxis:'z',units:'mm'});
+  const edit=h.client.editObject('object.create',{assetId:ASSET});await tick();
+  assert.equal(h.client.getState().pendingSaves,2);
+  ws.message({type:'objects',revision:1,objects:[{id:OTHER}]});
+  assert.equal(h.client.getState().pendingSaves,2,'a broadcast alone is not acknowledgement');
+  const packet=ws.sent.at(-1);ws.message({type:'ack',requestId:packet.requestId,revision:1,id:OTHER});await edit;
+  assert.equal(h.client.getState().pendingSaves,1);
+  slow.resolve(h.response({asset:{id:ASSET}}));await upload;
+  assert.equal(h.client.getState().pendingSaves,0);assert.equal(h.client.getState().saveError,false);h.client.destroy();
+});
+
+test("ambiguous autosave timeout remains visible until a later accepted mutation",async()=>{
+  const h=harness();await h.join();const ws=h.sockets[0];
+  const edit=h.client.editObject('object.create',{assetId:ASSET});await tick();
+  const rejected=assert.rejects(edit,/edit_timeout/);[...h.timers.values()].find(t=>t.delay===30000).fn();await rejected;
+  assert.equal(h.client.getState().pendingSaves,0);assert.equal(h.client.getState().saveError,true);
+  await h.client.uploadAsset({buffer:new ArrayBuffer(1),name:'a.stl',upAxis:'z',units:'mm'});
+  assert.equal(h.client.getState().saveError,false);
+  assert.equal(ws.sent.filter(p=>p.type==='object.create').length,1);h.client.destroy();
+});
 test("a delayed upload cannot contaminate the next room's assets", async () => {
   const h = harness(); await h.join(); const slow = deferred();
   h.routes.set(`POST /api/worlds/${WORLD}/assets`, () => slow.promise);
