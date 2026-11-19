@@ -52,6 +52,16 @@ export const flightConfig = Object.freeze({
   yawSpeed: Math.PI / 6,
 });
 
+// Cover classroom devices rendering at 4 fps, while bounding travel after a
+// hitch. A suspended animation loop must never replay its missing seconds.
+export const maxMovementFrameSeconds = 0.25;
+export function movementFrameSeconds(previousTime, time) {
+  if (!Number.isFinite(previousTime) || !Number.isFinite(time)) return 0;
+  const elapsed = (time - previousTime) / 1000;
+  if (elapsed <= 0 || elapsed >= 1) return 0;
+  return Math.min(elapsed, maxMovementFrameSeconds);
+}
+
 export function createFlightState() {
   return resetFlight({});
 }

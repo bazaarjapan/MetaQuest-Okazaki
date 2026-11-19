@@ -24,12 +24,12 @@ class Socket {
 }
 async function fixture(t) {
   const sqlite = new DatabaseSync(":memory:"); sqlite.exec(migration); t.after(() => sqlite.close());
-  const control = { failLiveWrites: 0, failWorldWrites: 0, uncertainWorldWrite: false, puts: [] };
+  const control = { failLiveWrites: 0, failWorldWrites: 0, uncertainWorldWrite: false, puts: [], reads: 0 };
   const db = { prepare(sql) { return { bind(...args) {
     const statement = sqlite.prepare(sql);
     const runSync = () => ({ success: true, meta: { changes: Number(statement.run(...args).changes) } });
-    return { async first() { return statement.get(...args) ?? null; },
-      async all() { return { results: statement.all(...args) }; }, async run() { return runSync(); }, runSync };
+    return { async first() { control.reads++; return statement.get(...args) ?? null; },
+      async all() { control.reads++; return { results: statement.all(...args) }; }, async run() { return runSync(); }, runSync };
   } }; }, async batch(statements) {
     sqlite.exec("BEGIN");
     try { const result = statements.map((statement) => statement.runSync()); sqlite.exec("COMMIT"); return result; }
@@ -103,6 +103,21 @@ async function fixture(t) {
 function assertPose(actual, expected) {
   assert.deepEqual(actual.position, expected.position); assert.equal(actual.yaw, expected.yaw);
 }
+
+test("joining a class uses bounded reads and excludes revoked, removed and unnamed participants", async t => {
+  const f = await fixture(t), students = [f.student];
+  for (let i = 2; i <= 20; i++) students.push(await f.addStudent(i));
+  for (const student of students.slice(0, -1)) await f.connect(student);
+  f.sqlite.prepare("DELETE FROM school_sessions WHERE token_hash=?").run(students[0].hash);
+  f.sqlite.prepare("DELETE FROM school_members WHERE user_id=? AND world_id=?").run(students[1].id, f.world.id);
+  f.sqlite.prepare("UPDATE school_users SET avatar_json=? WHERE id=?").run(JSON.stringify({ name: "", namePending: true }), students[2].id);
+  const before = f.control.reads, { response, socket } = await f.connect(students.at(-1));
+  assert.equal(response.status, 200);
+  assert.ok(f.control.reads - before <= 3, "student admission reads authorization, roster and assets once");
+  const state = socket.messages.find(message => message.type === "state");
+  assert.deepEqual(state.participants.map(person => person.id).sort(), students.slice(3).map(person => person.id).sort());
+  for (const stale of f.sockets.slice(0, 3)) assert.equal(stale.closeCode, 1008);
+});
 
 test("validated flight animation broadcasts but does not persist or restart after reconnect", async t => {
   const f = await fixture(t), first = (await f.connect()).socket;

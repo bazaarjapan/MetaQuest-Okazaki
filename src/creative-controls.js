@@ -1,4 +1,5 @@
 import { wingConfig, wingTravel } from "./avatar-motion.js";
+import { maxMovementFrameSeconds } from "./motion.js";
 export const creativeConfig = Object.freeze({ eyeHeight: 1.65, walkSpeed: 4.3,
   flySpeed: 12, sprintMultiplier: 1.5, mouseSensitivity: 0.002,
   fastClimbSpeed: 36,
@@ -377,12 +378,18 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
     }
     const controls = getControls();
     if (controls) controls.enabled = false;
-    const deltaTime = Number.isFinite(dt) ? Math.max(0, Math.min(0.1, dt)) : 0;
-    elapsed += deltaTime;
+    const duration = Number.isFinite(dt) ? Math.max(0, Math.min(maxMovementFrameSeconds, dt)) : 0;
+    elapsed += duration;
+    // Keep gravity, landing and terrain sampling at the existing 50 ms limit.
+    // Third-person camera collision and avatar drawing run once per display frame.
+    const steps = Math.max(1, Math.ceil(duration / 0.05));
+    for (let i = 0; i < steps; i++) advanceMovement(duration / steps, options.touchAxes);
+    renderView();
+  }
+  function advanceMovement(deltaTime, axes) {
     const previousAnchor = anchor.clone();
     let x = Number(keys.has("KeyD")) - Number(keys.has("KeyA"));
     let z = Number(keys.has("KeyW")) - Number(keys.has("KeyS"));
-    const axes = options.touchAxes;
     const validAxes = axes && [axes.left, axes.right].every(values => Array.isArray(values) && values.length === 2 && values.every(Number.isFinite));
     if (validAxes) {
       x = Math.max(-1, Math.min(1, axes.right[0])); z = -Math.max(-1, Math.min(1, axes.right[1]));
@@ -428,7 +435,7 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
       else if (grounded && verticalVelocity < 0) verticalVelocity = 0;
       verticalVelocity -= creativeConfig.gravity * deltaTime;
       displacement.y = verticalVelocity * deltaTime;
-      jumpQueued = false;
+      if (deltaTime > 0) jumpQueued = false;
     } else {
       // Missing streamed DEM is not a zero-metre floor or a reason to fall forever.
       verticalVelocity = 0; jumpQueued = false;
@@ -459,7 +466,6 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
     moving = anchor.distanceToSquared(previousAnchor) > 1e-12;
     animation = !moving ? "idle" : wingFlight ? (boosting ? "boost" : "glide") :
       Math.hypot(anchor.x - previousAnchor.x, anchor.z - previousAnchor.z) > 1e-6 ? (sprint ? "run" : "walk") : "idle";
-    renderView();
   }
   function captureForXR() {
     if (mode !== "creative") return worldView();

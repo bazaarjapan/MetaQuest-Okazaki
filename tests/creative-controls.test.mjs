@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import * as THREE from "three";
 import { createCreativeControls, creativeConfig, constrainCreativeFeet, readControlMode, controlPreferenceKey, sampleGroundFootprint } from "../src/creative-controls.js";
 import { createBlockAvatar } from "../src/block-avatar.js";
-import { clampPosition, viewpoints } from "../src/motion.js";
+import { clampPosition, movementFrameSeconds, viewpoints } from "../src/motion.js";
 import { clampToRegion } from "../src/region-plan.js";
 import { wingTravel } from "../src/avatar-motion.js";
 
@@ -42,6 +42,50 @@ function close(actual, expected, tolerance = 1e-8) {
   assert.ok(Math.abs(actual - expected) < tolerance, `${actual} != ${expected}`);
 }
 
+test("walking and rocket travel cover the same distance across classroom frame rates", () => {
+  for (const mode of ["walk", "rocket"]) {
+    const distances = [60, 20, 10, 5.5, 4].map(fps => {
+      let renders = 0;
+      const f = fixture({ groundHeight: () => 30, avatar: { update() { renders++; } } });
+      f.enable();
+      if (mode === "walk") {
+        f.key("Space"); f.release("Space"); f.advance(100); f.key("Space"); f.release("Space");
+        f.key("KeyW");
+      } else f.key("KeyZ");
+      const start = f.control.getState().anchor;
+      const frames = Math.round(fps * 2);
+      renders = 0;
+      for (let i = 0; i < frames; i++) {
+        const dt = movementFrameSeconds(i * 2000 / frames, (i + 1) * 2000 / frames);
+        f.control.step(dt, { enabled: true });
+      }
+      assert.equal(renders, frames, "substeps must not repeat avatar/camera renders");
+      const distance = start[2] - f.control.getState().anchor[2];
+      f.control.dispose();
+      return distance;
+    });
+    assert.ok(distances[0] > 0);
+    for (const distance of distances) close(distance, distances[0]);
+    if (mode === "walk") close(distances[0], creativeConfig.walkSpeed * 2);
+  }
+});
+
+test("fresh, suspended and released input never replays a long movement interval", () => {
+  const f = fixture(); f.enable(); f.key("KeyW");
+  const start = f.control.getState().anchor;
+  for (const previous of [null, NaN, 100, 5200]) {
+    f.control.step(movementFrameSeconds(previous, 5000), { enabled: true });
+    assert.deepEqual(f.control.getState().anchor, start);
+  }
+  f.control.step(movementFrameSeconds(5000, 5550), { enabled: true });
+  const moved = f.control.getState().anchor;
+  close(start[2] - moved[2], creativeConfig.flySpeed * 0.25);
+  f.release("KeyW");
+  f.control.step(movementFrameSeconds(5550, 5750), { enabled: true });
+  assert.deepEqual(f.control.getState().anchor, moved);
+  f.control.dispose();
+});
+
 test('work locator can choose first person without an avatar obscuring its target',()=>{
   const f=fixture({initialView:"back"});f.enable();
   f.camera.position.set(20,50,20); f.camera.lookAt(19,20,19);
@@ -73,7 +117,7 @@ test('footprint supports slope corners and does not fabricate missing ground',()
 });
 test('unchanged proposed XZ reuses the first ground sample',()=>{
   let calls=0;const f=fixture({groundHeight:()=>{calls++;return 30;}});f.enable();calls=0;
-  f.control.step(.1,{enabled:true});assert.equal(calls,1);f.control.dispose();
+  f.control.step(.05,{enabled:true});assert.equal(calls,1);f.control.dispose();
 });
 
 test("Z launches, held Z boosts, release glides, X brakes and input loss never resumes flight", () => {
@@ -420,7 +464,7 @@ test("initial ON preserves the overview from its first enabled frame while regio
   regionReady = true; f.control.step(.1, { enabled: true });
   assert.deepEqual(f.control.getState().eye, viewpoints.overview.position);
   regionReady = false; f.key("KeyW"); f.control.step(.1, { enabled: true });
-  assert.equal(constraintCalls, 1, "real input still applies existing fallback limits");
+  assert.equal(constraintCalls, 2, "each 50 ms movement step applies the fallback limits");
   assert.ok(f.control.getState().eye[0] <= 265 && f.control.getState().eye[2] <= 325 && f.control.getState().eye[1] <= 300);
   f.release("KeyW"); f.control.dispose();
 });

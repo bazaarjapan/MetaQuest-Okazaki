@@ -261,6 +261,10 @@ export function createVRFieldPanel(THREE, { camera, controllerHud, vrWorkshop,
       mesh.visible = visible; interactive = Boolean(mesh.visible && nextInteractive);
       progress = Number.isFinite(nextProgress) ? Math.max(0, Math.min(1, nextProgress)) : 0;
       exiting = Boolean(nextExiting); lastTime = Number.isFinite(time) ? time : performance.now();
+      if (!visible) {
+        if (changed) { clearFeedback(); synchronizeContent(lastTime); }
+        return;
+      }
       if (nextHoveredHands !== undefined) {
         for (const hand of pointerHands) hoveredHands[hand] = nextHoveredHands?.[hand] ?? null;
         hovered = nextHover !== undefined ? nextHover : hoveredHands.right ?? hoveredHands.left;

@@ -1,6 +1,6 @@
 import { validatePlacement } from "../src/placement.js";
 import { LIMITS, SchoolError, fail, json, publicAvatar, sha256, validId } from "./school-common.mjs";
-import { all, assetPublic, authorizeRoomSession, first, getAsset, sessionByHash, worldPublic } from "./school-store.mjs";
+import { all, assetPublic, authorizeRoomSession, first, getAsset, worldPublic } from "./school-store.mjs";
 import { readAssetModel } from "./school-assets.mjs";
 import { loadRegionalPlacement } from "./regional-placement.mjs";
 import { CLASSROOM_ID, managesWorld } from "./classroom-id.mjs";
@@ -119,9 +119,11 @@ export class SchoolRoom {
   async connect(caller) {
     // Capacity counts identities, not tabs. Queue serialization makes simultaneous
     // reconnects/capacity checks race-safe, including the old close event.
-    await this.pruneExpired();
-    const previous = [...this.sessions].filter(([, attachment]) => attachment.userId === caller.session.id);
     const capacity = caller.world.id === CLASSROOM_ID ? LIMITS.classroomParticipants : LIMITS.participants;
+    // The initial snapshot also checks every session. Only do an earlier check
+    // if stale sockets could otherwise prevent this member from joining.
+    if (this.sessions.size >= capacity) await this.pruneExpired();
+    const previous = [...this.sessions].filter(([, attachment]) => attachment.userId === caller.session.id);
     if (this.sessions.size - previous.length >= capacity) fail(409, "room_full");
     const savedPose = await this.identityPose(caller.session.id, caller.membership.pose_json, previous[0]?.[1]);
     // Preserve the old connection if durable pose storage is unavailable. Each
@@ -171,10 +173,11 @@ export class SchoolRoom {
   async snapshot(world, session) {
     await this.pruneExpired();
     const assets = await all(this.env.DB, "SELECT * FROM school_assets WHERE world_id=? AND status='ready' ORDER BY created_at,rowid", world.id);
-    const saved = await all(this.env.DB, "SELECT id,revision,created_at FROM school_snapshots WHERE world_id=? ORDER BY created_at DESC,id DESC LIMIT 20", world.id);
-    return { revision: this.state.revision, restoreCommit: this.poseRestoreCommit(), world: worldPublic(world, managesWorld(world, session)),
+    const teacher = managesWorld(world, session);
+    const saved = teacher ? await all(this.env.DB, "SELECT id,revision,created_at FROM school_snapshots WHERE world_id=? ORDER BY created_at DESC,id DESC LIMIT 20", world.id) : [];
+    return { revision: this.state.revision, restoreCommit: this.poseRestoreCommit(), world: worldPublic(world, teacher),
       participants: this.participants(), objects: this.state.objects, assets: assets.map(assetPublic),
-      snapshots: managesWorld(world, session) ? saved.map((row) => ({ id: row.id, revision: row.revision, createdAt: row.created_at })) : [] };
+      snapshots: saved.map((row) => ({ id: row.id, revision: row.revision, createdAt: row.created_at })) };
   }
   broadcast(message) {
     const data = JSON.stringify(message);
@@ -189,11 +192,21 @@ export class SchoolRoom {
     try { socket.close(code, reason); } catch { /* already closed */ }
   }
   async pruneExpired() {
+    if (!this.sessions.size) return;
     const now = Math.floor(this.now() / 1000);
+    // At most one session per participant (34 in the shared classroom). Check
+    // revocation, membership and identity together in a single indexed query.
+    const hashes = [...this.sessions.values()].map((attachment) => attachment.sessionHash);
+    const rows = await all(this.env.DB, `SELECT s.token_hash,u.id,u.role,u.avatar_json
+      FROM school_sessions s JOIN school_users u ON u.id=s.user_id
+      JOIN school_members m ON m.user_id=u.id AND m.world_id=?
+      WHERE s.expires_at>? AND s.token_hash IN (${hashes.map(() => "?").join(",")})`, this.state.worldId, now, ...hashes);
+    const byHash = new Map(rows.map((row) => [row.token_hash, row]));
     for (const [socket, attachment] of this.sessions) {
-      const session = attachment.expiresAt > now && this.now() - attachment.lastSeenAt <= 60000 && await sessionByHash(this.env.DB, attachment.sessionHash, now);
-      if (!session || publicAvatar(session).namePending || !await first(this.env.DB, "SELECT user_id FROM school_members WHERE world_id=? AND user_id=?", this.state.worldId, attachment.userId)) this.remove(socket, 1008, "session expired");
-      else { attachment.avatar = publicAvatar(session); socket.serializeAttachment(attachment); }
+      const session = byHash.get(attachment.sessionHash);
+      const avatar = session?.id === attachment.userId ? publicAvatar(session) : null;
+      if (!avatar || avatar.namePending || !(attachment.expiresAt > now && this.now() - attachment.lastSeenAt <= 60000)) this.remove(socket, 1008, "session expired");
+      else { attachment.avatar = avatar; socket.serializeAttachment(attachment); }
     }
   }
   async scheduleAlarm() {

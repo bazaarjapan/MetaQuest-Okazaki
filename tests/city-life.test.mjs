@@ -8,14 +8,20 @@ import {createSurfaceIndex} from '../src/placement.js';
 import {readSoundSettings,movementSoundProfile,createMovementAudio} from '../src/movement-audio.js';
 import {createCitySky} from '../src/city-atmosphere.js';
 
-test('day and evening sky replace the cached equirectangular texture and release its old resources',()=>{
-  const stops=[],context={createLinearGradient:()=>({addColorStop:(at,color)=>stops.push([at,color])}),fillRect(){}};
-  const scene=new THREE.Scene();scene.background=new THREE.Color();scene.fog=new THREE.Fog(0xffffff);
-  const sky=createCitySky(THREE,scene,{createElement:()=>({getContext:()=>context})});
-  sky.set(true);const evening=scene.background;let disposed=0;evening.addEventListener('dispose',()=>disposed++);
-  assert.equal(scene.fog.color.getHexString(),'e9b4a1');sky.set(false);
-  assert.notEqual(scene.background,evening);assert.equal(disposed,1);assert.equal(scene.fog.color.getHexString(),'dce9ee');
-  assert.ok(stops.some(([,color])=>color==='#8db4cf'));sky.dispose();
+test('only the selected sky is displayed, late loads are disposed and a missing sky can retry',async()=>{
+  const scene=new THREE.Scene();scene.fog=new THREE.Fog(0xffffff);
+  const requests=[];
+  const sky=createCitySky(THREE,scene,url=>new Promise((resolve,reject)=>requests.push({url,resolve,reject})));
+  const day=sky.set(false), evening=sky.set(true);
+  assert.deepEqual(requests.map(r=>r.url),['/sky/day.webp','/sky/evening.webp']);
+  const stale=new THREE.Texture(), active=new THREE.Texture();let disposed=0;
+  for(const texture of [stale,active])texture.addEventListener('dispose',()=>disposed++);
+  requests[1].resolve(active);await evening;requests[0].resolve(stale);await day;
+  assert.equal(disposed,1);assert.equal(scene.background,active);assert.equal(active.mapping,THREE.EquirectangularReflectionMapping);
+  assert.equal(scene.fog.color.getHexString(),'fcc09b');await sky.set(true);assert.equal(requests.length,2);
+  const failed=sky.set(false);requests[2].reject(Error('offline'));await failed;
+  assert.equal(disposed,2);assert.equal(scene.background.getHexString(),'c6e5ef');
+  const retry=sky.set(false);requests[3].resolve(new THREE.Texture());await retry;sky.dispose();assert.equal(scene.background,null);
 });
 
 test('junctions require three distinct branches; duplicate roads and seams do not create signals',()=>{

@@ -382,15 +382,17 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
     refreshDisabled();
   }
   function render(next, event) {
+    const movementChanged = state.movementWarning !== next.movementWarning;
     state = next;
+    if (event === "pose") {
+      if (movementChanged) updateMovementStatus();
+      return;
+    }
     if(state.user){title.textContent=state.user.role==='teacher'?'先生の管理画面':'自分のアカウント';description.textContent='作品と位置は自動保存されます。普段の保存操作は不要です。';}
     dialog.dataset.view = state.user ? "account" : "login";
     loginTabs.hidden = Boolean(state.user) || !state.singleClassroom;
     if (credentialsOwner !== state.user?.id) { issuedCredentials = []; credentialsOwner = state.user?.id; }
     updateMovementStatus();
-    // High-frequency single-player pose updates only affect the 3D scene. They
-    // must not rebuild the login form or announce every movement to screenreaders.
-    if (event === "pose") return;
     const key = JSON.stringify({ configured: state.configured, user: state.user, world: state.world, worlds: state.worlds, snapshots: state.snapshots });
     if (key !== renderKey) {
       renderKey = key; googleGeneration++; googleHost = participantLabel = roomConnection = null;

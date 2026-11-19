@@ -13,7 +13,7 @@ export function avatarAppearance(identity) {
     accent: [0xf5ba42, 0xe76b91, 0x72d8c0, 0xb7a2ed, 0xff8855, 0xe9eee9][(seed >>> 12) % 6],
     hairStyle: (seed >>> 16) % 3, pattern: (seed >>> 20) % 3 };
 }
-export function createBlockAvatar(THREE, { color = 0x367fab, identity = null } = {}) {
+export function createBlockAvatar(THREE, { color = 0x367fab, identity = null, batchBlocks = false } = {}) {
   const group = new THREE.Group();
   group.name = "school-block-avatar";
   const geometry = new THREE.BoxGeometry(1, 1, 1);
@@ -39,8 +39,8 @@ export function createBlockAvatar(THREE, { color = 0x367fab, identity = null } =
   head.name = "head";
   head.position.set(0, 1.59, 0);
   group.add(head);
-  block("face", [0.43, 0.43, 0.43], [0, 0, 0], 0xeac198, head);
-  block("hair", [0.45, 0.12, 0.45], [0, 0.17, 0], 0x403631, head);
+  const face = block("face", [0.43, 0.43, 0.43], [0, 0, 0], 0xeac198, head);
+  const hair = block("hair", [0.45, 0.12, 0.45], [0, 0.17, 0], 0x403631, head);
   for (const x of [-0.09, 0.09]) {
     block("eye", [0.07, 0.065, 0.012], [x, 0.02, -0.222], 0x253345, head);
   }
@@ -52,6 +52,7 @@ export function createBlockAvatar(THREE, { color = 0x367fab, identity = null } =
   function setHolding(value) {
     if (holding === Boolean(value)) return;
     holding = Boolean(value);
+    batchDirty = true;
     rightArm.rotation.x = holding ? Math.PI / 3 : 0;
     rightArm.position.set(.4, holding ? .14 : .06, holding ? -.12 : 0);
   }
@@ -115,14 +116,46 @@ export function createBlockAvatar(THREE, { color = 0x367fab, identity = null } =
   group.add(body);
   let motion = "idle";
   let appearance = { skin: 0xeac198, hair: 0x403631, trousers: 0x33455d };
+  // Remote avatars share one draw for their solid cubes. The detached cubes
+  // retain their transforms for the same limb, head and clothing animation.
+  let batch = null, batchDirty = true, previousStance = null, previousPitch = null;
+  const cubes = [], cubeMatrix = new THREE.Matrix4();
+  if (batchBlocks) {
+    body.traverse((part) => {
+      if (part.geometry === geometry && !flames.includes(part)) cubes.push({ part, parent: part.parent });
+    });
+    batch = new THREE.InstancedMesh(geometry, material(0xffffff, "blocks"), cubes.length);
+    batch.name = "avatar-blocks";
+    batch.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    // The bounding volume includes every limb throughout its full gait.
+    batch.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 2);
+    for (const { part } of cubes) part.removeFromParent();
+    body.add(batch);
+  }
+  function updateBatch() {
+    head.updateMatrix();
+    let count = 0;
+    for (const { part, parent } of cubes) {
+      if (!part.visible) continue;
+      part.updateMatrix();
+      cubeMatrix.copy(part.matrix);
+      if (parent === head) cubeMatrix.premultiply(head.matrix);
+      batch.setMatrixAt(count, cubeMatrix);
+      if (batchDirty) batch.setColorAt(count, part.material.color);
+      count++;
+    }
+    batch.count = count;
+    batch.instanceMatrix.needsUpdate = true;
+    if (batchDirty) batch.instanceColor.needsUpdate = true;
+    batchDirty = false;
+  }
   function setIdentity(value) {
     if (disposed) return;
     appearance = avatarAppearance(value);
-    head.getObjectByName("face").material.color.set(appearance.skin);
-    head.getObjectByName("hair").material.color.set(appearance.hair);
+    face.material.color.set(appearance.skin);
+    hair.material.color.set(appearance.hair);
     leftLeg.material.color.set(appearance.trousers);
     frontTrim.material.color.set(appearance.accent);
-    const hair = head.getObjectByName("hair");
     hair.scale.set(...[[.45, .12, .45], [.25, .21, .45], [.45, .1, .33]][appearance.hairStyle]);
     hair.position.y = appearance.hairStyle === 1 ? .22 : .17;
     hairSide.visible = appearance.hairStyle === 2;
@@ -130,21 +163,33 @@ export function createBlockAvatar(THREE, { color = 0x367fab, identity = null } =
       trim.scale.set(...[[.56, .12, .016], [.13, .59, .016], [.22, .22, .016]][appearance.pattern]);
       trim.position.x = appearance.pattern === 2 ? .12 : 0;
     }
+    batchDirty = true;
   }
   setIdentity(identity);
   // Body/rockets share a cube; shell, membrane and veins each share one geometry.
   torso.userData.avatarPart = true;
   group.visible = false;
   function update({ position = [0, 0, 0], yaw = 0, pitch = 0,
-    moving = false, animation, time = 0, visible = true } = {}) {
+    moving = false, animation, time = 0, visible = true, distant = false } = {}) {
     if (disposed) return;
-    const coordinates = Array.isArray(position) ? position : [position.x, position.y, position.z];
-    if (coordinates.length === 3 && coordinates.every(Number.isFinite)) group.position.fromArray(coordinates);
+    if (Array.isArray(position)) {
+      if (position.length === 3 && position.every(Number.isFinite)) group.position.fromArray(position);
+    } else if (Number.isFinite(position.x) && Number.isFinite(position.y) && Number.isFinite(position.z)) {
+      group.position.copy(position);
+    }
     if (Number.isFinite(yaw)) group.rotation.y = yaw;
     head.rotation.x = Number.isFinite(pitch) ? Math.max(-1.4, Math.min(1.4, pitch)) : 0;
     motion = validAvatarMotion(animation) ? animation : moving ? "walk" : "idle";
-    const airborne = motion === "glide" || motion === "boost";
-    const swing = ["walk", "run"].includes(motion) && Number.isFinite(time) ?
+    group.visible = Boolean(visible);
+    // At a distance the colored body and nickname still track the player.
+    // Idle or distant classmates can translate/turn without rebuilding bones.
+    const stance = distant ? "distant" : motion;
+    if (batch && !batchDirty && (distant || motion === "idle") &&
+        stance === previousStance && head.rotation.x === previousPitch) return;
+    previousStance = stance;
+    previousPitch = head.rotation.x;
+    const airborne = !distant && (motion === "glide" || motion === "boost");
+    const swing = !distant && (motion === "walk" || motion === "run") && Number.isFinite(time) ?
       Math.sin(time * (motion === "run" ? 14 : 9)) * (motion === "run" ? .75 : .35) : 0;
     body.rotation.x = airborne ? -1.05 : 0;
     leftLeg.rotation.x = rightArm.rotation.x = swing;
@@ -153,6 +198,7 @@ export function createBlockAvatar(THREE, { color = 0x367fab, identity = null } =
     for(const leg of [leftLeg,rightLeg])leg.position.y=-.62+Math.max(0,.38*Math.abs(Math.cos(leg.rotation.x))+.135*Math.abs(Math.sin(leg.rotation.x))-.38);
     leftArm.rotation.z = airborne ? -.35 : 0; rightArm.rotation.z = airborne ? .35 : 0;
     wings.forEach(({hinge, inner, sign}) => {
+      hinge.visible = !distant;
       hinge.rotation.z = airborne ? sign * .65 : 0;
       hinge.rotation.y = airborne ? sign * -.4 : 0;
       inner.visible = airborne;
@@ -161,25 +207,29 @@ export function createBlockAvatar(THREE, { color = 0x367fab, identity = null } =
       inner.rotation.z = 0;
       inner.rotation.y = sign * (Number.isFinite(time) ? Math.sin(time * 22) * .08 : 0);
     });
-    for (const flame of flames) flame.visible = motion === "boost";
+    for (const flame of flames) flame.visible = !distant && motion === "boost";
     if (holding) rightArm.rotation.x = Math.PI / 3;
-    group.visible = Boolean(visible);
-    group.updateMatrixWorld(true);
+    if (batch) updateBatch();
+    else group.updateMatrixWorld(true);
   }
   function dispose() {
     if (disposed) return;
     disposed = true;
     group.removeFromParent();
+    batch?.dispose();
     for (const entry of geometries) entry.dispose();
     for (const entry of materials.values()) entry.dispose();
     group.visible = false;
   }
   function setColor(value) {
-    if (!disposed && (typeof value === "number" || /^#[0-9a-f]{6}$/i.test(value))) torso.material.color.set(value);
+    if (!disposed && (typeof value === "number" || /^#[0-9a-f]{6}$/i.test(value))) {
+      torso.material.color.set(value);
+      batchDirty = true;
+    }
   }
   return { group, hand, update, setHolding, setColor, setIdentity, dispose,
     getState: () => ({ position: group.position.toArray(), yaw: group.rotation.y,
       pitch: head.rotation.x, visible: group.visible, disposed, holding, animation: motion,
       wingsOpen: motion === "glide" || motion === "boost", boosting: motion === "boost",
-      meshCount: 20, lineCount: 2, geometryCount: geometries.size, materialCount: materials.size, appearance: { ...appearance } }) };
+      meshCount: batch ? 21 - cubes.length : 20, lineCount: 2, geometryCount: geometries.size, materialCount: materials.size, appearance: { ...appearance } }) };
 }

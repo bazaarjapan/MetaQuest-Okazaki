@@ -31,27 +31,26 @@ export const qualityProfiles = Object.freeze({
   }),
 });
 
-// A new UI release starts in high quality without overwriting preferences from
-// the previous release. Once selected, a v2 preference is restored normally.
+const defaultProfileId = "performance";
 export const QUALITY_STORAGE_KEY = "okazaki-webxr-quality-v2";
 
 function isProfileId(id) {
   return typeof id === "string" && Object.hasOwn(qualityProfiles, id);
 }
 
-export function qualityProfile(id, fallback = "high") {
+export function qualityProfile(id, fallback = defaultProfileId) {
   if (isProfileId(id)) return qualityProfiles[id];
-  return qualityProfiles[isProfileId(fallback) ? fallback : "high"];
+  return qualityProfiles[isProfileId(fallback) ? fallback : defaultProfileId];
 }
 
 // The caller supplies storage so importing this module needs neither a browser
 // nor access to global localStorage. Private browsing / policy restrictions are
-// harmless: storage failures simply retain the high-quality default.
+// harmless: storage failures simply retain the classroom default.
 export function readQuality(storage) {
   try {
     return qualityProfile(storage?.getItem(QUALITY_STORAGE_KEY));
   } catch {
-    return qualityProfiles.high;
+    return qualityProfiles[defaultProfileId];
   }
 }
 

@@ -63,7 +63,7 @@
       <aside id="control-panel" aria-label="街の操作パネル">
         <div class="panel-heading">
           <h1>街を探索</h1>
-          <button id="quality-shortcut" class="quality-badge" aria-label="画質設定を開く">高精細</button>
+          <button id="quality-shortcut" class="quality-badge" aria-label="画質設定を開く">軽量</button>
           <button id="panel-close" aria-label="操作パネルを閉じる">閉じる ×</button>
         </div>
         <nav class="control-tabs" role="tablist" aria-label="操作の種類">
@@ -151,13 +151,13 @@
         <div id="quality-setting" class="quality-setting">
           <label for="quality-select">画質（VRに入る前に選択）</label>
           <select id="quality-select" disabled>
-            <option value="performance">軽量</option>
+            <option value="performance" selected>軽量（初期設定）</option>
             <option value="balanced">標準（くっきり）</option>
-            <option value="high" selected>高精細（デフォルト）</option>
+            <option value="high">高精細</option>
           </select>
           <p id="quality-note">画質を確認中…</p>
         </div>
-        <p class="setting-warning">高精細で重く感じる場合は「標準」か「軽量」に変更。VR中の画質変更はできません。</p>
+        <p class="setting-warning">初回は「軽量」で開きます。画質はVRに入る前に選べます。次回はこの端末で選んだ画質を使います。</p>
         <details>
           <summary>この教材について</summary>
           <p>
@@ -201,7 +201,7 @@
           rel="noopener"
           >国土地理院</a
         >・<a href="https://github.com/gsi-cyberjapan/optimal_bvmap" target="_blank" rel="noopener">国土地理院最適化ベクトルタイル（加工）</a>　広域標高はライブ取得</span
-      ><span>MVP 1.10.11 · 生徒はIDログイン · 先生はGoogle · 共通ワールド</span>
+      ><span>MVP 1.10.12 · 生徒はIDログイン · 先生はGoogle · 共通ワールド</span>
     </footer>
     <dialog id="workshop-dialog" aria-labelledby="workshop-title">
       <div class="workshop-heading">

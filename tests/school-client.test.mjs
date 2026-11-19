@@ -225,7 +225,7 @@ test("login uses server challenge and opaque cookie; avatar/previous worlds rema
   h.client.destroy();
 });
 test("participant single pose deltas merge into full roster and only full WS state increments snapshotSeq", async () => {
-  const h = harness(), events = []; h.client.subscribe((_, event) => events.push(event)); await h.join();
+  const h = harness(), events = []; h.client.subscribe((_, event, id) => events.push([event, id])); await h.join();
   const ws = h.sockets[0];
   ws.message({ type: "participants", participants: [{ id: "one", name: "一", position: [1, 2, 3] }, { id: "two", name: "二", position: [4, 5, 6] }] });
   const sequence = h.client.getState().snapshotSeq;
@@ -233,21 +233,69 @@ test("participant single pose deltas merge into full roster and only full WS sta
   assert.equal(h.client.getState().participants.length, 2);
   assert.deepEqual(h.client.getState().participants[0].position, [7, 8, 9]);
   assert.equal(h.client.getState().participants[1].id, "two"); assert.equal(h.client.getState().snapshotSeq, sequence);
-  assert.equal(events.at(-1), "pose");
+  assert.deepEqual(events.at(-1), ["pose", "one"]);
   ws.message({ type: "state", ...snapshot(WORLD, 2) }); assert.equal(h.client.getState().snapshotSeq, sequence + 1);
   ws.message({ type: "state", ...snapshot(WORLD, 1) }); assert.equal(h.client.getState().snapshotSeq, sequence + 1);
   h.client.destroy();
 });
-test("pose sends are finite, bounded <=8Hz; heartbeat is exactly20s and clears on leaving", async () => {
+test("only changed poses send at up to 8Hz; idle heartbeat remains active until leaving", async () => {
   const h = harness(); await h.join();
-  assert.equal([...h.intervals.values()][0].delay, 20000);
-  assert.equal(h.client.sendPose({ position: [1, 2, 3], yaw: 0 }), true);
-  assert.equal(h.client.sendPose({ position: [1, 2, 3], yaw: 0 }), false);
-  h.advance(124); assert.equal(h.client.sendPose({ position: [1, 2, 3], yaw: 0 }), false);
-  h.advance(1); assert.equal(h.client.sendPose({ position: [1, 2, 3], yaw: 0 }), true);
+  const pose = { position: [1, 2, 3], yaw: 0, animation: "walk" }, socket = h.sockets[0];
+  assert.equal(h.client.sendPose(pose), true);
+  pose.position[2] = 4;
+  h.advance(124); assert.equal(h.client.sendPose(pose), false);
+  h.advance(1); assert.equal(h.client.sendPose(pose), true);
+  pose.animation = "idle"; h.advance(125); assert.equal(h.client.sendPose(pose), true);
+  pose.yaw = .001; h.advance(125); assert.equal(h.client.sendPose(pose), true);
+  for (let i = 0; i < 160; i++) { h.advance(125); assert.equal(h.client.sendPose(pose), false); }
   h.advance(125); assert.equal(h.client.sendPose({ position: [Infinity, 2, 3], yaw: 0 }), false);
-  const packets = h.sockets[0].sent; assert.deepEqual(packets.map((value) => value.seq), [0, 1]);
+  assert.deepEqual(socket.sent.map((value) => value.seq), [0, 1, 2, 3]);
+  const [heartbeat] = h.intervals.values();
+  assert.equal(heartbeat.delay, 20000); heartbeat.fn(); assert.deepEqual(socket.sent.at(-1), { type: "ping" });
   h.client.leaveWorld(); assert.equal(h.intervals.size, 0); assert.equal(h.client.sendPose({ position: [1, 2, 3], yaw: 0 }), false); h.client.destroy();
+});
+
+test("late HTTP metadata cannot rewind a stopped participant or resurrect someone who left", async () => {
+  const h = harness(); await h.join();
+  const slow = deferred(), ws = h.sockets[0];
+  h.routes.set(`GET /api/worlds/${WORLD}/state`, () => slow.promise);
+  ws.message({ type: "objects", revision: 1, objects: [{ id: OTHER, assetId: ASSET }] });
+  const oldPose = { id: OTHER, position: [0, 40, 0], yaw: 0 };
+  const finalPose = { ...oldPose, position: [5, 40, 0], animation: "idle" };
+  ws.message({ type: "participants", participants: [oldPose] });
+  ws.message({ type: "pose", participant: finalPose });
+  slow.resolve(h.response({ ...snapshot(WORLD, 1), assets: [{ id: ASSET }],
+    participants: [oldPose, { id: "departed", position: [2, 40, 0], yaw: 0 }] }));
+  await tick();
+  assert.deepEqual(h.client.getState().participants, [finalPose]);
+  assert.equal(h.client.getState().assets[0].id, ASSET); h.client.destroy();
+});
+
+test("20 moving participants cap broadcasts at 4Hz and a rejected final stop is retried", async () => {
+  const h = harness(); await h.join(); const ws = h.sockets[0];
+  const participants = Array.from({ length: 20 }, (_, index) => ({ id: String(index) }));
+  ws.message({ type: "participants", participants });
+  const pose = { position: [0, 40, 0], yaw: 0, animation: "walk" };
+  for (let tick = 0; tick < 8; tick++) {
+    pose.position[0] = tick;
+    assert.equal(h.client.sendPose(pose), tick % 2 === 0);
+    h.advance(125);
+  }
+  assert.equal(ws.sent.length, 4);
+  pose.animation = "idle"; assert.equal(h.client.sendPose(pose), true);
+  ws.message({ type: "error", error: "pose_rate_limit" });
+  h.advance(250); assert.equal(h.client.sendPose(pose), true);
+  h.advance(250); assert.equal(h.client.sendPose(pose), false);
+  // After restore and reconnect the same coordinates still need sharing.
+  ws.message({ type: "state", ...snapshot(WORLD, 2), restoreCommit: ASSET, participants });
+  assert.equal(h.client.sendPose(pose), true); assert.equal(ws.sent.at(-1).restoreCommit, ASSET);
+  ws.close(1006);
+  await [...h.timers.values()].find(timer => timer.delay === 1000).fn();
+  const reconnected = h.sockets.at(-1);
+  reconnected.readyState = 1; reconnected.onopen();
+  reconnected.message({ type: "state", ...snapshot(WORLD, 2), restoreCommit: ASSET, participants });
+  h.advance(250); assert.equal(h.client.sendPose(pose), true);
+  assert.equal(reconnected.sent.at(-1).restoreCommit, ASSET); h.client.destroy();
 });
 
 test("client carries only allowed transient avatar motion on authenticated pose packets", async () => {
