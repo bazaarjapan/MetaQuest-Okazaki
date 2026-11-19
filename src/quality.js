@@ -31,7 +31,7 @@ export const qualityProfiles = Object.freeze({
   }),
 });
 
-const defaultProfileId = "performance";
+const defaultProfileId = "balanced";
 export const QUALITY_STORAGE_KEY = "okazaki-webxr-quality-v2";
 
 function isProfileId(id) {

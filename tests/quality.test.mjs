@@ -10,14 +10,14 @@ import {
   textureMemoryBytes,
 } from "../src/quality.js";
 
-test("quality defaults to performance and handles unknown or prototype keys", () => {
-  assert.equal(qualityProfile(), qualityProfiles.performance);
+test("quality defaults to balanced and handles unknown or prototype keys", () => {
+  assert.equal(qualityProfile(), qualityProfiles.balanced);
   for (const invalid of [null, "invalid", "__proto__", "constructor", 0, {}, "HIGH"]) {
-    assert.equal(qualityProfile(invalid), qualityProfiles.performance);
+    assert.equal(qualityProfile(invalid), qualityProfiles.balanced);
   }
   assert.equal(qualityProfile("invalid", "performance"), qualityProfiles.performance);
-  assert.equal(qualityProfile("invalid", "also-invalid"), qualityProfiles.performance);
-  assert.equal(qualityProfile("invalid", "__proto__"), qualityProfiles.performance);
+  assert.equal(qualityProfile("invalid", "also-invalid"), qualityProfiles.balanced);
+  assert.equal(qualityProfile("invalid", "__proto__"), qualityProfiles.balanced);
   assert.equal(qualityProfile("high", "performance"), qualityProfiles.high);
 });
 
@@ -52,32 +52,32 @@ test("valid choices are stored locally and restored using the exported key", () 
     getItem(key) { return items.get(key) ?? null; },
     setItem(key, value) { items.set(key, value); },
   };
-  assert.equal(readQuality(storage), qualityProfiles.performance);
+  assert.equal(readQuality(storage), qualityProfiles.balanced);
   assert.equal(saveQuality(storage, "high"), true);
   assert.equal(items.get(QUALITY_STORAGE_KEY), "high");
   assert.equal(readQuality(storage), qualityProfiles.high);
   assert.equal(saveQuality(storage, "invalid"), false);
   assert.equal(readQuality(storage), qualityProfiles.high);
   items.set(QUALITY_STORAGE_KEY, "old-setting");
-  assert.equal(readQuality(storage), qualityProfiles.performance);
+  assert.equal(readQuality(storage), qualityProfiles.balanced);
 });
 
 test("the new quality key ignores but preserves previous-release choices", () => {
   const oldKey = "okazaki-webxr-quality-v1";
-  const items = new Map([[oldKey, "balanced"]]);
+  const items = new Map([[oldKey, "high"]]);
   const storage = {
     getItem(key) { return items.get(key) ?? null; },
     setItem(key, value) { items.set(key, value); },
   };
   assert.equal(QUALITY_STORAGE_KEY, "okazaki-webxr-quality-v2");
-  assert.equal(readQuality(storage), qualityProfiles.performance);
+  assert.equal(readQuality(storage), qualityProfiles.balanced);
   assert.equal(items.has(QUALITY_STORAGE_KEY), false);
-  assert.equal(items.get(oldKey), "balanced");
+  assert.equal(items.get(oldKey), "high");
 
   for (const id of ["performance", "balanced", "high"]) {
     assert.equal(saveQuality(storage, id), true);
     assert.equal(readQuality(storage), qualityProfiles[id]);
-    assert.equal(items.get(oldKey), "balanced");
+    assert.equal(items.get(oldKey), "high");
   }
 });
 
@@ -86,16 +86,16 @@ test("missing or inaccessible storage never prevents startup or a setting change
     getItem() { throw new Error("SecurityError"); },
     setItem() { throw new Error("QuotaExceededError"); },
   }, new Proxy({}, { get() { throw new Error("Access denied"); } })]) {
-    assert.equal(readQuality(storage), qualityProfiles.performance);
+    assert.equal(readQuality(storage), qualityProfiles.balanced);
     assert.equal(saveQuality(storage, "high"), false);
   }
 });
 
-test("quality cycling visits all profiles and unknown settings start from performance", () => {
+test("quality cycling visits all profiles and unknown settings start from balanced", () => {
   assert.equal(getNextQuality("performance"), qualityProfiles.balanced);
   assert.equal(getNextQuality("balanced"), qualityProfiles.high);
   assert.equal(getNextQuality("high"), qualityProfiles.performance);
-  assert.equal(getNextQuality("invalid"), qualityProfiles.balanced);
+  assert.equal(getNextQuality("invalid"), qualityProfiles.high);
 });
 
 test("texture memory estimates count exact rectangular and non-power-of-two mips", () => {
