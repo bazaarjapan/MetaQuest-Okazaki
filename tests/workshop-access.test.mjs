@@ -250,6 +250,9 @@ test("typing scale previews the real mesh, preserves incomplete input across syn
   f.client.emit("objects"); await f.settle();
   assert.equal(input.value, ""); assert.equal(apply.disabled, true);
   assert.equal(await f.workshop.commitSelected(), false);
+  f.registry.get("workshop-dialog").dispatch("close");
+  assert.equal(Number(input.value), 2);
+  assert.equal(apply.disabled, false);
   type("1e308"); assert.deepEqual(f.workshop.getHeldDraft().scale.toArray(), [2,2,2]);
   assert.equal(await f.workshop.commitSelected(), false);
   type("2"); assert.equal(await f.workshop.commitSelected(), true); await f.settle();

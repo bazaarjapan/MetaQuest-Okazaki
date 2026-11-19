@@ -18,7 +18,10 @@ export function createSTLEditorPreview(THREE, renderer, canvas, caption) {
   const material = new THREE.MeshStandardMaterial({ roughness: .85, side: THREE.DoubleSide });
   const camera = new THREE.OrthographicCamera();
   const size = new THREE.Vector3(), center = new THREE.Vector3(), box = new THREE.Box3();
-  let mesh, itemId, initialSpan, lastKey, lastTransform;
+  const view = new THREE.Vector3(2.3, 1.4, 2.8).normalize();
+  const right = new THREE.Vector3(view.z, 0, -view.x).normalize();
+  const up = new THREE.Vector3().crossVectors(view, right);
+  let mesh, itemId, initialFit, lastKey, lastTransform;
   function draw(item, color, finish, faces) {
     const geometry = item.mesh.geometry;
     const transform = JSON.stringify([geometry.uuid, item.scale, item.rotation]);
@@ -42,22 +45,27 @@ export function createSTLEditorPreview(THREE, renderer, canvas, caption) {
       caption.textContent = `幅 ${dimension(size.x)} × 高さ ${dimension(size.y)} × 奥行 ${dimension(size.z)}`;
       lastTransform = transform;
     }
-    const span = Math.max(size.x, size.y, size.z, .000001);
+    const aspect = canvas.width / canvas.height;
+    // Project the measured box onto the camera axes. Even the top rear corner
+    // of a tall or rotated model must stay inside the preview as it grows.
+    const projectedWidth = Math.abs(right.x)*size.x + Math.abs(right.z)*size.z;
+    const projectedHeight = Math.abs(up.x)*size.x + Math.abs(up.y)*size.y + Math.abs(up.z)*size.z;
+    const fit = Math.max(projectedWidth / aspect, projectedHeight, .000001) * 1.12;
     if (itemId !== item.id) {
       itemId = item.id;
-      initialSpan = span;
+      initialFit = fit;
     }
-    // Allow a visible change at normal scales, then reframe extreme sizes so the model remains legible.
-    const framing = Math.max(span * 1.38, Math.min(initialSpan * 1.8, span * 5));
+    const framing = Math.max(fit, Math.min(initialFit * 1.55, fit * 3.25));
     mesh.scale.fromArray(item.scale).divideScalar(framing);
     mesh.position.set(-center.x, -box.min.y, -center.z).divideScalar(framing);
     material.color.set(color);
     applySTLFinish(mesh, finish, faces);
-    const aspect = canvas.width / canvas.height;
     camera.left = -aspect / 2; camera.right = aspect / 2;
     camera.top = .5; camera.bottom = -.5; camera.near = .01; camera.far = 20;
-    camera.position.set(2.3, 1.65, 2.8);
-    camera.lookAt(0, .25, 0);
+    const targetY = size.y / (2 * framing);
+    camera.position.copy(view).multiplyScalar(4);
+    camera.position.y += targetY;
+    camera.lookAt(0, targetY, 0);
     camera.updateProjectionMatrix();
     surface.render(scene, camera);
     lastKey = key;

@@ -12,6 +12,41 @@ import * as THREE from "three";
 import { stlFinishes, stlFinish, stlSurface, validSTLFinish, validSTLSurface } from "../src/stl-appearance.js";
 import { applySTLFinish } from "../src/stl-finish-material.js";
 
+import { createSTLEditorPreview } from "../src/stl-editor-preview.js";
+
+test("editor preview keeps rotated and enlarged models within the frame while resizing visibly", () => {
+  const context = { createImageData: (w, h) => ({ data: new Uint8ClampedArray(w*h*4) }), putImageData() {} };
+  const canvas = { width: 48, height: 24, getContext: () => context }, caption = {};
+  let verticalSpan;
+  const renderer = {
+    xr: {}, shadowMap: {}, getRenderTarget() {}, getActiveCubeFace() {}, getActiveMipmapLevel() {},
+    getClearAlpha() {}, getClearColor() {}, setRenderTarget() {}, setClearColor() {}, clear() {}, readRenderTargetPixels() {},
+    render(scene, camera) {
+      scene.updateMatrixWorld(); camera.updateMatrixWorld();
+      const mesh = scene.children.find(node => node.isMesh);
+      const vertices = mesh.geometry.getAttribute("position");
+      const point = new THREE.Vector3();
+      let bottom = Infinity, top = -Infinity;
+      for (let i = 0; i < vertices.count; i++) {
+        point.fromBufferAttribute(vertices, i).applyMatrix4(mesh.matrixWorld).project(camera);
+        assert.ok(Math.abs(point.x) < 1 && Math.abs(point.y) < 1 && Math.abs(point.z) < 1);
+        bottom = Math.min(bottom, point.y); top = Math.max(top, point.y);
+      }
+      verticalSpan = top - bottom;
+    }
+  };
+  const preview = createSTLEditorPreview(THREE, renderer, canvas, caption);
+  const item = { id: "cube", mesh: new THREE.Mesh(new THREE.BoxGeometry()), scale: [1,1,1], rotation: [0,0,0] };
+  const draw = () => { preview.draw(item, "#508990", "solid", "all"); return verticalSpan; };
+  const original = draw();
+  item.scale = [2,2,2]; assert.ok(draw() > original);
+  item.scale = [.001,.001,.001]; const small = draw();
+  assert.ok(small < original && small > .25);
+  item.rotation = [.57, .81, -.43]; item.scale = [1,95,10]; draw();
+  assert.match(caption.textContent, /高さ/);
+  preview.dispose(); item.mesh.geometry.dispose(); item.mesh.material.dispose();
+});
+
 test("the classroom accepts the sixteen supported finishes, with safe defaults for old placements", () => {
   assert.deepEqual(stlFinishes, ["solid", "windows", "truss", "metal", "brick", "wood", "roofTiles",
     "stainedGlass", "mosaic", "honeycomb", "checker", "candy", "circuit", "galaxy", "aurora", "scales"]);

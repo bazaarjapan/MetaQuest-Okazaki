@@ -140,7 +140,12 @@ export function createWorkshop(THREE, { scene, renderer, domElement, camera, sch
       preview.draw(item, q("object-color").value, q("object-finish").value, q("object-surface").value);
     });
   }
-  dialog.addEventListener("close", resetPreview);
+  dialog.addEventListener("close", () => {
+    resetPreview();
+    // Leaving an unfinished number must not block placing a held STL later.
+    if (!draft || invalidScaleFor !== draft) return;
+    invalidScaleFor = null; typingScaleFor = null; previewDraft();
+  });
   dialog.addEventListener("input", requestPreview);
   dialog.addEventListener("change", requestPreview);
   function clearWorld() {
