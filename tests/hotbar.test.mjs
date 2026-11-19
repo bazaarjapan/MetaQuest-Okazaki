@@ -141,12 +141,13 @@ test("hidden VR hotbar performs no school or workshop snapshot allocations",()=>
 test('placed slot click opens actions without moving; actions recheck identity and ownership',async()=>{
   const h=harness();let details=0,locates=0;
   const state={userId:'a',worldId:'world',canEdit:true,ownAssets:[{id:'asset',name:'mine.stl'}],objects:[{id:'mine',assetId:'asset',editable:true,committed:true}]};
-  h.workshop.getState=()=>state;h.workshop.open=()=>details++;h.workshop.locateSelected=async()=>locates++;
+  h.workshop.getState=()=>state;h.workshop.open=options=>{assert.equal(options.editSelected,true);details++;};h.workshop.locateSelected=async()=>locates++;
   h.hotbar.update(0);
   const slot=h.canvas.parentElement.children[0].children[1],dialog=h.canvas.parentElement.children[5];
   slot.onclick();assert.equal(details,0);assert.equal(locates,0);assert.equal(dialog.open,true);assert.equal(h.activations,0);
   slot.events.contextmenu({preventDefault(){}});assert.equal(dialog.open,true);
   await dialog.children[1].onclick();assert.equal(locates,1);assert.equal(dialog.open,false);
+  slot.onclick();await dialog.children[3].onclick();assert.equal(details,1);assert.equal(dialog.open,false);
   slot.events.contextmenu({preventDefault(){}});state.userId='b';
   await dialog.children[2].onclick();assert.equal(h.removals,0);
   state.objects[0].editable=false;slot.events.contextmenu({preventDefault(){}});assert.equal(dialog.open,false);

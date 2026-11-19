@@ -59,7 +59,7 @@ export function createHotbar({ workshop, getUser, camera, canvas, scene, getEnvi
       active=target.index;
       if(!workshop.selectObject(item.id)) return;
       aiming=false; footprint.visible=false;
-      if(action==="details") { workshop.open(); render(); return; }
+      if(action==="details") { workshop.open({ editSelected: true }); render(); return; }
       pending=true;
       try {
         if(action==="locate") { report("作品のそばの地面と建物を確認しています…（最大15秒）"); await workshop.locateSelected(); }
