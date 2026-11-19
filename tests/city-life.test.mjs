@@ -128,3 +128,69 @@ test('audio creates no context before a gesture, respects permission and mute, a
   await audio.unlock();context.state='suspended';assert.equal(await audio.unlock(),true);assert.equal(context.state,'running');
   audio.dispose();assert.equal(context.state,'closed');
 });
+
+function shoeFixture() {
+  const contacts = [];
+  const param = () => ({value:0, setValueAtTime(){}, setTargetAtTime(){}, cancelScheduledValues(){}});
+  const node = () => ({gain:param(), frequency:param(), connect(){}, disconnect(){}, start(){}, stop(){}});
+  const context = {
+    state:'running', currentTime:0, sampleRate:16000, destination:{},
+    createGain:node, createOscillator:node, createBiquadFilter:node,
+    createBuffer(channels, size) {
+      const pcm = new Float32Array(size);
+      return {getChannelData:() => pcm};
+    },
+    createBufferSource() {
+      return {...node(), start(){ if (!this.loop) contacts.push(this.buffer.getChannelData(0)); }};
+    },
+    close(){ this.state = 'closed'; },
+  };
+  const audio = createMovementAudio({eventTarget:new EventTarget(), contextFactory:() => context});
+  return {audio, contacts};
+}
+
+test('walk and run have distinct cached left and right shoe sounds and a distance-based cadence', async()=>{
+  for (const fps of [5.5, 60]) {
+    const counts = {};
+    for (const [gait, speed] of [['walk', 4.3], ['run', 6.45]]) {
+      const {audio, contacts} = shoeFixture();
+      await audio.unlock();
+      const duration = 4;
+      for (let i = 0; i <= duration * fps; i++) {
+        audio.update({time:1000*i/fps, position:[speed*i/fps,0,0], grounded:true, active:true, gait});
+      }
+      assert.equal(audio.getState().gait, gait);
+      assert.equal(audio.getState().mode, 'steps');
+      counts[gait] = contacts.length;
+      const expected = gait === 'walk' ? 9 : 13;
+      assert.ok(Math.abs(contacts.length - expected) <= 1, `${gait} at ${fps} fps: ${contacts.length}`);
+      assert.notEqual(contacts[0], contacts[1]);
+      assert.equal(contacts[0], contacts[2]);
+      assert.equal(contacts[1], contacts[3]);
+      const samples = contacts[0];
+      assert.equal(samples.length, Math.ceil((gait === 'walk' ? .23 : .19) * 16000));
+      assert.ok(samples.every(v => Number.isFinite(v) && Math.abs(v) < 1));
+      assert.ok(samples.some(v => Math.abs(v) > .12));
+      audio.dispose();
+    }
+    assert.ok(counts.run > counts.walk);
+  }
+});
+
+test('vertical movement, reentry, pauses and jumps in position never produce extra contacts', async()=>{
+  const {audio, contacts} = shoeFixture();
+  await audio.unlock();
+  const at = (time, x, y=0, options={}) => audio.update({
+    time, position:[x,y,0], active:true, grounded:true, gait:'walk', ...options,
+  });
+  at(0,0); at(100,.4); assert.equal(contacts.length,1);
+  at(200,.8,0,{gait:'idle'}); at(300,.8,3);
+  at(400,1.2,5,{grounded:false}); at(500,1.6,0);
+  at(600,8); at(2000,9); at(2100,30,0,{active:false}); at(2200,40);
+  assert.equal(contacts.length,1);
+  at(2300,40.4); assert.equal(contacts.length,2);
+  audio.stop(); at(2400,48); assert.equal(contacts.length,2);
+  at(2500,48.4,0,{flying:true}); assert.equal(audio.getState().mode,'wind');
+  assert.equal(audio.getState().gait,null); assert.equal(contacts.length,2);
+  audio.dispose();
+});

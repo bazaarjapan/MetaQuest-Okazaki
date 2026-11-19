@@ -1419,10 +1419,18 @@ renderer.setAnimationLoop((time, frame) => {
     streetScenery.update({position:userPosition(),quality:quality.id,enabled:fieldStyle==="game"&&!state.qualityLoading,time,objects:schoolState.objects,timeOfDay,terrainVersion:sceneryGeometryVersion,paused:editingWorld||document.hidden});
     ambientTraffic.update({position:userPosition(),quality:quality.id,active:activityAllowed&&ambientMotion&&fieldStyle==='game'&&!state.qualityLoading&&!document.hidden&&!editingWorld,time,objects:schoolState.objects,
       terrainVersion:sceneryGeometryVersion});
-    const soundMovement=creative.getState();
-    movementAudio.update({time,position:userPosition().toArray(),active:activityAllowed&&state.free&&!state.qualityLoading&&!document.hidden&&!adaptiveUi.getState().open&&!document.querySelector('dialog[open]')&&!pendingXRView&&(!state.xr||renderer.xr.getSession()?.visibilityState==='visible'),
-      grounded:!state.xr&&soundMovement.mode==='creative'&&soundMovement.grounded,
-      flying:state.xr||soundMovement.mode==='drone'||soundMovement.flying,boosting:soundMovement.animation==='boost'});
+    const soundMovement = creative.getState();
+    const onFootOrWings = !state.xr && soundMovement.mode === "creative";
+    movementAudio.update({
+      time,
+      position: onFootOrWings ? soundMovement.eye : userPosition().toArray(),
+      active: activityAllowed && state.free && !state.qualityLoading && !document.hidden &&
+        !editingWorld && !pendingXRView && (!state.xr || renderer.xr.getSession()?.visibilityState === "visible"),
+      grounded: onFootOrWings && soundMovement.grounded,
+      gait: soundMovement.animation,
+      flying: state.xr || soundMovement.mode === "drone" || soundMovement.flying,
+      boosting: soundMovement.animation === "boost",
+    });
     exhibitLabels.update({objects:schoolState.objects,position:userPosition(),time,enabled:activityAllowed,
       camera:state.xr?null:camera,viewportHeight:viewport.clientHeight,maxPixels:Math.min(300,viewport.clientWidth*.65)});
     radar.update({position:userPosition(),yaw:creative.getState().mode==="creative"?creative.getState().yaw:
@@ -1538,7 +1546,7 @@ window.__okazaki = {
     panelVisible: panel.visible && vrFieldPanel.getState().expanded,
     vrPanel: vrFieldPanel.getState(),
     pointers: { left: controllerPointers.left.getState(), right: controllerPointers.right.getState() },
-    version: "1.10.13",
+    version: "1.10.14",
     vrReturn: { buttonVisible: vrReturnButton.getState().visible,
       holdProgress: vrReturnButton.getState().progress, exiting: xrExitPending,
       hasResume: hasVRResume, view: lastXRView ? {
