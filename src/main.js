@@ -48,6 +48,7 @@ import "./layout.css";
 import "./hotbar.css";
 import "./location-hud.css";
 import "./street.css";
+import "./quick-help.css";
 
 const $ = (s) => document.querySelector(s),
   viewport = $("#viewport");
@@ -64,7 +65,7 @@ const activityGate = createActivityGate({ onOpen: role => schoolUI?.open(role), 
   const session = renderer.xr.getSession();
   if (session) session.end().catch(() => { /* Inputs remain locked even if ending XR fails. */ });
 } });
-const adaptiveUi = createAdaptiveUi();
+const adaptiveUi = createAdaptiveUi({ isEscapeReserved: () => state.xr || xrEntering || workshop.isPicking() });
 const touchControls = createTouchControls(viewport);
 let touchUiKey = "";
 let mobileAvatarControls = true;
@@ -74,7 +75,7 @@ function syncTouchControls() {
     creative.setMode("drone"); setFree(false);
     $("#control-mode").value = "drone"; $("#creative-help").hidden = true;
   }
-  const enabled = activityAllowed && ui.mobile && state.free && !state.xr && !xrEntering && !ui.open && !document.querySelector("dialog[open]");
+  const enabled = activityAllowed && ui.mobile && state.free && !state.xr && !xrEntering && !ui.open && !workshop.isPicking() && !document.querySelector("dialog[open]");
   touchControls.setEnabled(enabled);
   const key = `${enabled}:${state.free}`;
   if (key !== touchUiKey) {
@@ -243,6 +244,7 @@ const workshop = createWorkshop(THREE, { scene, renderer, domElement: renderer.d
   getEnvironment: regionalPlacementEnvironment, getViewPosition: userPosition,
   getStation: () => stationPosition, onLocate: locateWorkshopObject,
   schoolClient, isXR: () => state.xr,
+  onStartPicking: () => adaptiveUi.close({ restoreFocus: false }),
   onRequireLogin: () => schoolUI?.open(),
   onChange: () => { renderer.shadowMap.needsUpdate = true; } });
 const hotbar = createHotbar({ workshop, getUser: () => schoolState.user, scene, camera, canvas: renderer.domElement,
@@ -251,7 +253,7 @@ const hotbar = createHotbar({ workshop, getUser: () => schoolState.user, scene, 
   onActivate: () => {
     if (!activityAllowed || !state.ready || adaptiveUi.getState().mobile || questBrowser ||
         creative?.getState().mode !== "creative" || state.xr || xrEntering || creative.getState().suspendedXR ||
-        document.hidden || workshop.getState().picking || adaptiveUi.getState().open || document.querySelector("dialog[open]")) return;
+        document.hidden || workshop.isPicking() || adaptiveUi.getState().open || document.querySelector("dialog[open]")) return;
     if (!state.free) setFree(true);
     creative.step(0, {enabled:true, blocked:false, xr:false});
   },
@@ -265,7 +267,7 @@ const heldSTL = createHeldSTL({ avatar: ownAvatar, camera });
 renderer.domElement.tabIndex = 0;
 let creative = null;
 renderer.domElement.addEventListener("pointerdown", () => {
-  if (!activityAllowed) return;
+  if (!activityAllowed || workshop.isPicking()) return;
   if (creative?.getState().mode === "creative" && !state.xr && !document.querySelector("dialog[open]")) {
     adaptiveUi.close(); renderer.domElement.focus();
     if (schoolClient.getState().singleClassroom) {
@@ -283,7 +285,7 @@ creative = createCreativeControls(THREE, { camera, rig, domElement: renderer.dom
   onFlightClick: (event) => { void hotbar.place(event); },
   getPointerContext: (event) => hotbar.pointerContext(event),
   onPointerActivate: () => {
-    if (!activityAllowed || state.xr || xrEntering || workshop.getState().picking || adaptiveUi.getState().open || document.querySelector("dialog[open]")) return;
+    if (!activityAllowed || state.xr || xrEntering || workshop.isPicking() || adaptiveUi.getState().open || document.querySelector("dialog[open]")) return;
     renderer.domElement.focus(); if (!state.free) setFree(true);
     creative.step(0, {enabled:true,blocked:false,xr:false});
   },
@@ -718,7 +720,9 @@ function applyRenderQuality() {
   }
   sun.shadow.mapSize.set(2048, 2048);
   renderer.shadowMap.needsUpdate = true;
-  $("#quality-shortcut").textContent = quality.label;
+  const qualityShortcut = $("#quality-shortcut");
+  qualityShortcut.textContent = `画質：${quality.label}`;
+  qualityShortcut.setAttribute("aria-label", `画質設定を開く（現在：${quality.label}）`);
   for (const t of textures.values()) {
     t.anisotropy = Math.min(quality.anisotropy, renderer.capabilities.getMaxAnisotropy());
     t.needsUpdate = true;
@@ -841,7 +845,7 @@ function updateLabels(id) {
     b.setAttribute("aria-pressed", String(b.dataset.view === id));
   });
   $("#status").textContent =
-    `${state.xr ? "VR" : questBrowser ? "Questの2D画面" : "PC"}で観察中 · ${state.free ? "自由移動" : "地点から見学"}`;
+    `${state.xr ? "VR" : questBrowser ? "Questの2D画面" : "2D"}で観察中 · ${state.free ? "自由移動" : "地点から見学"}`;
 }
 function goTo(id) {
   if (!viewpoints[id]) return;
@@ -955,10 +959,24 @@ $("#mobile-flight").onclick = () => {
   adaptiveUi.close(); setFree(!state.free);
   if (state.free && creative.getState().mode === "creative") renderer.domElement.focus({ preventScroll: true });
 };
-$("#help").onclick = () => { setFree(false); $("#help-dialog").showModal(); };
-$("#close-help").onclick = () => $("#help-dialog").close();
-$("#help-dialog").addEventListener("click", (e) => {
-  if (e.target === $("#help-dialog")) $("#help-dialog").close();
+const helpDialog = $("#help-dialog");
+$("#help").onclick = () => {
+  setFree(false);
+  const device = questBrowser ? "quest" : adaptiveUi.getState().mobile ? "touch" : "pc";
+  for (const panel of helpDialog.querySelectorAll("[data-help-device]")) {
+    panel.open = panel.dataset.helpDevice === device;
+  }
+  for (const guide of helpDialog.querySelectorAll("[data-help-mode]")) {
+    guide.hidden = guide.dataset.helpMode !== creative.getState().mode;
+  }
+  helpDialog.showModal();
+  helpDialog.querySelector(".help-body").scrollTop = 0;
+};
+$("#close-help").onclick = () => helpDialog.close();
+helpDialog.addEventListener("click", event => {
+  if (event.target !== helpDialog) return;
+  const box = helpDialog.getBoundingClientRect();
+  if (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom) helpDialog.close();
 });
 $("#fullscreen").onclick = async () => {
   try {
@@ -1324,7 +1342,7 @@ function updateXRHeading(viewerTransform) {
 }
 function desktopMove(dt) {
   if (!activityAllowed) return;
-  if (!state.free || document.querySelector("dialog[open]") || workshop.getState().picking) { resetFlight(flight); return; }
+  if (!state.free || document.querySelector("dialog[open]") || workshop.isPicking()) { resetFlight(flight); return; }
   if (adaptiveUi.getState().mobile && adaptiveUi.getState().open) {
     resetFlight(flight); return;
   }
@@ -1401,7 +1419,7 @@ renderer.setAnimationLoop((time, frame) => {
       const touch = touchControls.getState();
       creative.step(dt, { enabled: activityAllowed && state.free, grounding: activityAllowed, xr: false,
         touchAxes: touch.enabled && touch.activePointers > 0 ? touchControls.getAxes() : null,
-        blocked: !activityAllowed || Boolean(document.querySelector("dialog[open]")) || workshop.getState().picking ||
+        blocked: !activityAllowed || Boolean(document.querySelector("dialog[open]")) || workshop.isPicking() ||
           adaptiveUi.getState().open });
       if (activityAllowed && creative.getState().mode === "drone") { desktopMove(dt); controls.update(); }
       const dir = camera.getWorldDirection(new THREE.Vector3());
@@ -1546,7 +1564,7 @@ window.__okazaki = {
     panelVisible: panel.visible && vrFieldPanel.getState().expanded,
     vrPanel: vrFieldPanel.getState(),
     pointers: { left: controllerPointers.left.getState(), right: controllerPointers.right.getState() },
-    version: "1.10.16",
+    version: "1.10.17",
     vrReturn: { buttonVisible: vrReturnButton.getState().visible,
       holdProgress: vrReturnButton.getState().progress, exiting: xrExitPending,
       hasResume: hasVRResume, view: lastXRView ? {

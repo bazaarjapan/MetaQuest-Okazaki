@@ -73,6 +73,7 @@ class Element {
   addEventListener(event, handler) { this.handlers.set(event, handler); }
   removeEventListener(event) { this.handlers.delete(event); }
   showModal() { this.open = true; }
+  focus() {}
   close() { this.open = false; }
   dispatch(event, properties = {}) { this.handlers.get(event)?.({ type: event, target: this, code: "", ...properties }); }
 }
@@ -80,7 +81,7 @@ const source = new TextEncoder().encode("solid part\nfacet normal 0 1 0\nouter l
 async function fixture(t, initial = connected(), stl = source, triangles = 1) {
   const ids = ["workshop-dialog", "workshop-status", "workshop-save-hint", "workshop-list", "stl-files", "stl-up", "stl-units", "object-x", "object-z", "object-scale", "object-rx", "object-ry", "object-rz", "object-y", "object-pick", "object-remove", "object-apply", "workshop-close", "open-workshop", "canvas-hint"];
   ids.push("exhibit-title", "exhibit-description", "exhibit-save", "exhibit-author", "object-color", "object-finish", "object-surface", "object-locate", "object-location", "object-name");
-  ids.push("stl-editor-preview", "stl-editor-canvas", "stl-editor-dimensions");
+  ids.push("stl-editor-preview", "stl-editor-canvas", "stl-editor-dimensions", "ground-pick-controls", "ground-pick-hint", "ground-pick-cancel");
   const registry = new Map(ids.map((id) => [id, new Element()])); registry.get("workshop-dialog").registry = registry;
   registry.get("stl-up").value = "y"; registry.get("stl-units").value = "m";
   const saved = { document: globalThis.document, window: globalThis.window, Option: globalThis.Option };
@@ -113,12 +114,15 @@ async function fixture(t, initial = connected(), stl = source, triangles = 1) {
   };
   const ground = createSurfaceIndex(new Float32Array([-50,5,-50, 50,5,-50, 50,5,50, -50,5,-50, 50,5,50, -50,5,50]));
   const scene = new THREE.Scene();
-  const workshop = createWorkshop(THREE, { scene, camera: new THREE.PerspectiveCamera(), domElement: new Element(), schoolClient: client,
-    getEnvironment: () => { calls.environment++; return { terrain: ground, obstacles: [], bounds: [-50,-50,50,50] }; }, getViewPosition: () => ({ x: 2, y: 5, z: 2 }),
+  const canvas = new Element(), camera = new THREE.PerspectiveCamera(), terrainMeshes = [];
+  canvas.getBoundingClientRect = () => ({ left: 0, top: 0, width: 100, height: 100 });
+  const workshop = createWorkshop(THREE, { scene, camera, domElement: canvas, schoolClient: client,
+    getEnvironment: () => { calls.environment++; return { terrain: ground, terrainMeshes, obstacles: [], bounds: [-50,-50,50,50] }; }, getViewPosition: () => ({ x: 2, y: 5, z: 2 }),
+    onStartPicking: () => { calls.groundPicks = (calls.groundPicks ?? 0) + 1; },
     onRequireLogin: () => { calls.login++; }, onLocate: item => { calls.located = item; return true; } });
   t.after(() => { workshop.destroy(); Object.assign(globalThis, saved); });
   await new Promise((resolve) => setImmediate(resolve));
-  return { workshop, client, calls, registry, metadata, scene, state: () => state,
+  return { workshop, client, calls, registry, metadata, scene, camera, canvas, terrainMeshes, state: () => state,
     file: () => ({ name: "作品.stl", size: stl.byteLength, arrayBuffer: async () => stl.slice(0) }),
     settle: async (predicate = () => true) => {
       for (let i = 0; i < 8; i++) await new Promise((resolve) => setImmediate(resolve));
@@ -330,10 +334,38 @@ test("unsaved finish stays on a held draft when the dialog closes to choose grou
   const finish = f.registry.get("object-finish"); finish.value = "circuit"; finish.dispatch("change");
   f.registry.get("object-pick").onclick(); assert.ok(f.workshop.getState().picking);
   assert.equal(f.registry.get("workshop-dialog").open, false);
-  f.workshop.moveSelected([9,5,9]); assert.deepEqual(f.calls.editTypes, []);
+  assert.equal(f.calls.groundPicks, 1);
+  const controls = f.registry.get("ground-pick-controls"), dialog = f.registry.get("workshop-dialog");
+  assert.equal(controls.hidden, false);
+  f.canvas.dispatch("click", { clientX: 50, clientY: 50 });
+  assert.match(f.registry.get("ground-pick-hint").textContent, /もう一度/);
+  assert.equal(f.workshop.isPicking(), true);
+  f.camera.position.set(9, 12, 9); f.camera.lookAt(9, 5, 9); f.camera.updateMatrixWorld();
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(90, 90), new THREE.MeshBasicMaterial());
+  mesh.rotation.x = -Math.PI / 2; mesh.position.y = 5; mesh.updateMatrixWorld();
+  f.terrainMeshes.push(mesh);
+  f.canvas.dispatch("click", { clientX: 50, clientY: 50 });
+  assert.equal(controls.hidden, true); assert.equal(f.workshop.isPicking(), false); assert.equal(dialog.open, true);
+  assert.ok(Math.abs(f.workshop.getState().current.position[0] - 9) < .001);
+  assert.deepEqual(f.calls.editTypes, []);
   assert.equal(f.workshop.getHeldDraft().userData.stlFinish, "circuit");
   assert.equal(await f.workshop.commitSelected(), true);
   assert.equal(f.state().objects[0].finish, "circuit");
+});
+
+test("ground picker returns to a saved work without creating a draft when cancelled by button or Escape", async t => {
+  const f = await fixture(t); await f.workshop.importFiles([f.file()]); await f.workshop.commitSelected(); await f.settle();
+  f.workshop.open();
+  const selected = f.workshop.getState().current;
+  for (const input of ["button", "key"]) {
+    f.registry.get("object-pick").onclick(); assert.equal(f.workshop.isPicking(), true);
+    if (input === "button") f.registry.get("ground-pick-cancel").onclick();
+    else window.dispatch("keydown", { key: "Escape", preventDefault() {} });
+    assert.equal(f.workshop.isPicking(), false); assert.equal(f.registry.get("ground-pick-controls").hidden, true);
+    assert.equal(f.registry.get("workshop-dialog").open, true);
+    assert.deepEqual(f.workshop.getState().current, selected);
+    assert.equal(f.registry.get("object-apply").disabled, true);
+  }
 });
 
 test("a placed object's pending finish selection survives live sizing and saves together", async t => {

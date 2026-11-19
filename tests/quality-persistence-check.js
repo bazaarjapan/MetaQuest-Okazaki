@@ -5,6 +5,6 @@
   assert(s().quality.id==='balanced'&&s().quality.terrainSize[0]===1536,'newly-selected-quality-restored-after-navigation');
   assert(localStorage.getItem('okazaki-webxr-quality-v2')==='balanced'&&localStorage.getItem('okazaki-webxr-quality-v1')==='balanced',
     'new-preference-stored-without-mutating-legacy-value');
-  assert(document.querySelector('#quality-shortcut').textContent==='標準（くっきり）','restored-choice-shown-on-visible-badge');
+  assert(document.querySelector('#quality-shortcut').textContent==='画質：標準（くっきり）','restored-choice-shown-on-visible-badge');
   return JSON.stringify({passed:true,environment:'Actual browser reload and preference persistence',results});
 })();

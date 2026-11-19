@@ -14,7 +14,22 @@
   .map-bottom { top: 154px; }
   #rocket-hint { top: 184px; }
 }
-@media (max-width: 800px) {
-  #current-location { top: 86px; padding: 7px 12px; }
-  #current-location strong { font-size: 15px; }
+@media (max-width:800px), (max-width:1000px) and (max-height:500px), (pointer: coarse) {
+  #current-location { top:52px; left:8px; transform:none; max-width:calc(100% - 174px); padding:5px 8px; text-align:left; }
+  #current-location strong { font-size:13px; }
+  #current-location small { font-size:10px; margin-bottom:2px; }
+  .map-bottom { top:144px; left:8px; right:auto; bottom:auto; max-width:calc(100% - 174px); }
+  .map-bottom #status { max-width:100%; }
+}
+@media (min-width:540px) and (max-width:1000px) and (max-height:500px) {
+  #current-location { max-width:25%; }
+  #north { left:auto; right:90px; transform:none; }
+  .map-label,.map-bottom { left:auto; right:8px; max-width:112px; text-align:right; }
+  .map-label { top:60px; }
+  .map-label strong { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .map-bottom { top:84px; }
+  body[data-touch-flight=true] .touch-flight-controls { bottom:36px; }
+}
+@media (min-width:540px) and (max-width:1000px) and (max-height:360px) {
+  body[data-touch-flight=true] .map-bottom { display:none; }
 }

@@ -76,6 +76,18 @@ test("selecting a saved STL restores canvas focus; same slot and Q put it away w
   assert.equal(h.workshop.getState().ownAssets.length,1);assert.equal(h.removals,0);assert.equal(h.commits,0);
 });
 
+test("resting tips match inventory and do not advertise unavailable placement controls", () => {
+  const h=harness(), hint=h.canvas.parentElement.children[1];
+  const state={userId:"learner",worldId:"world",canEdit:true,ownAssets:[],objects:[],current:null};
+  h.workshop.getState=()=>state;
+  h.hotbar.update(0);
+  assert.match(hint.textContent,/最初のSTL作品/);
+  state.ownAssets=[{id:"a",name:"駅.stl"}];h.hotbar.update(1);
+  assert.match(hint.textContent,/手に持つ/);assert.doesNotMatch(hint.textContent,/右クリック/);
+  state.objects=[{id:"one",assetId:"a",committed:true,editable:true}];h.hotbar.update(2);
+  assert.match(hint.textContent,/配置済みの枠/);
+  state.canEdit=false;h.hotbar.update(3);assert.equal(hint.textContent,"");
+});
 test("slot icons load once across frames and a late previous owner's icon cannot replace them", async () => {
   const h = harness(), requests = [];
   const state = { userId: "one", worldId: "class", canEdit: true, ownAssets: [{ id: "one-file", name: "塔.stl" }], objects: [] };
@@ -124,7 +136,7 @@ test("app hotbar activation preserves ongoing movement and never resumes mobile 
   let resumes=0,steps=0,mobile=false,suspendedXR=false;
   const context={activityAllowed:true,state:{ready:true,free:true,xr:false},questBrowser:false,xrEntering:false,
     adaptiveUi:{getState:()=>({mobile,open:false})},creative:{getState:()=>({mode:"creative",suspendedXR}),step:()=>steps++},
-    document:{hidden:false,querySelector:()=>null},workshop:{getState:()=>({picking:false})},setFree:()=>resumes++};
+    document:{hidden:false,querySelector:()=>null},workshop:{isPicking:()=>false},setFree:()=>resumes++};
   const activate=vm.runInNewContext(`()=>{${callback}}`,context);
   activate();assert.equal(resumes,0);assert.equal(steps,1);
   context.state.free=false;activate();assert.equal(resumes,1);assert.equal(steps,2);

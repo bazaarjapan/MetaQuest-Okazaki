@@ -21,7 +21,8 @@ export function createHotbar({ workshop, getUser, camera, canvas, scene, getEnvi
   const hint = document.createElement("div"); hint.id = "hotbar-hint"; hint.setAttribute("role", "status");
   const crosshair = document.createElement("div"); crosshair.id = "placement-crosshair"; crosshair.textContent = "+";
   const menuButton = document.createElement("button"); menuButton.id = "simple-menu"; menuButton.textContent = "メニュー Esc";
-  menuButton.onclick = () => { document.exitPointerLock?.(); menu.show("observe"); };
+  menuButton.setAttribute("aria-controls","control-panel"); menuButton.setAttribute("aria-expanded","false");
+  menuButton.onclick = () => { document.exitPointerLock?.(); menu.show("observe", menuButton); };
   const loginButton = document.createElement("button"); loginButton.id = "simple-login"; loginButton.textContent = "ログイン";
   loginButton.onclick = () => document.querySelector("#school-button").click();
   canvas.parentElement.append(root, hint, crosshair, menuButton, loginButton);
@@ -86,7 +87,18 @@ export function createHotbar({ workshop, getUser, camera, canvas, scene, getEnvi
   const locked = () => document.pointerLockElement === canvas;
   const blocked = () => isXR() || isXRPending() || document.hidden || menu.getState().open || Boolean(document.querySelector("dialog[open]")) || currentState().picking;
   const draftToken = state => `${state.userId}:${state.worldId}:${state.current?.id}`;
-  function report(text) { if (hint.textContent !== text) hint.textContent = text; }
+  const coarsePointer = window.matchMedia?.("(pointer: coarse)");
+  const compactHints = () => menu.getState().mobile || Boolean(coarsePointer?.matches);
+  let feedbackUntil = 0, restingHint = "";
+  function writeHint(text) { if (hint.textContent !== text) hint.textContent = text; }
+  function report(text) { feedbackUntil = performance.now() + 4500; writeHint(text); }
+  function idleHint(state) {
+    if (!state.canEdit) return "";
+    if (!state.ownAssets.length) return "下の「＋」から、最初のSTL作品を追加";
+    if (state.objects.some(object => object.committed && object.editable))
+      return "配置済みの枠を選ぶと、作品の場所・編集・回収を選べます";
+    return "下の枠から、手に持つ作品を選んでください";
+  }
   function activate() {
     // Only a deliberate UI action resumes input. Never resume from an async
     // import/asset completion after blur, a modal, or an XR transition.
@@ -193,7 +205,10 @@ export function createHotbar({ workshop, getUser, camera, canvas, scene, getEnvi
     const user = getUser();
     heldControls.hidden = isXR() || isXRPending() || !state.canEdit || !workshop.getHeldDraft?.();
     stashButton.disabled = pending || state.busy || blocked();
-    const desktopKeys = isCreative() && !menu.getState().mobile;
+    const compact = compactHints();
+    const menuLabel = compact ? "メニュー" : "メニュー Esc";
+    if (menuLabel !== menuButton.textContent) menuButton.textContent = menuLabel;
+    const desktopKeys = isCreative() && !compact;
     heldHelp.hidden = !desktopKeys;
     const stashLabel = desktopKeys ? "手持ちをしまう Q" : "手持ちをしまう";
     if (stashButton.textContent !== stashLabel) stashButton.textContent = stashLabel;
@@ -201,9 +216,11 @@ export function createHotbar({ workshop, getUser, camera, canvas, scene, getEnvi
     if (loginButton.textContent !== loginLabel) loginButton.textContent = loginLabel;
     const signature = JSON.stringify([active, state.canEdit, state.thumbnailRevision, state.ownAssets, state.objects.filter(item=>item.committed).map(item=>[item.assetId,item.title])]);
     if (signature === renderSignature) return; renderSignature = signature;
+    restingHint = idleHint(state);
     slots.forEach((button,index) => {
       const asset = state.ownAssets[index], placed = asset && state.objects.find(item=>item.committed && item.assetId===asset.id);
       button.replaceChildren();
+      button.classList.toggle("empty-slot", !asset);
       const key = document.createElement("kbd"); key.textContent = String((index+1)%10);
       const displayName = placed?.title?.trim() || asset?.name;
       const name = document.createElement("span"); name.textContent = asset ? displayName.replace(/\.stl$/i,"") : "+ STL";
@@ -230,7 +247,7 @@ export function createHotbar({ workshop, getUser, camera, canvas, scene, getEnvi
       // Keep the last ghost while looking; a right-button press must not make
       // the held object appear to vanish. Release revalidates the cursor hit.
       if(canvas.style)canvas.style.cursor="grabbing";
-      report("見回し中 · STLは手元に保持しています · 離して置き場所を選び、右クリックで設置");
+      report(compactHints() ? "見回し中 · 作品は手元にあります" : "見回し中 · 離して空いている地面を選び、右クリックで配置");
       return false;
     }
     footprint.visible = false;
@@ -248,8 +265,8 @@ export function createHotbar({ workshop, getUser, camera, canvas, scene, getEnvi
       footprint.visible=retained && previewFootprint;
       footprint.material.color.set("#e4ac38");
       if(canvas.style)canvas.style.cursor="crosshair";
-      report(retained ? "黄色は最後のプレビュー（未設置） · 今の位置には置けません · 空いている地面を選んでください" :
-        "STLは手元に保持中 · 空いている地面をねらうとプレビューが出ます · 右クリック：設置");
+      report(retained ? "黄色は直前のプレビューです。空いている地面を選んでください" :
+        "作品を持っています。空いている地面を選ぶとプレビューが出ます");
       return false;
     }
     if(canvas.style) canvas.style.cursor="crosshair";
@@ -277,7 +294,7 @@ export function createHotbar({ workshop, getUser, camera, canvas, scene, getEnvi
     const size = draftMesh ? new THREE.Box3().setFromObject(draftMesh).getSize(new THREE.Vector3()) : null;
     const dimensions = size ? `幅${size.x.toFixed(1)} × 高さ${size.y.toFixed(1)} × 奥行${size.z.toFixed(1)}m · ` : "";
     report(placementFailure && placementFailure.token===draftToken(state) && performance.now()<placementFailure.until ? placementFailure.message :
-      dimensions + (result.valid ? "右クリック：置く · ホイール：サイズ · 右ドラッグ：見回す · 左長押し / R：回収" : currentState().message));
+      dimensions + (result.valid ? (compactHints() ? "配置できます · 「STL作品」から配置" : "配置できます · 右クリックで置く · ホイールでサイズ変更") : currentState().message));
     return result.valid;
   }
   async function place(event) {
@@ -385,14 +402,14 @@ export function createHotbar({ workshop, getUser, camera, canvas, scene, getEnvi
     const state = currentState(), identity = `${state.userId}:${state.worldId}:${state.canEdit}`;
     if(actionTarget && (identity!==actionTarget.identity || !state.objects.some(o=>o.id===actionTarget.id && o.committed && o.editable) || isXRPending() || document.hidden)) closeActions();
     if (aiming && !pending && (!state.current || state.current.committed)) { aiming=false; report(state.message); }
-    if (identity !== previousIdentity) { cancelGestures();queuedWheel=null; previousIdentity=identity; active=-1; aiming=false; footprint.visible=false; renderSignature=""; }
+    if (identity !== previousIdentity) { cancelGestures();queuedWheel=null; previousIdentity=identity; active=-1; aiming=false; footprint.visible=false; renderSignature=""; feedbackUntil=0; writeHint(""); }
     // Drafts can also originate in the detailed workshop or survive leaving VR.
     // The hand-held item, not the route used to import it, enables placement.
     if (!aiming && !pending && state.canEdit && !state.busy && workshop.getHeldDraft?.()) {
       aiming=true; active=state.ownAssets.findIndex(asset=>asset.id===state.current?.assetId);
       lastPreview=-Infinity;
     }
-    render();
+    render(state);
     if (blocked() || !state.canEdit) {
       cancelGestures();
       queuedWheel=null; footprint.visible=false; if(canvas.style && !state.picking)canvas.style.cursor="";
@@ -413,9 +430,9 @@ export function createHotbar({ workshop, getUser, camera, canvas, scene, getEnvi
     if (queuedWheel || time-lastPreview>=120) { lastPreview=time; preview(); }
     if (!aiming && !pending) {
       footprint.visible=false;
-      if (state.locatedName) report(`📍 ${state.locatedName} · 黄色い枠が作品の場所です${isCreative() ? " · F5で視点切替" : ""}`);
+      if (state.locatedName) writeHint(`${state.locatedName} · 黄色い枠が作品の場所です`);
+      else if (performance.now() >= feedbackUntil) writeHint(restingHint);
     }
   }
-  report("1〜0：STL選択 · 右クリック：置く · 左長押し：回収 · 右ドラッグ：見回す · ホイール：サイズ · Esc：メニュー");
   return { update, place, pointerContext, getState:()=>({active,aiming,pending,footprintVisible:footprint.visible}) };
 }

@@ -53,7 +53,7 @@ try{
    }
    const diagnosis=await evaluate("(async()=>{const T=await import('/node_modules/three/build/three.module.js'),f=window.__sceneFixture;return [...f.scene.children].map(o=>({name:o.name,type:o.type}));})()");
    await writeFile('test-results/seam-diagnosis.json',JSON.stringify(diagnosis,null,2));
-   await browser('click','#school-button');await browser('click','#student-issue');await until("!document.querySelector('#student-issued-credentials').hidden");studentCredentials=await evaluate("document.querySelector('#student-issued-credentials').value.split('\\n')[1].split('\\t')");await browser('click','#school-close');
+   await browser('click','#school-button');await browser('click','#student-issue-panel > summary');await browser('click','#student-issue');await until("!document.querySelector('#student-issued-credentials').hidden");studentCredentials=await evaluate("document.querySelector('#student-issued-credentials').value.split('\\n')[1].split('\\t')");await browser('click','#school-close');
   }
   await browser('click',role==='teacher'?'#school-quick-logout':'#school-button');
   if(role==='student')await browser('click','#school-logout');

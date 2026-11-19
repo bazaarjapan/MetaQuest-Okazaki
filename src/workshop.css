@@ -89,3 +89,11 @@
   #stl-editor-canvas { height: 40px; }
   #workshop-status { max-height: 2.4em; }
 }
+#ground-pick-controls:not([hidden]) {
+  position: absolute; z-index: 9; bottom: max(14px, env(safe-area-inset-bottom));
+  left: 50%; transform: translateX(-50%); display: flex; gap: 12px; align-items: center;
+  width: max-content; max-width: calc(100% - 16px); padding: 6px 8px 6px 14px;
+  border: 1px solid #71968a; border-radius: 9px; background: #183b38; color: white; font-size: 14px;
+}
+#ground-pick-cancel { flex-shrink: 0; min-height: 44px; background: #eef6ed; color: #173e37; }
+#viewport:has(> #ground-pick-controls:not([hidden])) :is(#stl-hotbar, #hotbar-hint, #held-item-controls, #placement-crosshair) { display: none; }

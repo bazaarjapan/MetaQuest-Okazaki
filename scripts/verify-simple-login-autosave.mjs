@@ -40,7 +40,7 @@ try{
  await until("!document.querySelector('.student-roster-filters').hidden");
  check('teacher roster loads automatically on opening management',await evaluate("document.querySelector('#student-roster-count').textContent.includes('表示')"));
  check('normal management shows autosave and hides optional restore controls',await evaluate("document.querySelector('#school-autosave').textContent.includes('自動保存 ON')&&!document.querySelector('#school-save-details').open&&document.querySelector('#school-world-save').closest('details').id==='school-save-details'"));
- await browser('click','#student-issue');await until("!document.querySelector('#student-issued-credentials').hidden");
+ await browser('click','#student-issue-panel > summary');await browser('click','#student-issue');await until("!document.querySelector('#student-issued-credentials').hidden");
  const credentials=await evaluate("document.querySelector('#student-issued-credentials').value.split('\\n')[1].split('\\t')");
  await browser('click','#school-close');await browser('click','#school-quick-logout');await until('!window.__okazaki.getState().school.user');
  check('quick logout works while management automatically fetches roster',await evaluate("document.querySelector('#login-gate [data-login-role=teacher]').textContent.includes('先生の入り口')"));

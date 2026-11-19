@@ -57,7 +57,7 @@ for (const branch of ["keyboard", "touch"]) {
     let constraintCalls = 0;
     const context = { THREE, camera, controls, keys, temp: new THREE.Vector3(), activityAllowed:true,
       state: { free: true }, flight: createFlightState(), resetFlight, updateFlight, stickAxes,
-      document: { querySelector: () => null }, workshop: { getState: () => ({ picking: false }) },
+      document: { querySelector: () => null }, workshop: { isPicking: () => false },
       adaptiveUi: { getState: () => ({ mobile: branch === "touch", open: false }) },
       touchControls: { getState: () => ({ enabled: branch === "touch", activePointers: 0 }), getAxes: () => axes },
       constrainPosition(position) { constraintCalls++; return clampPosition(position); } };

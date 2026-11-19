@@ -54,10 +54,13 @@ async function digest(buffer) {
 // Preserve source PLATEAU; committed server meshes and a separate local draft
 // live in this group. Drafts never silently replace the authoritative world.
 export function createWorkshop(THREE, { scene, renderer, domElement, camera, schoolClient,
-  getEnvironment, getViewPosition, onChange = () => {}, onRequireLogin = () => {},
+  getEnvironment, getViewPosition, onChange = () => {}, onRequireLogin = () => {}, onStartPicking = () => {},
   isXR = () => false, getStation = () => null, onLocate = () => false }) {
   const group = new THREE.Group(); group.name = "student-creations"; scene.add(group);
   const dialog = document.querySelector("#workshop-dialog");
+  const pickControls = document.querySelector("#ground-pick-controls");
+  const pickHint = document.querySelector("#ground-pick-hint");
+  const pickCancel = document.querySelector("#ground-pick-cancel");
   const q = (id) => dialog.querySelector(`#${id}`);
   const fields = ["x", "z", "scale", "rx", "ry", "rz"];
   const remote = new Map(), models = new Map(), loading = new Map(), failures = new Map();
@@ -105,7 +108,7 @@ export function createWorkshop(THREE, { scene, renderer, domElement, camera, sch
   function disposeMesh(mesh) { group.remove(mesh); mesh.material.dispose(); }
   function stopPick() {
     picking = false; domElement.style.cursor = "";
-    const hint = document.querySelector("#canvas-hint"); if (hint) hint.textContent = "ドラッグで回転 · ホイールで拡大";
+    pickControls.hidden = true;
   }
   function clearDraft() {
     clearTimeout(scaleValidationTimer);
@@ -203,7 +206,7 @@ export function createWorkshop(THREE, { scene, renderer, domElement, camera, sch
     else if (!item) hint = "作品を選ぶか、STLファイルを追加してください。";
     else if (!canChange(item)) hint = "ほかの人の作品です。作者だけが変更できます。";
     else if (invalidScaleFor === item) hint = "縮尺に0.000001〜100の数値を入力してください。";
-    else if (disabledDraft) hint = draft.placementHint || "「地面をクリックして移動」で、空いている場所を選んでください。";
+    else if (disabledDraft) hint = draft.placementHint || "「地面を選んで移動」で、空いている場所を選んでください。";
     else if (kind === "create") hint = "未配置の作品です。今の見た目で、選んだ場所に置きます。";
     else if (kind === "paint") hint = "色と仕上げを、今の場所にある作品へ保存します。";
     else if (kind === "update") hint = "この作品の編集内容をワールドに保存します。";
@@ -812,21 +815,38 @@ export function createWorkshop(THREE, { scene, renderer, domElement, camera, sch
   q("exhibit-save").onclick = () => { void describeSelected(q("exhibit-title").value, q("exhibit-description").value); };
   reuse.onclick = () => { void useAsset(librarySelect.value); }; cancel.onclick = cancelDraft; retry.onclick = retryAssets;
   q("object-pick").onclick = () => {
-    if (!requireAccess() || busy() || !canChange(selectedItem()) || isXR() || !beginDraft()) return;
-    picking = true; dialog.close(); domElement.style.cursor = "crosshair";
-    const hint = document.querySelector("#canvas-hint"); if (hint) hint.textContent = "実地面をクリックして作品の位置を選択（Escで取消）";
+    if (!requireAccess() || busy() || !canChange(selectedItem()) || isXR()) return;
+    picking = true;
+    onStartPicking();
+    dialog.close();
+    domElement.style.cursor = "crosshair";
+    pickHint.textContent = "作品を置きたい地面を選んでください。";
+    pickControls.hidden = false;
+    pickCancel.focus({ preventScroll: true });
   };
+  const returnToEditor = () => {
+    stopPick();
+    if (!requireAccess(false) || isXR()) return;
+    if (!dialog.open) dialog.showModal();
+    q("object-pick").focus({ preventScroll: true });
+    requestPreview();
+  };
+  pickCancel.onclick = returnToEditor;
   const onCanvasClick = (event) => {
     if (!picking || !requireAccess(false) || busy() || isXR()) return;
     const rect = domElement.getBoundingClientRect();
     ray.setFromCamera(new THREE.Vector2((event.clientX - rect.left) / rect.width * 2 - 1,
       -(event.clientY - rect.top) / rect.height * 2 + 1), camera);
     const hit = ray.intersectObjects(getEnvironment().terrainMeshes ?? [], false)[0];
-    stopPick(); if (!dialog.open) dialog.showModal(); requestPreview();
-    if (!hit) { setMessage("読み込み済みの実地面を選んでください。空中・建物上へは配置できません。"); return; }
+    if (!hit) { pickHint.textContent = "地面が見つかりません。街の地面をもう一度選んでください。"; return; }
+    returnToEditor();
     moveSelected([hit.point.x, hit.point.y, hit.point.z]);
   };
-  const onEscape = (event) => { if (event.code === "Escape" && picking) { stopPick(); if (requireAccess(false) && !isXR() && !dialog.open) { dialog.showModal(); requestPreview(); } } };
+  const onEscape = (event) => {
+    if (!picking || event.key !== "Escape" && event.code !== "Escape") return;
+    event.preventDefault();
+    returnToEditor();
+  };
   domElement.addEventListener("click", onCanvasClick); window.addEventListener("keydown", onEscape);
   q("workshop-close").onclick = () => dialog.close(); document.querySelector("#open-workshop").onclick = open;
   const unsubscribe = schoolClient?.subscribe(onState) ?? (() => {});
@@ -835,7 +855,7 @@ export function createWorkshop(THREE, { scene, renderer, domElement, camera, sch
     commitSelected, removeSelected, retrieveSelected, cancelDraft, retryAssets, paintSelected, locateSelected, describeSelected,
     // Rendering-only handle: avoid cloning the full classroom every frame.
     // Editing an existing placement is not holding a new inventory item.
-    getAssetThumbnail,
+    getAssetThumbnail, isPicking: () => picking,
     getHeldDraft: () => draft && !draft.baseId && canChange(draft) ? draft.mesh : null,
     getState: () => {
       const objects = [...remote.values()].map((item) => draft?.id === item.id ? publicObject(draft) : publicObject(item));

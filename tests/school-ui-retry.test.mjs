@@ -9,7 +9,7 @@ import { describeWorkLocation, exhibitTitle } from "../src/workshop-presentation
 const source = (await readFile(new URL("../src/school-ui.js", import.meta.url), "utf8"))
   .replace(/^import .*;\r?\n/gm, "").replace(/^export /gm, "");
 const tick = async () => { await new Promise(resolve => setImmediate(resolve)); };
-function harness(initial, retry, extraClient = {}) {
+function harness(initial, retry, extraClient = {}, loadIdentity) {
   class Node {
     set textContent(value) { this.textWrites = (this.textWrites ?? 0) + 1; this.textValue = value; }
     get textContent() { return this.textValue; }
@@ -49,7 +49,7 @@ function harness(initial, retry, extraClient = {}) {
   const context = vm.createContext({ document, URL, location: { href: "https://example.test/", origin: "https://example.test" },
     describeWorkLocation, exhibitTitle,
     parseSchoolInvite: () => null, schoolInviteURL: () => "https://example.test/#join=ABCDEFGHIJKL",
-    createGoogleIdentityLoader: () => async () => { gisLoads++; throw Error("Google must stay lazy"); } });
+    createGoogleIdentityLoader: () => async () => { gisLoads++; if (loadIdentity) return loadIdentity(); throw Error("Google must stay lazy"); } });
   vm.runInContext(`${source}\nthis.createTestUI = createSchoolUI;`, context);
   const ui = context.createTestUI({ client, button });
   const find = id => document.querySelector(`#${id}`);
@@ -63,6 +63,24 @@ test("role-specific entry opens only the chosen form and tabs preserve entered s
   h.find('student-login-tab').click();h.find('student-login-id').value='my-student-id';
   h.find('teacher-login-tab').click();h.find('student-login-tab').click();assert.equal(h.find('student-login-id').value,'my-student-id');
   assert.equal(h.find('student-login-panel').hidden,false);assert.equal(h.find('teacher-login-panel').hidden,true);assert.equal(h.gisLoads,0);h.ui.destroy();
+});
+
+test("returning to student login while Google loads keeps its form usable and discards stale Google errors", async () => {
+  const initial = { ...guest, configured: true, singleClassroom: true, error: null };
+  let fail;
+  const identity = new Promise((resolve, reject) => { fail = reject; });
+  const h = harness(initial, async () => initial, { prepareGoogleLogin: async () => ({}) }, () => identity);
+  await h.ui.open("student");
+  h.find("student-login-id").value = "student01"; h.find("student-password").value = "example";
+  h.find("teacher-login-tab").click();
+  assert.equal(h.find("school-login").disabled, true);
+  h.find("student-login-tab").click();
+  assert.equal(h.find("student-login-id").value, "student01");
+  assert.equal(h.find("student-password").value, "");
+  assert.equal(h.find("student-login-panel").querySelectorAll("button[data-school-action]")[0].disabled, false);
+  fail(Object.assign(Error("gis_unavailable"), { code: "gis_unavailable" })); await tick();
+  assert.match(h.find("school-status").textContent, /先生から受け取ったID/);
+  h.ui.destroy();
 });
 
 test("guest failed initialization leaves an accessible explicit retry, without loading GIS", async () => {

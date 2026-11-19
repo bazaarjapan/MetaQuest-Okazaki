@@ -55,7 +55,11 @@ test('manual documents implemented controls, cloud persistence and quotas',()=>{
 test('manual links are available before login without weakening the activity gate',async()=>{
   const index=await readFile(new URL('index.html',root),'utf8');
   assert.match(index,/<section id="login-gate"[^>]*>[\s\S]*?href="\/manual"[\s\S]*?<\/section>/);
-  assert.match(index,/<dialog id="help-dialog">[\s\S]*?href="\/manual"/);
+  assert.match(index,/<dialog id="help-dialog"[^>]*>[\s\S]*?href="\/manual"/);
+  const help = index.match(/<dialog id="help-dialog"[^>]*>([\s\S]*?)<\/dialog>/)[1];
+  for (const topic of ['pc','mobile','quest','stl']) {
+    assert.ok(help.includes(`href="/manual/#${topic}"`) && manual.includes(`id="${topic}"`), topic + ' help link');
+  }
   const old=await readFile(new URL('public/teacher.html',root),'utf8');
   assert.match(old,/href="\/manual"/);
 });

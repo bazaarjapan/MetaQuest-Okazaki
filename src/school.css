@@ -68,3 +68,36 @@
 #login-gate button { width: 100%; min-height: 56px; font-size: 18px; font-weight: 700; color: white; background: #176e5e; border: 0; border-radius: 10px; cursor: pointer; }
 #login-gate button:focus-visible { outline: 3px solid #178cc9; outline-offset: 4px; }
 #login-gate .manual-link { display: block; margin-top: 18px; padding: 8px 0; color: #176e5e; text-align: center; font-size: 14px; text-underline-offset: 4px; }
+.school-dialog[data-view=login] .school-body { padding-block: 12px 16px; }
+.school-dialog[data-view=login] .school-login-tabs { margin: 0 0 12px; }
+.school-dialog[data-view=login] .school-content { margin-top: 8px; }
+.school-dialog[data-view=login] .school-section { padding: 0; gap: 10px; border: 0; }
+.school-dialog[data-view=login] .school-status:not(.is-error) { margin: 0; padding: 0; color: #d4e4eb; background: transparent; }
+.school-dialog[data-view=login] :is(#student-login-panel button[type=submit], #school-login) {
+  justify-self: stretch; min-height: 44px; background: #c7eee1; border-color: #9cd6be; color: #123e36; font-weight: 600;
+}
+.school-dialog .school-status[hidden], .school-dialog .school-autosave[hidden], .school-dialog #student-issued-credentials[hidden] { display: none; }
+.school-dialog .school-autosave { margin: 0 0 12px; }
+.student-roster-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.student-roster-heading h3 { margin: 0; }
+.student-roster-heading button { flex: none; }
+.student-issuance { border-top: 1px solid #385567; border-bottom: 1px solid #385567; padding: 0 0 4px; }
+.student-issuance summary { padding: 8px 0 4px; }
+.student-issuance[open] { padding-bottom: 12px; }
+.student-issuance .school-note, .student-issuance .school-field { margin: 8px 0; }
+.student-issuance .school-field { max-width: 12rem; }
+#student-issued-credentials { min-width: 0; max-width: 100%; box-sizing: border-box; font: inherit; }
+@media(max-height: 480px) {
+  #login-gate { padding: 8px; }
+  #login-gate > div { max-height: calc(100dvh - 16px); padding: 16px; }
+  #login-gate h1, #login-gate p { margin-bottom: 8px; }
+  #login-gate .manual-link { margin-top: 6px; }
+  .school-dialog[data-view=login] .school-body { padding-block: 8px; }
+  .school-dialog[data-view=login] .school-heading, .school-dialog[data-view=login] .school-footer { padding-block: 6px; }
+  .school-dialog[data-view=login] .school-section { gap: 6px; }
+  .school-dialog[data-view=login] .school-login-tabs { margin-bottom: 6px; }
+}
+@media(min-width: 550px) and (max-height: 480px) {
+  #student-login-panel { grid-template-columns: 1fr 1fr; }
+  #student-login-panel button { grid-column: 1 / -1; }
+}

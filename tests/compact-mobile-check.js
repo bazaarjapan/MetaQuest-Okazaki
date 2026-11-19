@@ -21,6 +21,8 @@
     assert(s().ui.open&&s().ui.active===id&&inside(document.querySelector('#control-panel'))&&!document.querySelector('#control-panel').inert&&
       document.activeElement.id==='tab-'+id&&document.querySelector('.panel-body').getBoundingClientRect().height>=100,
       'mobile-panel-opens-and-fits-'+id);
+    if(id==='observe') assert(inside(document.querySelector('#open-workshop')) && document.querySelector('.panel-body').scrollTop===0,
+      'works-action-visible-before-scroll');
     document.querySelector('[data-mobile-panel='+id+']').click();
     assert(!s().ui.open,'same-toolbar-button-closes-'+id);
   }
@@ -49,5 +51,8 @@
   if(s().free) document.querySelector('#mobile-flight').click();await wait(100);
   assert(!s().free&&!s().touch.enabled,'flight-off-hides-pads');
   document.querySelector('#home').click();
+  document.querySelector('#help').click();
+  assert(document.querySelector('#help-dialog details[open]').dataset.helpDevice==='touch','guide-matches-active-controls');
+  document.querySelector('#close-help').click();
   return JSON.stringify({passed:true,environment:'Browser viewport and PointerEvent tests, NOT physical smartphone touch/FPS',results});
 })();
