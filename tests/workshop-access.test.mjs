@@ -65,6 +65,7 @@ class Element {
   querySelector(selector) { return this.registry.get(selector.slice(1)); }
   append(...children) { this.children.push(...children); }
   after() {}
+  before(element) { this.previousElementSibling = element; }
   replaceChildren(...children) { this.children = [...children]; }
   setAttribute() {}
   get options() { return this.children; }
@@ -77,8 +78,8 @@ class Element {
 }
 const source = new TextEncoder().encode("solid part\nfacet normal 0 1 0\nouter loop\nvertex 0 0 0\nvertex 1 0 0\nvertex 0 0 1\nendloop\nendfacet\nendsolid part").buffer;
 async function fixture(t, initial = connected(), stl = source, triangles = 1) {
-  const ids = ["workshop-dialog", "workshop-status", "workshop-list", "stl-files", "stl-up", "stl-units", "object-x", "object-z", "object-scale", "object-rx", "object-ry", "object-rz", "object-y", "object-pick", "object-remove", "object-apply", "workshop-close", "open-workshop", "canvas-hint"];
-  ids.push("exhibit-title", "exhibit-description", "exhibit-save", "exhibit-author", "object-color", "object-finish", "object-surface", "object-paint", "object-locate", "object-location", "object-name");
+  const ids = ["workshop-dialog", "workshop-status", "workshop-save-hint", "workshop-list", "stl-files", "stl-up", "stl-units", "object-x", "object-z", "object-scale", "object-rx", "object-ry", "object-rz", "object-y", "object-pick", "object-remove", "object-apply", "workshop-close", "open-workshop", "canvas-hint"];
+  ids.push("exhibit-title", "exhibit-description", "exhibit-save", "exhibit-author", "object-color", "object-finish", "object-surface", "object-locate", "object-location", "object-name");
   ids.push("stl-editor-preview", "stl-editor-canvas", "stl-editor-dimensions");
   const registry = new Map(ids.map((id) => [id, new Element()])); registry.get("workshop-dialog").registry = registry;
   registry.get("stl-up").value = "y"; registry.get("stl-units").value = "m";
@@ -86,7 +87,7 @@ async function fixture(t, initial = connected(), stl = source, triangles = 1) {
   globalThis.document = { querySelector: (selector) => registry.get(selector.slice(1)), createElement: () => new Element() };
   globalThis.window = new Element(); globalThis.Option = class extends Element { constructor(text, value) { super(); this.textContent = text; this.value = value; } };
   let state = { assets: [], objects: [], ...initial }, listener;
-  const calls = { uploads: 0, edits: 0, downloads: 0, login: 0, environment: 0 };
+  const calls = { uploads: 0, edits: 0, editTypes: [], downloads: 0, login: 0, environment: 0 };
   const hash = Buffer.from(await crypto.subtle.digest("SHA-256", stl)).toString("hex");
   const metadata = (ownerId = "user-a", id = crypto.randomUUID()) => ({ id, ownerId, name: "作品.stl", upAxis: "y", units: "m", bytes: stl.byteLength, triangles, sha256: hash });
   const client = {
@@ -95,7 +96,7 @@ async function fixture(t, initial = connected(), stl = source, triangles = 1) {
     uploadAsset: async () => { calls.uploads++; const asset = metadata(); state.assets.push(asset); client.emit("assets"); return asset; },
     downloadAsset: async () => { calls.downloads++; return stl.slice(0); },
     editObject: async (type, data) => {
-      calls.edits++;
+      calls.edits++; calls.editTypes.push(type);
       if (type === "object.delete") state.objects = state.objects.filter((item) => item.id !== data.id);
       else if (type === "object.describe") state.objects = state.objects.map(item => item.id === data.id ? { ...item, title: data.title, description: data.description } : item);
       else if (type === "object.paint") state.objects = state.objects.map(item => item.id === data.id ? { ...item, color: data.color, finish: data.finish, surface: data.surface } : item);
@@ -139,7 +140,7 @@ test("STL color flows through draft, commit, painting and reload without moving 
   f.client.emit("objects"); await f.settle();
   assert.equal(f.registry.get("object-color").value, "#22aa77", "peer updates retain unsaved color choice");
   assert.equal(f.registry.get("object-finish").value, "brick"); assert.equal(f.registry.get("object-surface").value, "roof");
-  f.registry.get("object-paint").onclick();
+  f.registry.get("object-apply").onclick();
   await f.settle();
   assert.deepEqual(f.workshop.getState().current.position, before.position);
   assert.equal(f.workshop.getState().current.color, "#22aa77");
@@ -266,6 +267,75 @@ test("typing scale previews the real mesh, preserves incomplete input across syn
   assert.deepEqual(f.state().objects[0].scale, [.25,.25,.25]);
 });
 
+test("footer routes valid placement, appearance-only save, and combined edits without extra writes", async t => {
+  const f = await fixture(t);
+  const el = id => f.registry.get(id);
+  const apply = el("object-apply"), cancel = apply.previousElementSibling, hint = el("workshop-save-hint");
+  const selectFinish = value => { el("object-finish").value = value; el("object-finish").dispatch("change"); };
+  assert.ok(apply.hidden); assert.match(hint.textContent, /選ぶ/);
+  await f.workshop.importFiles([f.file()]); f.workshop.open();
+  assert.equal(apply.textContent, "この場所に配置"); assert.equal(apply.disabled, false);
+  selectFinish("galaxy");
+  assert.equal(f.workshop.getHeldDraft().userData.stlFinish, "galaxy");
+  assert.deepEqual(f.calls.editTypes, []);
+  f.workshop.moveSelected([200,0,200]);
+  assert.equal(apply.disabled, true); assert.match(hint.textContent, /範囲/);
+  assert.equal(el("workshop-status").hidden, true, "the invalid cause is shown once at the action");
+  apply.onclick(); assert.equal(f.calls.edits, 0);
+  f.workshop.moveSelected([10,5,10]); apply.onclick(); apply.onclick(); await f.settle();
+  assert.deepEqual(f.calls.editTypes, ["object.create"]);
+  assert.equal(f.state().objects[0].finish, "galaxy");
+  assert.equal(apply.textContent, "変更を保存"); assert.equal(apply.disabled, true); assert.match(hint.textContent, /配置済み/);
+  selectFinish("solid"); apply.onclick(); await f.settle();
+  assert.match(el("workshop-status").textContent, /見た目を保存しました/);
+  selectFinish("windows"); assert.equal(el("workshop-status").textContent, "", "a new edit clears the previous save receipt");
+  el("object-surface").value = "walls"; el("object-surface").dispatch("change");
+  selectFinish("solid"); assert.ok(apply.disabled, "solid ignores its inactive face selector");
+  assert.ok(cancel.hidden);
+  selectFinish("aurora"); assert.equal(apply.textContent, "見た目を保存"); assert.equal(apply.disabled, false);
+  assert.equal(cancel.hidden, false); cancel.onclick();
+  assert.equal(el("object-finish").value, "solid"); assert.ok(apply.disabled); assert.ok(cancel.hidden);
+  selectFinish("aurora"); apply.onclick(); apply.onclick(); await f.settle();
+  assert.deepEqual(f.calls.editTypes, ["object.create", "object.paint", "object.paint"]);
+  assert.deepEqual(f.state().objects[0].position,[10,5,10]);
+  assert.equal(apply.disabled, true);
+  selectFinish("brick"); f.workshop.moveSelected([12,5,12]);
+  assert.equal(apply.textContent, "変更を保存"); assert.equal(apply.disabled, false);
+  assert.equal(f.state().objects[0].finish, "aurora");
+  apply.onclick(); await f.settle();
+  assert.deepEqual(f.calls.editTypes, ["object.create","object.paint","object.paint","object.update"]);
+  assert.equal(f.state().objects[0].finish, "brick");
+  assert.deepEqual(f.state().objects[0].position,[12,5,12]);
+  assert.equal(apply.disabled, true);
+});
+
+test("a failed appearance save keeps the selection available for retry", async t => {
+  const f = await fixture(t); await f.workshop.importFiles([f.file()]);
+  await f.workshop.commitSelected(); await f.settle();
+  const apply = f.registry.get("object-apply"), color = f.registry.get("object-color");
+  color.value = "#cc6655"; color.dispatch("input");
+  const edit = f.client.editObject;
+  f.client.editObject = async () => { throw new Error("disconnected"); };
+  apply.onclick(); await f.settle();
+  assert.equal(apply.disabled, false); assert.equal(apply.textContent, "見た目を保存");
+  assert.equal(color.value, "#cc6655"); assert.equal(f.state().objects[0].color, "#488caa");
+  assert.match(f.registry.get("workshop-status").textContent, /保存できませんでした/);
+  f.client.editObject = edit;
+  apply.onclick(); await f.settle();
+  assert.equal(f.state().objects[0].color, "#cc6655"); assert.equal(apply.disabled, true);
+});
+
+test("unsaved finish stays on a held draft when the dialog closes to choose ground", async t => {
+  const f = await fixture(t); await f.workshop.importFiles([f.file()]); f.workshop.open();
+  const finish = f.registry.get("object-finish"); finish.value = "circuit"; finish.dispatch("change");
+  f.registry.get("object-pick").onclick(); assert.ok(f.workshop.getState().picking);
+  assert.equal(f.registry.get("workshop-dialog").open, false);
+  f.workshop.moveSelected([9,5,9]); assert.deepEqual(f.calls.editTypes, []);
+  assert.equal(f.workshop.getHeldDraft().userData.stlFinish, "circuit");
+  assert.equal(await f.workshop.commitSelected(), true);
+  assert.equal(f.state().objects[0].finish, "circuit");
+});
+
 test("a placed object's pending finish selection survives live sizing and saves together", async t => {
   const f = await fixture(t); await f.workshop.importFiles([f.file()]);
   await f.workshop.commitSelected(); await f.settle();
@@ -333,6 +403,10 @@ test("other owners render but every mutation and import reuse remains own-only",
   f.client.replace({ ...connected(), assets: [asset], objects: [{ id, assetId: asset.id, ownerId: "user-b", name: "他の生徒", position: [2,5,2], rotation: [0,0,0], scale: [1,1,1], triangles: 1 }] });
   await f.settle(() => f.workshop.getState().committed === 1); assert.equal(f.workshop.getState().committed, 1);
   assert.equal(f.workshop.selectObject(id), true); assert.equal(f.workshop.getState().current.editable, false);
+  const apply = f.registry.get("object-apply");
+  assert.equal(apply.hidden, true); assert.equal(apply.disabled, true);
+  assert.match(f.registry.get("workshop-save-hint").textContent, /作者/);
+  f.registry.get("object-color").value = "#992233"; apply.onclick();
   assert.equal(f.workshop.moveSelected([5,5,5]).valid, false);
   assert.equal(f.workshop.adjustSelected({ axis: "x", radians: 1 }).valid, false);
   assert.equal(await f.workshop.commitSelected(), false); assert.equal(await f.workshop.removeSelected(), false);
@@ -432,5 +506,5 @@ test("failed server edit retains the prior committed mesh and makes no fake succ
   f.workshop.moveSelected([10,5,10]); f.client.editObject = async () => { throw new Error("stale_revision"); };
   assert.equal(await f.workshop.commitSelected(), false);
   assert.equal(f.workshop.getState().committed, 1); assert.equal(f.workshop.getState().current.committed, false);
-  assert.deepEqual(committed.position.toArray(), [2,5,2]); assert.match(f.workshop.getState().message, /確定していません/);
+  assert.deepEqual(committed.position.toArray(), [2,5,2]); assert.match(f.workshop.getState().message, /変更を保存できませんでした/);
 });
