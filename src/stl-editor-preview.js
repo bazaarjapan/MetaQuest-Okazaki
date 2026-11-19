@@ -47,8 +47,8 @@ export function createSTLEditorPreview(THREE, renderer, canvas, caption) {
       itemId = item.id;
       initialSpan = span;
     }
-    // Allow a visible change at normal scales, then reframe unusually large edits.
-    const framing = Math.max(initialSpan * 1.8, span * 1.38);
+    // Allow a visible change at normal scales, then reframe extreme sizes so the model remains legible.
+    const framing = Math.max(span * 1.38, Math.min(initialSpan * 1.8, span * 5));
     mesh.scale.fromArray(item.scale).divideScalar(framing);
     mesh.position.set(-center.x, -box.min.y, -center.z).divideScalar(framing);
     material.color.set(color);

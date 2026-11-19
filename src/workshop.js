@@ -695,6 +695,9 @@ export function createWorkshop(THREE, { scene, renderer, domElement, camera, sch
     scrub = { pointerId: event.pointerId, item, startScale: item.scale[0], startX: event.clientX, x: event.clientX, moved: false };
     scaleInput.setPointerCapture?.(event.pointerId);
   });
+  // Chrome otherwise starts dragging the selected number as text, cancels the
+  // captured pointer, and stops sending moves after the first few pixels.
+  scaleInput.addEventListener("dragstart", event => { if (scrub) event.preventDefault(); });
   scaleInput.addEventListener("pointermove", event => {
     if (!scrub || scrub.pointerId !== event.pointerId) return;
     scrub.x = event.clientX;
