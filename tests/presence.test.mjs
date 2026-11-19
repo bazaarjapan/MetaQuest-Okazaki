@@ -122,6 +122,22 @@ test("classmates see run and rocket motion; stale movement folds wings and stops
   assert.equal(f.presence.getState().actors[0].animation,"idle"); f.presence.dispose();
 });
 
+test("a low-FPS classmate keeps walking between crowded-room packets and stops on explicit idle", () => {
+  const f = fixture();
+  const peers = Array.from({length: 18}, (_, i) => participant("peer" + i));
+  const send = (x, animation) => f.set({participants: [participant("own"),
+    participant("other", {position: [x, 21.65, 3], animation}), ...peers]}, "pose", "other");
+  for (let frame = 0; frame < 10; frame++) {
+    if (frame % 2 === 0) send(10 + frame, "walk");
+    f.presence.update(1 / 5.5);
+    assert.equal(f.presence.getState().actors[0].animation, "walk");
+  }
+  send(18, "idle");
+  f.presence.update(.01);
+  assert.equal(f.presence.getState().actors[0].animation, "idle");
+  f.presence.dispose();
+});
+
 test("a pose packet reads only its sender's profile and changes no other target", () => {
   const f = fixture();
   const untouched = participant("other");

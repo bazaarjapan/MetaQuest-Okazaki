@@ -1,6 +1,7 @@
 import { avatarNickname, createAvatarLabel } from "./avatar-label.js";
 import { createBlockAvatar } from "./block-avatar.js";
 import { creativeConfig } from "./creative-controls.js";
+import { poseSendIntervalMs } from "./school-client.js";
 import { validAvatarMotion } from "./avatar-motion.js";
 
 export const presenceLimits = Object.freeze({ remoteParticipants: 33, labelWidth: 256,
@@ -64,8 +65,7 @@ export function createSchoolPresence(THREE, { scene, client,
   const group = new THREE.Group(); group.name = "school-presence";
   scene.add(group);
   const actors = new Map();
-  let context = null, disposed = false, time = 0;
-
+  let context = null, disposed = false, time = 0, motionGraceSeconds = 0;
 
   function remove(id) {
     const actor = actors.get(id); if (!actor) return;
@@ -115,6 +115,9 @@ export function createSchoolPresence(THREE, { scene, client,
     if (contextChanged) { clear(); context = nextContext; }
     group.visible = Boolean(context);
     if (!context) return;
+    // Sparse updates from low-FPS peers can straddle multiple display frames.
+    // Explicit idle still takes effect on receipt.
+    motionGraceSeconds = 3 * poseSendIntervalMs(state.participants?.length) / 1000;
     if (!contextChanged && event === "pose" && changedId) {
       if (changedId === state.user.id) return;
       const value = state.participants.find((entry) => entry?.id === changedId);
@@ -144,7 +147,7 @@ export function createSchoolPresence(THREE, { scene, client,
           actor.distant = actor.position.distanceToSquared(viewerPosition) > limit ** 2;
         }
         actor.avatar.update({ position: actor.position, yaw: actor.yaw,
-          animation: time - actor.motionTime < .3 ? actor.animation ?? "walk" : "idle", time, distant: actor.distant });
+          animation: time - actor.motionTime < motionGraceSeconds ? actor.animation ?? "walk" : "idle", time, distant: actor.distant });
       }
     },
     getState: () => ({ visible: group.visible, count: actors.size, disposed,

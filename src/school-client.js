@@ -15,6 +15,10 @@ function readonlySnapshotFactory() {
 }
 const codePattern = /^[A-Z0-9_-]{12}$/i;
 const idPattern = /^[a-f0-9-]{36}$/;
+export function poseSendIntervalMs(participantCount) {
+  return participantCount >= 12 ? 250 : 125;
+}
+
 export function parseSchoolInvite(value) {
   try {
     const fragment = new URL(value, "https://example.invalid/").hash.slice(1);
@@ -475,7 +479,7 @@ export function createSchoolClient(options = {}) {
     }
   }
   function sendPose({ position, yaw, animation }) {
-    const interval = state.participants.length >= 12 ? 250 : 125;
+    const interval = poseSendIntervalMs(state.participants.length);
     const time = now();
     if (!state.user || !state.world || state.connection !== "connected" || !socket || socket.readyState !== 1 || time - lastPoseAt < interval) return false;
     if (lastSentPose && yaw === lastSentPose.yaw && animation === lastSentPose.animation &&
