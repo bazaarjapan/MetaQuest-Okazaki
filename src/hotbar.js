@@ -49,7 +49,7 @@ export function createHotbar({ workshop, getUser, camera, canvas, scene, getEnvi
     actionTarget={id:item.id,index,identity:identityToken()}; actionTitle.textContent=item.title?.trim() || item.name || asset.name;
     actions.showModal();
   }
-  for(const [action,label] of [["locate","📍 作品のところへ移動"],["retrieve","✋ 回収して手に持つ"],["details","🎨 色・大きさ・回転を変更"]]) {
+  for(const [action,label] of [["locate","📍 作品のところへ移動"],["retrieve","✋ 回収して手に持つ"],["details","🎨 見た目・大きさ・回転を変更"]]) {
     const button=document.createElement("button"); button.type="button"; button.dataset.action=action; button.textContent=label;
     button.onclick=async()=>{
       const target=actionTarget; closeActions();
@@ -77,7 +77,7 @@ export function createHotbar({ workshop, getUser, camera, canvas, scene, getEnvi
   const heldHelp = document.createElement("span");
   heldHelp.textContent = "持ったまま WASD：移動 · F5：視点切替";
   const stashButton = document.createElement("button"); stashButton.type = "button"; stashButton.id = "stash-held-item";
-  stashButton.textContent = "手持ちをしまう Q"; stashButton.title = "保存済みSTLは枠からまた選べます。未確定の色・大きさ・回転は戻ります。";
+  stashButton.textContent = "手持ちをしまう Q"; stashButton.title = "保存済みSTLは枠からまた選べます。未確定の見た目・大きさ・回転は戻ります。";
   stashButton.onclick = () => stash();
   heldControls.append(heldHelp, stashButton); canvas.parentElement.append(heldControls);
   const identityToken = () => { const s=currentState(); return `${s.userId}:${s.worldId}:${s.canEdit}`; };
@@ -199,7 +199,7 @@ export function createHotbar({ workshop, getUser, camera, canvas, scene, getEnvi
     if (stashButton.textContent !== stashLabel) stashButton.textContent = stashLabel;
     const loginLabel = user ? `${user.namePending ? "名前を決める" : user.name} · ログイン中` : "ログイン";
     if (loginButton.textContent !== loginLabel) loginButton.textContent = loginLabel;
-    const signature = JSON.stringify([active, state.canEdit, state.ownAssets, state.objects.filter(item=>item.committed).map(item=>[item.assetId,item.title])]);
+    const signature = JSON.stringify([active, state.canEdit, state.thumbnailRevision, state.ownAssets, state.objects.filter(item=>item.committed).map(item=>[item.assetId,item.title])]);
     if (signature === renderSignature) return; renderSignature = signature;
     slots.forEach((button,index) => {
       const asset = state.ownAssets[index], placed = asset && state.objects.find(item=>item.committed && item.assetId===asset.id);
@@ -211,6 +211,16 @@ export function createHotbar({ workshop, getUser, camera, canvas, scene, getEnvi
       button.append(key,name,badge); button.classList.toggle("selected", index===active); button.classList.toggle("placed",Boolean(placed));
       button.setAttribute("aria-pressed",String(index===active)); button.title = placed ? `${displayName} · クリックで移動・回収・編集` : asset?.name ?? "STLを追加";
       button.setAttribute("aria-label",`${(index+1)%10} ${displayName ?? "STLを追加"} ${placed ? "設置済み・操作を開く" : ""}`);
+      button.classList.toggle("with-thumbnail", false);
+      if (asset && state.canEdit && workshop.getAssetThumbnail) {
+        void workshop.getAssetThumbnail(asset.id).then(url => {
+          // A later render may have replaced this slot or switched accounts.
+          if (!url || button.children[1] !== name) return;
+          const icon = document.createElement("img");
+          icon.className = "stl-thumbnail"; icon.alt = ""; icon.draggable = false; icon.src = url;
+          button.append(icon); button.classList.toggle("with-thumbnail", true);
+        });
+      }
     });
   }
   function preview(event) {
@@ -371,7 +381,7 @@ export function createHotbar({ workshop, getUser, camera, canvas, scene, getEnvi
     if (xr) heldControls.hidden = true;
     // The PC UI is absent in VR. Avoid cloning classroom/geometry snapshots on
     // every headset frame and leave the draft under the VR workshop's control.
-    if (xr) { closeActions();cancelGestures();queuedWheel=null; aiming = false; footprint.visible = false; return; }
+    if (xr) { closeActions();cancelGestures();queuedWheel=null; aiming = false; footprint.visible = false; renderSignature=""; return; }
     const state = currentState(), identity = `${state.userId}:${state.worldId}:${state.canEdit}`;
     if(actionTarget && (identity!==actionTarget.identity || !state.objects.some(o=>o.id===actionTarget.id && o.committed && o.editable) || isXRPending() || document.hidden)) closeActions();
     if (aiming && !pending && (!state.current || state.current.committed)) { aiming=false; report(state.message); }

@@ -5,6 +5,7 @@ import { readAssetModel } from "./school-assets.mjs";
 import { loadRegionalPlacement } from "./regional-placement.mjs";
 import { CLASSROOM_ID, managesWorld } from "./classroom-id.mjs";
 import { validAvatarMotion } from "../src/avatar-motion.js";
+import { stlFinish, stlSurface, validSTLFinish, validSTLSurface } from "../src/stl-appearance.js";
 import { validSTLColor, stlColor, validExhibitText } from "../src/workshop-presentation.js";
 import { sharedObjectOverlap } from "../src/workshop-access.js";
 
@@ -369,10 +370,18 @@ export class SchoolRoom {
         objects: this.state.objects.map(entry => entry.id === current.id ? object : entry) };
       return object;
     }
-    if ((value.type === "object.paint" || value.color !== undefined) && !validSTLColor(value.color)) fail(400, "invalid_object_color");
+    if (value.color !== undefined && !validSTLColor(value.color)) fail(400, "invalid_object_color");
+    if (value.finish !== undefined && !validSTLFinish(value.finish)) fail(400, "invalid_object_finish");
+    if (value.surface !== undefined && !validSTLSurface(value.surface)) fail(400, "invalid_object_surface");
+    const appearance = {
+      color: stlColor(value.color ?? current?.color),
+      finish: stlFinish(value.finish ?? current?.finish),
+      surface: stlSurface(value.surface ?? current?.surface),
+    };
     if (value.type === "object.paint") {
       // Appearance only: preserve every authoritative placement/ownership field.
-      const object = { ...current, color: stlColor(value.color) };
+      if (value.color === undefined && value.finish === undefined && value.surface === undefined) fail(400, "invalid_object_color");
+      const object = { ...current, ...appearance };
       this.state = { ...this.state, revision: this.state.revision + 1,
         objects: this.state.objects.map(entry => entry.id === current.id ? object : entry) };
       return object;
@@ -395,7 +404,7 @@ export class SchoolRoom {
     if (placement.bounds.max.some((n, axis) => n - placement.bounds.min[axis] > LIMITS.objectMeters)) fail(409, "object_size_limit");
     if (this.state.objects.some((object) => object.id !== current?.id && overlaps(placement.bounds, object.bounds))) fail(409, "object_overlap");
     const object = { id: current?.id ?? value.id ?? crypto.randomUUID(), ownerId: session.id, assetId,
-      name: asset.name, color: stlColor(value.color ?? current?.color), position: [...placement.position], rotation: transform.rotation, scale: transform.scale,
+      name: asset.name, ...appearance, position: [...placement.position], rotation: transform.rotation, scale: transform.scale,
       bounds: placement.bounds, triangles: asset.triangles,
       title: value.title ?? current?.title ?? "", description: value.description ?? current?.description ?? "",
       authorName: publicAvatar(session).name };

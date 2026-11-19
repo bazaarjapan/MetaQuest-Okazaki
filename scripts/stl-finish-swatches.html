@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ja"><meta charset="utf-8"><title>STL仕上げ見本の生成</title>
+<canvas id="atlas" width="768" height="512"></canvas>
+<a id="save" download="stl-finishes.webp">見本画像を保存</a>
+<script type="module">
+// Open this development tool through Vite. Swatches follow the workshop's native
+// option order. Render once and ship the atlas so students need no extra 3D scenes.
+import * as THREE from "three";
+import { applySTLFinish } from "../src/stl-finish-material.js";
+import { validSTLFinish } from "../src/stl-appearance.js";
+const html = await (await fetch("/")).text();
+const select = new DOMParser().parseFromString(html, "text/html").querySelector("#object-finish");
+const atlas = document.querySelector("#atlas"), ctx = atlas.getContext("2d");
+const w = atlas.width / 4, h = atlas.height / 4;
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(w * 2, h * 2, false);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color("#e4eeed");
+const camera = new THREE.OrthographicCamera(-1.65, 1.65, 1.1, -1.1, .1, 15);
+camera.position.set(2.35, 1.65, 3.15);
+camera.lookAt(0, .65, 0);
+const key = new THREE.DirectionalLight(0xfff1d9, 2.6);
+key.position.set(2, 4, 3);
+scene.add(key, new THREE.HemisphereLight(0xf4ffff, 0xadbbb6, 1.7));
+const grid = new THREE.GridHelper(12, 24, 0xc6d5d2, 0xd3dfdb);
+scene.add(grid);
+const geom = new THREE.BoxGeometry(1.45, 1.45, 1.45);
+geom.computeBoundingBox();
+const material = new THREE.MeshStandardMaterial({ side: THREE.DoubleSide, roughness: .85 });
+const sample = new THREE.Mesh(geom, material);
+sample.position.y = .731;
+scene.add(sample);
+const colors = {solid:"#32847e", windows:"#ddc69f", brick:"#b26649", roofTiles:"#425e73", wood:"#a16a38",
+  truss:"#38697a", metal:"#7997a9", honeycomb:"#df9b3e", stainedGlass:"#8794db", mosaic:"#358983",
+  checker:"#3a4d6c", candy:"#d34c86", galaxy:"#403677", aurora:"#347f92", circuit:"#234f54", scales:"#407d66"};
+for (const [index, option] of [...select.options].entries()) {
+  if (!validSTLFinish(option.value)) throw Error("Missing finish: " + option.value);
+  material.color.set(colors[option.value]);
+  applySTLFinish(sample, option.value, "all");
+  renderer.render(scene, camera);
+  ctx.drawImage(renderer.domElement, (index % 4)*w, Math.floor(index/4)*h, w, h);
+}
+document.querySelector("#save").href = atlas.toDataURL("image/webp", .93);
+renderer.dispose();
+</script></html>

@@ -331,7 +331,7 @@ test("server sync validates actual core empty ground, ignores ownership lies, sa
   assert.deepEqual(reconnect.socket.messages.find((message) => message.type === "state").objects[0], recorded);
   s.sqlite.close();
 });
-test("object colors persist across server eviction/restore; only owner can paint without terrain or transform changes", async () => {
+test("STL finishes persist across eviction and restore; only the owner may change their appearance", async () => {
   const s = await setup();
   try {
     const teacher = await s.user("paint-teacher", "teacher"), student = await s.user("paint-student"), world = await createWorld(s.db, teacher, {}, s.now());
@@ -343,14 +343,25 @@ test("object colors persist across server eviction/restore; only owner can paint
     assert.equal((await send(a, { type: "object.create", id, assetId: asset.id, position, rotation: [0,0,0], scale: [.5,.5,.5], color: "#FF8800" })).type, "ack");
     assert.equal(a.room.state.objects[0].color, "#ff8800");
     const before = structuredClone(a.room.state.objects[0]);
+    assert.equal(before.finish, "solid"); assert.equal(before.surface, "all");
+    const transform = { id, position, rotation: [0,0,0], scale: [.5,.5,.5] };
+    assert.equal((await send(a, { type: "object.update", ...transform, finish: "windows", surface: "walls" })).type, "ack");
+    // An earlier client sends transforms and a color without the new fields.
+    assert.equal((await send(a, { type: "object.update", ...transform, color: before.color })).type, "ack");
+    const withWindows = { ...before, finish: "windows", surface: "walls" };
+    assert.deepEqual(a.room.state.objects[0], withWindows);
     a.room.loadPlacement = async () => { throw new Error("painting must not fetch terrain"); };
     assert.equal((await send(t, { type: "object.paint", id, color: "#ffffff" })).error, "object_owner_required");
     assert.equal((await send(a, { type: "object.paint", id, color: "red" })).error, "invalid_object_color");
-    assert.deepEqual(a.room.state.objects[0], before);
+    assert.equal((await send(a, { type: "object.paint", id, finish: "unknown" })).error, "invalid_object_finish");
+    assert.equal((await send(a, { type: "object.paint", id, surface: null })).error, "invalid_object_surface");
+    assert.equal((await send(a, { type: "object.paint", id })).error, "invalid_object_color");
+    assert.deepEqual(a.room.state.objects[0], withWindows);
+    assert.equal((await send(a, { type: "object.paint", id, finish: "truss", surface: "roof" })).type, "ack");
     assert.equal((await send(a, { type: "object.paint", id, color: "#22AA77", position: [999,999,999], ownerId: teacher.id })).type, "ack");
-    const painted = { ...before, color: "#22aa77" };
+    const painted = { ...before, color: "#22aa77", finish: "truss", surface: "roof" };
     assert.deepEqual(a.room.state.objects[0], painted);
-    assert.equal(t.socket.messages.findLast(message => message.type === "objects").objects[0].color, painted.color);
+    assert.deepEqual(t.socket.messages.findLast(message => message.type === "objects").objects[0], painted);
     const checkpoint = await (await roomRequest(s.env, world.id, teacher, "/save", "POST")).json();
     await send(a, { type: "object.paint", id, color: "#112233" });
     const restored = await roomRequest(s.env, world.id, teacher, "/restore", "POST", { snapshotId: checkpoint.id, revision: a.room.state.revision });

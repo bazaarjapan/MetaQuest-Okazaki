@@ -1,9 +1,14 @@
 import { parseSTL, normalizeSTLPositions, STL_LIMITS } from "./stl-model.js";
+import { createFinishGallery } from "./stl-finish-gallery.js";
+import { createSTLEditorPreview } from "./stl-editor-preview.js";
+import { createSTLThumbnailRenderer } from "./stl-thumbnail.js";
 import { validatePlacement } from "./placement.js";
 import { workshopAccess, canEditWorkshopObject, createWorkshopScope, safeWorkshopTransform,
   sharedObjectOverlap } from "./workshop-access.js";
 import "./workshop.css";
 import { stlColor, validSTLColor, describeWorkLocation, validExhibitText, exhibitTitle } from "./workshop-presentation.js";
+import { stlFinish, stlSurface, validSTLFinish, validSTLSurface } from "./stl-appearance.js";
+import { applySTLFinish } from "./stl-finish-material.js";
 
 const MAX_ASSETS = 10, MAX_WORLD_TRIANGLES = 200000, MAX_CACHE_TRIANGLES = 220000;
 const degrees = (r) => r * 180 / Math.PI;
@@ -41,14 +46,14 @@ function validAsset(asset) {
     /^[a-f0-9]{64}$/.test(asset.sha256);
 }
 const assetKey = (asset) => `${asset.id}:${asset.sha256}:${asset.upAxis}:${asset.units}`;
-const objectKey = (object) => JSON.stringify([object.assetId, object.position, object.rotation, object.scale, stlColor(object.color)]);
+const objectKey = (object) => JSON.stringify([object.assetId, object.position, object.rotation, object.scale, stlColor(object.color), stlFinish(object.finish), stlSurface(object.surface)]);
 async function digest(buffer) {
   return [...new Uint8Array(await crypto.subtle.digest("SHA-256", buffer))].map((v) => v.toString(16).padStart(2, "0")).join("");
 }
 
 // Preserve source PLATEAU; committed server meshes and a separate local draft
 // live in this group. Drafts never silently replace the authoritative world.
-export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
+export function createWorkshop(THREE, { scene, renderer, domElement, camera, schoolClient,
   getEnvironment, getViewPosition, onChange = () => {}, onRequireLogin = () => {},
   isXR = () => false, getStation = () => null, onLocate = () => false }) {
   const group = new THREE.Group(); group.name = "student-creations"; scene.add(group);
@@ -56,12 +61,16 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
   const q = (id) => dialog.querySelector(`#${id}`);
   const fields = ["x", "z", "scale", "rx", "ry", "rz"];
   const remote = new Map(), models = new Map(), loading = new Map(), failures = new Map();
+  const thumbnails = new Map();
+  let thumbnailRenderer, thumbnailQueue = Promise.resolve(), thumbnailRevision = 0;
   const scope = createWorkshopScope(), ray = new THREE.Raycaster();
   let state = schoolClient?.getState() ?? {}, selected = null, draft = null;
   let picking = false, operation = null, activeLoads = 0, message = "ログインして共同ワールドに参加すると作品を配置できます。";
   let syncScheduled = false, destroyed = false;
   let locator = null, locatedId = null;
   let colorSelectionKey = "", exhibitSelectionKey = "";
+  let typingScaleFor = null, invalidScaleFor = null;
+  let scaleValidationTimer;
   const access = () => workshopAccess(state);
   const busy = () => operation !== null;
   const ownAssets = () => (state.assets ?? []).filter((asset) => validAsset(asset) && asset.ownerId === access().userId);
@@ -92,12 +101,57 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
     picking = false; domElement.style.cursor = "";
     const hint = document.querySelector("#canvas-hint"); if (hint) hint.textContent = "ドラッグで回転 · ホイールで拡大";
   }
-  function clearDraft() { if (draft) disposeMesh(draft.mesh); draft = null; stopPick(); }
+  function clearDraft() {
+    clearTimeout(scaleValidationTimer);
+    if (draft) {
+      const original = remote.get(draft.baseId);
+      if (original) original.mesh.visible = true;
+      disposeMesh(draft.mesh);
+    }
+    draft = null; typingScaleFor = null; invalidScaleFor = null; stopPick();
+  }
   function clearLocator() {
     if (locator) { locator.removeFromParent(); locator.geometry.dispose(); locator.material.dispose(); }
     locator = null; locatedId = null;
   }
+  let preview, previewFrame = 0;
+  const previewPanel = q("stl-editor-preview");
+  const gallery = createFinishGallery(q("stl-finish-gallery"), q("object-finish"));
+  function resetPreview() {
+    if (previewFrame) cancelAnimationFrame(previewFrame);
+    previewFrame = 0;
+    if (preview) {
+      preview.dispose();
+      const canvas = q("stl-editor-canvas");
+      canvas.getContext("2d")?.clearRect(0, 0, canvas.width, canvas.height);
+      q("stl-editor-dimensions").textContent = "";
+    }
+    preview = null;
+    previewPanel.hidden = true;
+  }
+  function requestPreview() {
+    if (!renderer || !dialog.open || isXR() || previewFrame) return;
+    previewFrame = requestAnimationFrame(() => {
+      previewFrame = 0;
+      const item = selectedItem();
+      if (destroyed || !dialog.open || isXR() || !item?.mesh) { resetPreview(); return; }
+      previewPanel.hidden = false;
+      preview ??= createSTLEditorPreview(THREE, renderer, q("stl-editor-canvas"), q("stl-editor-dimensions"));
+      preview.draw(item, q("object-color").value, q("object-finish").value, q("object-surface").value);
+    });
+  }
+  dialog.addEventListener("close", () => {
+    resetPreview();
+    // Leaving an unfinished number must not block placing a held STL later.
+    if (!draft || invalidScaleFor !== draft) return;
+    invalidScaleFor = null; typingScaleFor = null; previewDraft();
+  });
+  dialog.addEventListener("input", requestPreview);
+  dialog.addEventListener("change", requestPreview);
   function clearWorld() {
+    resetPreview();
+    thumbnails.clear(); thumbnailQueue = Promise.resolve();
+    thumbnailRenderer?.dispose(); thumbnailRenderer = null;
     clearLocator();
     clearDraft(); for (const item of remote.values()) disposeMesh(item.mesh);
     remote.clear(); selected = null;
@@ -109,10 +163,12 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
   function publicObject(item) {
     return { id: item.id, name: item.name, title: item.title, description: item.description, authorName: item.authorName, ownerId: item.ownerId, assetId: item.assetId,
       upAxis: item.upAxis, position: [...item.position], rotation: [...item.rotation],
-      scale: [...item.scale], color: stlColor(item.color), triangles: item.triangles, committed: item !== draft,
+      scale: [...item.scale], color: stlColor(item.color), finish: stlFinish(item.finish), surface: stlSurface(item.surface),
+      triangles: item.triangles, committed: item !== draft,
       valid: item === draft ? item.valid : true, editable: canChange(item) };
   }
   function renderList() {
+    requestPreview();
     const select = q("workshop-list"); select.replaceChildren();
     for (const item of remote.values()) select.append(new Option(`${item.ownerId === access().userId ? "自分" : item.authorName || "他の人"} ✓ ${exhibitTitle(item)}`, item.id));
     if (draft && !remote.has(draft.id)) select.append(new Option(`下書き ${draft.name}`, draft.id));
@@ -122,10 +178,18 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
     if ([...librarySelect.options].some((option) => option.value === previousAsset)) librarySelect.value = previousAsset;
     const item = selectedItem(), editable = canChange(item) && !busy();
     library.hidden = !ownAssets().length;
-    q("object-color").disabled = !editable;
-    const colorKey = JSON.stringify([item?.id, item === draft, stlColor(item?.color)]);
-    // A classmate placing a work must not reset an open native color chooser.
-    if (colorKey !== colorSelectionKey) { colorSelectionKey = colorKey; q("object-color").value = stlColor(item?.color); }
+    q("object-color").disabled = q("object-finish").disabled = !editable;
+    const finish = stlFinish(item?.finish), surface = stlSurface(item?.surface);
+    const colorKey = JSON.stringify([item?.id, stlColor(item?.color), finish, surface]);
+    // Keep unfinished selections if another participant changes their own work.
+    if (colorKey !== colorSelectionKey) {
+      colorSelectionKey = colorKey;
+      q("object-color").value = stlColor(item?.color);
+      q("object-finish").value = finish;
+      q("object-surface").value = surface;
+    }
+    q("object-surface").disabled = !editable || q("object-finish").value === "solid";
+    gallery?.refresh();
     q("object-paint").disabled = !editable;
     q("object-locate").disabled = !access().canEdit || !item || busy() || item === draft || isXR();
     q("object-name").textContent = item ? `選択中：${exhibitTitle(item)}` : "作品はまだ選ばれていません";
@@ -140,11 +204,12 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
     q("exhibit-author").textContent = item?.authorName ? `作者：${item.authorName}` : "";
     q("object-location").textContent = item ? `${item === draft ? "未確定のプレビュー" : "設置済み"}：${describeWorkLocation(item.position, getViewPosition(), getStation())}` : "設置済みの自分の作品を選ぶと、場所を確認できます。";
     for (const field of fields) q(`object-${field}`).disabled = !editable;
+    q("object-scale").setAttribute("aria-invalid", String(Boolean(item && invalidScaleFor === item)));
     for (const id of ["stl-files", "stl-up", "stl-units"]) q(id).disabled = !access().canEdit || busy();
     q("object-pick").disabled = !editable; q("object-remove").disabled = !editable;
     q("object-remove").textContent = item === draft && !draft?.baseId ? "手持ちをしまう" : "ホットバーへ戻す";
     q("object-remove").title = "配置を解除します。保存済みのSTL原本は残り、また使えます。";
-    q("object-apply").disabled = !editable || !draft?.valid;
+    q("object-apply").disabled = !editable || !draft?.valid || invalidScaleFor === draft;
     q("object-apply").textContent = draft?.baseId ? "変更を保存" : "配置を確定";
     cancel.disabled = !draft || busy(); reuse.disabled = !access().canEdit || busy() || !ownAssets().length;
     cancel.hidden = !draft?.baseId;
@@ -153,7 +218,7 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
     q("workshop-status").textContent = message + (failures.size ? ` ${failures.size}種類のSTLを表示できていません。「再読込」で再試行できます。` : "");
     if (!item) { q("object-y").textContent = "作品を選んでください。配置先は実地形で検証します。"; return; }
     q("object-x").value = item.position[0].toFixed(2); q("object-z").value = item.position[2].toFixed(2);
-    q("object-scale").value = Number(item.scale[0].toPrecision(7));
+    if (item !== typingScaleFor) q("object-scale").value = Number(item.scale[0].toPrecision(7));
     ["rx", "ry", "rz"].forEach((field, i) => { q(`object-${field}`).value = degrees(item.rotation[i]).toFixed(1); });
     q("object-y").textContent = `底面の標高 ${item.position[1].toFixed(2)} m · ${item.triangles.toLocaleString()}三角形${canChange(item) ? "" : " · 他の人の作品（閲覧のみ）"}`;
   }
@@ -166,6 +231,14 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
   function applyTransform(mesh, item) {
     mesh.position.fromArray(item.position); mesh.rotation.set(...item.rotation, "XYZ");
     mesh.scale.fromArray(item.scale); mesh.updateMatrixWorld(true);
+  }
+  function displayAppearance(item, invalid = false) {
+    const { mesh } = item;
+    mesh.userData.stlColor = stlColor(item.color);
+    mesh.userData.stlFinish = stlFinish(item.finish);
+    mesh.userData.stlSurface = stlSurface(item.surface);
+    mesh.material.color.set(invalid ? "#dc584e" : mesh.userData.stlColor);
+    applySTLFinish(mesh, invalid ? "solid" : mesh.userData.stlFinish, mesh.userData.stlSurface);
   }
   function modelReferences() {
     const ids = new Set((state.objects ?? []).map((object) => object.assetId));
@@ -228,8 +301,37 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
     if (!accepts(token)) return null;
     if (!result) throw new Error(failures.get(asset.id) ?? "STLの読み込みに失敗しました。"); return result;
   }
+  function getAssetThumbnail(id) {
+    const asset = ownAssets().find(item => item.id === id);
+    if (!renderer || !asset || !access().canEdit || destroyed) return Promise.resolve(null);
+    const key = assetKey(asset);
+    if (thumbnails.has(key)) return thumbnails.get(key);
+    const token = currentToken();
+    const available = () => accepts(token) && !isXR() && !renderer.xr.isPresenting &&
+      ownAssets().some(item => assetKey(item) === key);
+    // One icon at a time. Placed meshes and hotbar selection share ensureModel's
+    // existing two-download budget, including for unplaced assets after login.
+    const job = thumbnailQueue.then(async () => {
+      await new Promise(resolve => {
+        if (globalThis.requestIdleCallback) globalThis.requestIdleCallback(resolve, { timeout: 500 });
+        else setTimeout(resolve, 16);
+      });
+      if (!available() || failures.has(id)) return null;
+      const model = await ensureModel(asset, token);
+      if (!model || !available()) return null;
+      thumbnailRenderer ??= createSTLThumbnailRenderer(THREE, renderer);
+      return thumbnailRenderer.render(model.geometry);
+    }).catch(() => null);
+    thumbnails.set(key, job);
+    thumbnailQueue = job.then(url => { if (!url && thumbnails.get(key) === job) thumbnails.delete(key); });
+    return job;
+  }
   function syncObjects() {
     if (!access().canEdit) return;
+    if (thumbnails.size) {
+      const liveKeys = new Set(ownAssets().map(assetKey));
+      for (const key of thumbnails.keys()) if (!liveKeys.has(key)) { thumbnails.delete(key); thumbnailRevision++; }
+    }
     const entries = state.objects ?? [], assets = new Map((state.assets ?? []).filter(validAsset).map((asset) => [asset.id, asset]));
     if (entries.length > 340 || entries.reduce((sum, object) => sum + (object.triangles ?? MAX_WORLD_TRIANGLES + 1), 0) > MAX_WORLD_TRIANGLES) {
       setMessage("ワールドの作品数・形状が表示上限を超えています。再接続してください。"); return;
@@ -249,8 +351,9 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
       let item = remote.get(object.id);
       if (item && item.assetId !== object.assetId) { disposeMesh(item.mesh); remote.delete(item.id); item = null; }
       if (!item) { item = { mesh: makeMesh(model) }; remote.set(object.id, item); }
-      Object.assign(item, object, { name: typeof object.name === "string" ? object.name : asset.name, upAxis: asset.upAxis, positions: model.positions });
-      item.mesh.material.color.set(stlColor(item.color));
+      Object.assign(item, object, { name: typeof object.name === "string" ? object.name : asset.name, upAxis: asset.upAxis,
+        color: stlColor(object.color), finish: stlFinish(object.finish), surface: stlSurface(object.surface), positions: model.positions });
+      displayAppearance(item);
       item.mesh.name = `creation-${object.id}`; item.mesh.userData.creationId = object.id; item.mesh.userData.ownerId = object.ownerId;
       applyTransform(item.mesh, object);
     }
@@ -287,7 +390,7 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
     const id = crypto.randomUUID();
     draft = { id, ownerId: access().userId, assetId: asset.id, name: asset.name, upAxis: asset.upAxis,
       positions: model.positions, triangles: model.triangles, mesh: makeMesh(model, true),
-      color: stlColor(), position: seed, rotation: [0, 0, 0], scale: [factor, factor, factor], valid: false,
+      color: stlColor(), finish: "solid", surface: "all", position: seed, rotation: [0, 0, 0], scale: [factor, factor, factor], valid: false,
       baseId: null, baseKey: null };
     draft.mesh.userData.creationId = id; draft.mesh.userData.ownerId = draft.ownerId; draft.mesh.userData.isDraft = true;
     selected = id; return previewDraft();
@@ -300,12 +403,15 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
       position: [...item.position], rotation: [...item.rotation], scale: [...item.scale],
       baseId: item.id, baseKey: objectKey(item), valid: true };
     draft.mesh.userData.creationId = item.id; draft.mesh.userData.ownerId = item.ownerId; draft.mesh.userData.isDraft = true;
-    applyTransform(draft.mesh, draft); return draft;
+    // While shrinking an existing work, its original would cover the smaller preview.
+    item.mesh.visible = false;
+    displayAppearance(draft); applyTransform(draft.mesh, draft); return draft;
   }
   function previewDraft({ position = draft?.position, rotation = draft?.rotation, scale = draft?.scale } = {}) {
+    clearTimeout(scaleValidationTimer);
     if (!draft || !requireAccess(false)) return { valid: false };
     if (!safeWorkshopTransform({ position, rotation, scale })) {
-      draft.valid = false; draft.mesh.material.color.set("#dc584e");
+      draft.valid = false; displayAppearance(draft, true);
       setMessage("値が範囲外です。縮尺は0.000001〜100、回転は±18000°以内で指定してください。");
       renderList(); return { valid: false };
     }
@@ -316,9 +422,8 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
     }
     draft.position = result.position ?? [...position]; draft.rotation = [...rotation]; draft.scale = [...scale];
     draft.valid = result.valid; draft.bounds = result.bounds; applyTransform(draft.mesh, draft);
-    draft.mesh.userData.stlColor = stlColor(draft.color);
-    draft.mesh.material.color.set(draft.valid ? stlColor(draft.color) : "#dc584e"); draft.mesh.material.opacity = draft.valid ? 0.8 : 0.45;
-    setMessage(draft.valid ? "配置できます。「配置を確定」で共同ワールドへ保存します。" : `配置できません：${explainError(result.error)}`);
+    displayAppearance(draft, !draft.valid); draft.mesh.material.opacity = draft.valid ? 0.8 : 0.45;
+    setMessage(draft.valid ? (draft.baseId ? "変更をプレビュー中です。「変更を保存」で共有します。" : "配置できます。「配置を確定」で共同ワールドへ保存します。") : `配置できません：${explainError(result.error)}`);
     renderList(); return result;
   }
   async function importFiles(files) {
@@ -389,6 +494,7 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
     }
     if (scaleFactor !== undefined) {
       if (!Number.isFinite(scaleFactor) || scaleFactor <= 0) return { valid: false };
+      typingScaleFor = null; invalidScaleFor = null;
       for (let index = 0; index < 3; index++) {
         const value=scale[index]*scaleFactor, tolerance=4*Number.EPSILON;
         // Clamp only floating-point overshoot of the documented bounds. Real
@@ -400,13 +506,22 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
     return previewDraft({ rotation, scale, position });
   }
   async function commitSelected() {
-    if (!requireAccess() || busy() || !draft || !canChange(draft) || !previewDraft().valid) return false;
-    const item = draft, token = currentToken(), marker = {}; operation = marker; renderList();
+    if (!requireAccess() || busy() || !draft || !canChange(draft) || invalidScaleFor === draft || !previewDraft().valid) return false;
+    const item = draft;
+    if (dialog.open) {
+      const color = q("object-color").value, finish = q("object-finish").value, surface = q("object-surface").value;
+      if (validSTLColor(color) && validSTLFinish(finish) && validSTLSurface(surface)) {
+        Object.assign(item, { color: stlColor(color), finish, surface });
+        displayAppearance(item);
+      }
+    }
+    const token = currentToken(), marker = {}; operation = marker; renderList();
     try {
       const ack = await schoolClient.editObject(item.baseId ? "object.update" : "object.create", {
         id: item.id, ...(item.baseId ? {} : { assetId: item.assetId }),
         title: item.title ?? "", description: item.description ?? "",
-        position: [...item.position], rotation: [...item.rotation], scale: [...item.scale], color: stlColor(item.color) });
+        position: [...item.position], rotation: [...item.rotation], scale: [...item.scale], color: stlColor(item.color),
+        finish: stlFinish(item.finish), surface: stlSurface(item.surface) });
       if (!accepts(token)) return false;
       // Only the server broadcast becomes committed, never the local preview.
       if (draft === item) clearDraft(); selected = ack.id ?? item.id;
@@ -435,20 +550,20 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
       color:stlColor(item.color),mesh:makeMesh(model,true),baseId:null,baseKey:null,valid:false};
     held.mesh.visible=false; held.mesh.userData.creationId=held.id;
     held.mesh.userData.ownerId=item.ownerId; held.mesh.userData.isDraft=true;
-    held.mesh.userData.stlColor=held.color; applyTransform(held.mesh,held);
+    displayAppearance(held); applyTransform(held.mesh,held);
     const token=currentToken(),marker={}; operation=marker; renderList(); let adopted=false;
     try {
       await schoolClient.editObject("object.delete",{id:item.id});
       if(!accepts(token)) return false;
       clearDraft(); draft=held; selected=held.id; adopted=true; syncObjects();
-      setMessage("色・大きさ・回転を保って手に持ちました。地面をねらい、右クリックで置き直してください。再配置するまでは下書きです。");
+      setMessage("見た目・大きさ・回転を保って手に持ちました。地面をねらい、右クリックで置き直してください。再配置するまでは下書きです。");
       return true;
     } catch(error) { if(accepts(token)) setMessage(`回収できませんでした：${explainError(error)}`); return false; }
     finally { if(!adopted)disposeMesh(held.mesh); if(operation===marker)operation=null; renderList();onChange(); }
   }
   function cancelDraft() {
     if (!requireAccess() || busy()) return false;
-    const baseId = draft?.baseId; clearDraft(); selected = baseId && remote.has(baseId) ? baseId : null;
+    const baseId = draft?.baseId; clearDraft(); colorSelectionKey = ""; selected = baseId && remote.has(baseId) ? baseId : null;
     setMessage("下書きを取り消しました。サーバー上の確定済み作品は変更していません。"); renderList(); return true;
   }
   async function cycleOwnAsset(direction = 1) {
@@ -457,19 +572,22 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
     const current = assets.findIndex((asset) => asset.id === selectedItem()?.assetId), delta = direction < 0 ? -1 : 1;
     return useAsset(assets[(current < 0 ? 0 : (current + delta + assets.length) % assets.length)].id);
   }
-  async function paintSelected(color) {
+  async function paintSelected(color, finish, surface) {
     const item = selectedItem();
-    if (!requireAccess() || busy() || !canChange(item) || !validSTLColor(color)) return false;
+    finish ??= stlFinish(item?.finish); surface ??= stlSurface(item?.surface);
+    if (!requireAccess() || busy() || !canChange(item) || !validSTLColor(color) || !validSTLFinish(finish) || !validSTLSurface(surface)) return false;
+    const appearance = { color: stlColor(color), finish, surface };
     if (item === draft) {
-      draft.color = stlColor(color); previewDraft();
-      setMessage("下書きの色を変更しました。配置を確定すると色も保存されます。"); return true;
+      Object.assign(draft, appearance); previewDraft();
+      if (draft.valid) setMessage(draft.baseId ? "見た目を下書きに反映しました。「変更を保存」で共有します。" : "見た目を下書きに反映しました。「配置を確定」で共有します。");
+      return true;
     }
     const token = currentToken(), marker = {}; operation = marker; renderList();
     try {
-      await schoolClient.editObject("object.paint", { id: item.id, color: stlColor(color) });
+      await schoolClient.editObject("object.paint", { id: item.id, ...appearance });
       if (!accepts(token)) return false;
-      syncObjects(); setMessage("作品の色をクラウドに保存しました。設置場所は変更していません。"); return true;
-    } catch (error) { if (accepts(token)) setMessage(`色を保存できませんでした：${explainError(error)}`); return false; }
+      syncObjects(); setMessage("作品の見た目を保存しました。"); return true;
+    } catch (error) { if (accepts(token)) setMessage(`見た目を保存できませんでした：${explainError(error)}`); return false; }
     finally { if (operation === marker) operation = null; renderList(); onChange(); }
   }
   async function locateSelected() {
@@ -493,6 +611,7 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
   }
   function retryAssets() {
     if (!requireAccess() || busy()) return false;
+    thumbnailRevision++;
     failures.clear(); scheduleSync(); setMessage("表示できなかった作品を再読込しています…"); return true;
   }
   async function describeSelected(title, description) {
@@ -516,20 +635,98 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
     if (!selectedItem()) selected = [...remote.values()].find(item => canChange(item))?.id ?? null;
     const importPanel=q("workshop-import"),body=q("workshop-body");
     if(importPanel)importPanel.open=!ownAssets().length;
-    stopPick(); renderList(); if (!dialog.open) dialog.showModal();
+    stopPick(); renderList(); if (!dialog.open) dialog.showModal(); requestPreview();
     if(body)body.scrollTop=0;return true;
   }
   q("stl-files").addEventListener("change", (event) => { void importFiles([...event.target.files]); });
   q("workshop-list").addEventListener("change", (event) => selectObject(event.target.value));
-  for (const field of fields) q(`object-${field}`).addEventListener("change", () => {
+  const scaleInput = q("object-scale");
+  function previewScaleInput() {
+    if (busy() || !canChange(selectedItem()) || !beginDraft()) return;
+    typingScaleFor = draft;
+    const value = scaleInput.valueAsNumber;
+    const scale = draft.scale.map(axis => (axis / draft.scale[0]) * value);
+    if (scaleInput.value === "" || !safeWorkshopTransform({ ...draft, scale })) {
+      clearTimeout(scaleValidationTimer);
+      invalidScaleFor = draft;
+      draft.valid = false;
+      setMessage("縮尺は0.000001〜100の数値を入力してください。");
+      renderList(); return;
+    }
+    invalidScaleFor = null;
+    if (draft.triangles < 2000) { previewDraft({ scale }); return; }
+    // Exact terrain contact visits every triangle. Draw immediately and check
+    // the latest size after scrubbing pauses. A save always checks synchronously.
+    clearTimeout(scaleValidationTimer);
+    draft.scale = scale; draft.valid = false; draft.bounds = null;
+    applyTransform(draft.mesh, draft);
+    setMessage("大きさを調整中です。地面と周りの作品との重なりを確認します。");
+    renderList();
+    const edited = draft;
+    scaleValidationTimer = setTimeout(() => {
+      if (draft === edited && canChange(edited)) previewDraft();
+    }, 160);
+  }
+  scaleInput.addEventListener("input", previewScaleInput);
+  scaleInput.addEventListener("change", previewScaleInput);
+  scaleInput.addEventListener("blur", () => {
+    if (typingScaleFor && !invalidScaleFor) {
+      typingScaleFor = null;
+      scaleInput.value = Number(selectedItem().scale[0].toPrecision(7));
+    }
+  });
+
+  let scrub = null, scrubFrame = null;
+  function applyScrub() {
+    scrubFrame = null;
+    if (!scrub || selectedItem() !== scrub.item || busy() || !canChange(scrub.item)) return;
+    const value = Math.max(1e-6, Math.min(100, scrub.startScale * 2 ** ((scrub.x - scrub.startX) / 100)));
+    scaleInput.value = Number(value.toPrecision(7));
+    previewScaleInput();
+    scrub.item = selectedItem();
+  }
+  function endScrub(event) {
+    if (!scrub || scrub.pointerId !== event.pointerId) return;
+    if (scrubFrame !== null) { cancelAnimationFrame(scrubFrame); scrubFrame = null; }
+    if (scrub.moved && event.type === "pointerup") {
+      scrub.x = event.clientX; applyScrub();
+    }
+    scrub = null;
+    if (scaleInput.hasPointerCapture?.(event.pointerId)) scaleInput.releasePointerCapture(event.pointerId);
+  }
+  scaleInput.addEventListener("pointerdown", event => {
+    const item = selectedItem();
+    if (scrub || event.button !== 0 || event.pointerType === "touch" || busy() || !canChange(item)) return;
+    scrub = { pointerId: event.pointerId, item, startScale: item.scale[0], startX: event.clientX, x: event.clientX, moved: false };
+    scaleInput.setPointerCapture?.(event.pointerId);
+  });
+  // Chrome otherwise starts dragging the selected number as text, cancels the
+  // captured pointer, and stops sending moves after the first few pixels.
+  scaleInput.addEventListener("dragstart", event => { if (scrub) event.preventDefault(); });
+  scaleInput.addEventListener("pointermove", event => {
+    if (!scrub || scrub.pointerId !== event.pointerId) return;
+    scrub.x = event.clientX;
+    if (!scrub.moved && Math.abs(scrub.x - scrub.startX) < 4) return;
+    scrub.moved = true; event.preventDefault();
+    if (scrubFrame === null) scrubFrame = requestAnimationFrame(applyScrub);
+  });
+  for (const event of ["pointerup", "pointercancel", "lostpointercapture"]) scaleInput.addEventListener(event, endScrub);
+
+  for (const field of fields.filter(name => name !== "scale")) q(`object-${field}`).addEventListener("change", () => {
     if (!requireAccess() || busy() || !canChange(selectedItem())) return;
-    const values = Object.fromEntries(fields.map((name) => [name, q(`object-${name}`).valueAsNumber]));
-    if (!Object.values(values).every(Number.isFinite)) { setMessage("数値を入力してください。"); renderList(); return; }
+    const value = q(`object-${field}`).valueAsNumber;
+    if (!Number.isFinite(value)) { setMessage("数値を入力してください。"); renderList(); return; }
     if (!beginDraft()) return;
-    previewDraft({ position: [values.x, draft.position[1], values.z], rotation: [values.rx, values.ry, values.rz].map(radians), scale: [values.scale, values.scale, values.scale] });
+    const position = [...draft.position], rotation = [...draft.rotation];
+    if (field === "x" || field === "z") position[field === "x" ? 0 : 2] = value;
+    else rotation[["rx", "ry", "rz"].indexOf(field)] = radians(value);
+    previewDraft({ position, rotation });
   });
   q("object-apply").onclick = () => { void commitSelected(); }; q("object-remove").onclick = () => { void removeSelected(); };
-  q("object-paint").onclick = () => { void paintSelected(q("object-color").value); };
+  q("object-finish").addEventListener("change", () => {
+    q("object-surface").disabled = !canChange(selectedItem()) || busy() || q("object-finish").value === "solid";
+  });
+  q("object-paint").onclick = () => { void paintSelected(q("object-color").value, q("object-finish").value, q("object-surface").value); };
   q("object-locate").onclick = locateSelected;
   q("exhibit-save").onclick = () => { void describeSelected(q("exhibit-title").value, q("exhibit-description").value); };
   reuse.onclick = () => { void useAsset(librarySelect.value); }; cancel.onclick = cancelDraft; retry.onclick = retryAssets;
@@ -544,11 +741,11 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
     ray.setFromCamera(new THREE.Vector2((event.clientX - rect.left) / rect.width * 2 - 1,
       -(event.clientY - rect.top) / rect.height * 2 + 1), camera);
     const hit = ray.intersectObjects(getEnvironment().terrainMeshes ?? [], false)[0];
-    stopPick(); if (!dialog.open) dialog.showModal();
+    stopPick(); if (!dialog.open) dialog.showModal(); requestPreview();
     if (!hit) { setMessage("読み込み済みの実地面を選んでください。空中・建物上へは配置できません。"); return; }
     moveSelected([hit.point.x, hit.point.y, hit.point.z]);
   };
-  const onEscape = (event) => { if (event.code === "Escape" && picking) { stopPick(); if (requireAccess(false) && !isXR() && !dialog.open) dialog.showModal(); } };
+  const onEscape = (event) => { if (event.code === "Escape" && picking) { stopPick(); if (requireAccess(false) && !isXR() && !dialog.open) { dialog.showModal(); requestPreview(); } } };
   domElement.addEventListener("click", onCanvasClick); window.addEventListener("keydown", onEscape);
   q("workshop-close").onclick = () => dialog.close(); document.querySelector("#open-workshop").onclick = open;
   const unsubscribe = schoolClient?.subscribe(onState) ?? (() => {});
@@ -557,6 +754,7 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
     commitSelected, removeSelected, retrieveSelected, cancelDraft, retryAssets, paintSelected, locateSelected, describeSelected,
     // Rendering-only handle: avoid cloning the full classroom every frame.
     // Editing an existing placement is not holding a new inventory item.
+    getAssetThumbnail,
     getHeldDraft: () => draft && !draft.baseId && canChange(draft) ? draft.mesh : null,
     getState: () => {
       const objects = [...remote.values()].map((item) => draft?.id === item.id ? publicObject(draft) : publicObject(item));
@@ -565,6 +763,7 @@ export function createWorkshop(THREE, { scene, domElement, camera, schoolClient,
         locatedName: remote.get(locatedId)?.name ?? null,
         triangles: objects.reduce((sum, item) => sum + item.triangles, 0), objects,
         current: selectedItem() ? publicObject(selectedItem()) : null,
+        thumbnailRevision,
         ownAssets: ownAssets().map(({ id, name, triangles }) => ({ id, name, triangles })),
         assetFailures: failures.size, message: q("workshop-status").textContent, storage: "cloud-world" };
     },
