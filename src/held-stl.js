@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { applySTLFinish } from "./stl-finish-material.js";
 
 // Local visual only: never move the placement draft, mutate its material, or
 // dispose geometry owned by the workshop cache. Server placement stays full size.
@@ -64,6 +65,7 @@ export function createHeldSTL({ avatar, camera }) {
       mesh.name = "held-stl-model"; pivot.add(mesh);
     }
     mesh.material.color.set(draft.userData.stlColor ?? "#488caa");
+    applySTLFinish(mesh, draft.userData.stlFinish, draft.userData.stlSurface);
     // Camera collision may hide the body even in a front/rear view. Keep the
     // inventory indicator visible by using the same camera-mounted fallback.
     const useHand = thirdPerson && avatar.group.visible;

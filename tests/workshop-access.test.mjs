@@ -73,35 +73,36 @@ class Element {
   removeEventListener(event) { this.handlers.delete(event); }
   showModal() { this.open = true; }
   close() { this.open = false; }
-  dispatch(event) { this.handlers.get(event)?.({ target: this, code: "", ...event }); }
+  dispatch(event, properties = {}) { this.handlers.get(event)?.({ type: event, target: this, code: "", ...properties }); }
 }
 const source = new TextEncoder().encode("solid part\nfacet normal 0 1 0\nouter loop\nvertex 0 0 0\nvertex 1 0 0\nvertex 0 0 1\nendloop\nendfacet\nendsolid part").buffer;
-async function fixture(t, initial = connected()) {
+async function fixture(t, initial = connected(), stl = source, triangles = 1) {
   const ids = ["workshop-dialog", "workshop-status", "workshop-list", "stl-files", "stl-up", "stl-units", "object-x", "object-z", "object-scale", "object-rx", "object-ry", "object-rz", "object-y", "object-pick", "object-remove", "object-apply", "workshop-close", "open-workshop", "canvas-hint"];
-  ids.push("exhibit-title", "exhibit-description", "exhibit-save", "exhibit-author", "object-color", "object-paint", "object-locate", "object-location", "object-name");
+  ids.push("exhibit-title", "exhibit-description", "exhibit-save", "exhibit-author", "object-color", "object-finish", "object-surface", "object-paint", "object-locate", "object-location", "object-name");
+  ids.push("stl-editor-preview", "stl-editor-canvas", "stl-editor-dimensions");
   const registry = new Map(ids.map((id) => [id, new Element()])); registry.get("workshop-dialog").registry = registry;
   registry.get("stl-up").value = "y"; registry.get("stl-units").value = "m";
   const saved = { document: globalThis.document, window: globalThis.window, Option: globalThis.Option };
   globalThis.document = { querySelector: (selector) => registry.get(selector.slice(1)), createElement: () => new Element() };
   globalThis.window = new Element(); globalThis.Option = class extends Element { constructor(text, value) { super(); this.textContent = text; this.value = value; } };
   let state = { assets: [], objects: [], ...initial }, listener;
-  const calls = { uploads: 0, edits: 0, downloads: 0, login: 0 };
-  const hash = Buffer.from(await crypto.subtle.digest("SHA-256", source)).toString("hex");
-  const metadata = (ownerId = "user-a", id = crypto.randomUUID()) => ({ id, ownerId, name: "作品.stl", upAxis: "y", units: "m", bytes: source.byteLength, triangles: 1, sha256: hash });
+  const calls = { uploads: 0, edits: 0, downloads: 0, login: 0, environment: 0 };
+  const hash = Buffer.from(await crypto.subtle.digest("SHA-256", stl)).toString("hex");
+  const metadata = (ownerId = "user-a", id = crypto.randomUUID()) => ({ id, ownerId, name: "作品.stl", upAxis: "y", units: "m", bytes: stl.byteLength, triangles, sha256: hash });
   const client = {
     getState: () => structuredClone(state),
     subscribe: (next) => { listener = next; next(structuredClone(state)); return () => { listener = null; }; },
     uploadAsset: async () => { calls.uploads++; const asset = metadata(); state.assets.push(asset); client.emit("assets"); return asset; },
-    downloadAsset: async () => { calls.downloads++; return source.slice(0); },
+    downloadAsset: async () => { calls.downloads++; return stl.slice(0); },
     editObject: async (type, data) => {
       calls.edits++;
       if (type === "object.delete") state.objects = state.objects.filter((item) => item.id !== data.id);
       else if (type === "object.describe") state.objects = state.objects.map(item => item.id === data.id ? { ...item, title: data.title, description: data.description } : item);
-      else if (type === "object.paint") state.objects = state.objects.map(item => item.id === data.id ? { ...item, color: data.color } : item);
+      else if (type === "object.paint") state.objects = state.objects.map(item => item.id === data.id ? { ...item, color: data.color, finish: data.finish, surface: data.surface } : item);
       else {
         const previous = state.objects.find((item) => item.id === data.id);
         state.objects = state.objects.filter((item) => item.id !== data.id);
-        state.objects.push({ ...previous, ...data, ownerId: "user-a", name: "作品.stl", triangles: 1,
+        state.objects.push({ ...previous, ...data, ownerId: "user-a", name: "作品.stl", triangles,
           bounds: { min: [data.position[0] - .5, 5, data.position[2] - .5], max: [data.position[0] + .5, 5, data.position[2] + .5] } });
       }
       client.emit("objects"); return { id: data.id, revision: 1 };
@@ -112,12 +113,12 @@ async function fixture(t, initial = connected()) {
   const ground = createSurfaceIndex(new Float32Array([-50,5,-50, 50,5,-50, 50,5,50, -50,5,-50, 50,5,50, -50,5,50]));
   const scene = new THREE.Scene();
   const workshop = createWorkshop(THREE, { scene, camera: new THREE.PerspectiveCamera(), domElement: new Element(), schoolClient: client,
-    getEnvironment: () => ({ terrain: ground, obstacles: [], bounds: [-50,-50,50,50] }), getViewPosition: () => ({ x: 2, y: 5, z: 2 }),
+    getEnvironment: () => { calls.environment++; return { terrain: ground, obstacles: [], bounds: [-50,-50,50,50] }; }, getViewPosition: () => ({ x: 2, y: 5, z: 2 }),
     onRequireLogin: () => { calls.login++; }, onLocate: item => { calls.located = item; return true; } });
   t.after(() => { workshop.destroy(); Object.assign(globalThis, saved); });
   await new Promise((resolve) => setImmediate(resolve));
   return { workshop, client, calls, registry, metadata, scene, state: () => state,
-    file: () => ({ name: "作品.stl", size: source.byteLength, arrayBuffer: async () => source.slice(0) }),
+    file: () => ({ name: "作品.stl", size: stl.byteLength, arrayBuffer: async () => stl.slice(0) }),
     settle: async (predicate = () => true) => {
       for (let i = 0; i < 8; i++) await new Promise((resolve) => setImmediate(resolve));
       for (let i = 0; i < 100 && !predicate(); i++) await new Promise((resolve) => setTimeout(resolve, 2));
@@ -126,24 +127,32 @@ async function fixture(t, initial = connected()) {
 test("STL color flows through draft, commit, painting and reload without moving the work", async t => {
   const f = await fixture(t); await f.workshop.importFiles([f.file()]);
   assert.equal(await f.workshop.locateSelected(), false);
-  assert.equal(await f.workshop.paintSelected("#FF8800"), true);
+  assert.equal(await f.workshop.paintSelected("#FF8800", "windows", "walls"), true);
   assert.equal(f.workshop.getHeldDraft().userData.stlColor, "#ff8800");
+  assert.equal(f.workshop.getHeldDraft().userData.stlFinish, "windows");
   await f.workshop.commitSelected(); await f.settle();
   const before = f.workshop.getState().current;
   assert.equal(before.color, "#ff8800");
+  assert.equal(before.finish, "windows"); assert.equal(before.surface, "walls");
   f.registry.get("object-color").value = "#22aa77";
+  f.registry.get("object-finish").value = "brick"; f.registry.get("object-surface").value = "roof";
   f.client.emit("objects"); await f.settle();
   assert.equal(f.registry.get("object-color").value, "#22aa77", "peer updates retain unsaved color choice");
-  assert.equal(await f.workshop.paintSelected("#22AA77"), true);
+  assert.equal(f.registry.get("object-finish").value, "brick"); assert.equal(f.registry.get("object-surface").value, "roof");
+  f.registry.get("object-paint").onclick();
   await f.settle();
   assert.deepEqual(f.workshop.getState().current.position, before.position);
   assert.equal(f.workshop.getState().current.color, "#22aa77");
+  assert.equal(f.workshop.getState().current.finish, "brick"); assert.equal(f.workshop.getState().current.surface, "roof");
   assert.equal(f.workshop.group.children[0].material.color.getHexString(), "22aa77");
   assert.equal(await f.workshop.locateSelected(), true); assert.equal(f.calls.located.id, before.id);
   assert.match(f.registry.get("object-location").textContent, /水平距離/);
   const saved = structuredClone(f.state()); f.client.replace({}); f.client.replace(saved); await f.settle(() => f.workshop.getState().committed === 1);
   f.workshop.selectObject(before.id);
   assert.equal(f.workshop.getState().current.color, "#22aa77");
+  assert.equal(f.workshop.getState().current.finish, "brick"); assert.equal(f.workshop.getState().current.surface, "roof");
+  assert.equal(await f.workshop.paintSelected("#ffffff", "stone", "walls"), false);
+  assert.equal(await f.workshop.paintSelected("#ffffff", "windows", "invalid"), false);
   assert.equal(await f.workshop.paintSelected("red"), false);
   f.client.replace({ ...saved, user: { ...saved.user, id: "other" } }); await f.settle(() => f.workshop.getState().committed === 1);
   f.workshop.selectObject(before.id);
@@ -153,7 +162,7 @@ test("STL color flows through draft, commit, painting and reload without moving 
 
 test('recall waits for ACK and keeps color, scale and rotation in a new held draft',async t=>{
   const f=await fixture(t);await f.workshop.importFiles([f.file()]);
-  await f.workshop.paintSelected('#ffaa22');f.workshop.adjustSelected({scaleFactor:2});
+  await f.workshop.paintSelected('#ffaa22','truss','walls');f.workshop.adjustSelected({scaleFactor:2});
   f.workshop.adjustSelected({axis:'y',radians:.7});
   await f.workshop.commitSelected();await f.settle();
   const old=f.workshop.getState().current;
@@ -165,11 +174,13 @@ test('recall waits for ACK and keeps color, scale and rotation in a new held dra
   const held=f.workshop.getState().current;
   assert.equal(f.workshop.getState().committed,0);assert.equal(held.committed,false);
   assert.notEqual(held.id,old.id);
-  for(const field of ['color','scale','rotation'])assert.deepEqual(held[field],old[field]);
+  for(const field of ['color','finish','surface','scale','rotation'])assert.deepEqual(held[field],old[field]);
   assert.equal(f.workshop.getHeldDraft().userData.stlColor,old.color);
+  assert.equal(f.workshop.getHeldDraft().userData.stlFinish,old.finish);
   f.client.editObject=edit;f.workshop.moveSelected([10,0,10]);
   assert.equal(await f.workshop.commitSelected(),true);await f.settle();
   assert.equal(f.workshop.getState().current.color,old.color);
+  assert.equal(f.workshop.getState().current.finish,old.finish);assert.equal(f.workshop.getState().current.surface,old.surface);
 });
 
 test('failed recall and late recall after logout never create a stale held object',async t=>{
@@ -225,6 +236,93 @@ test("combined wheel transform validates the new position and scale together bef
   assert.ok(f.workshop.getState().current.position.every((v,i)=>Math.abs(v-[10,5,10][i])<1e-10));
   assert.equal(f.calls.edits,0);assert.equal(await f.workshop.commitSelected(),true);
   assert.deepEqual(f.state().objects[0].scale,[2,2,2]);assert.ok(f.state().objects[0].position.every((v,i)=>Math.abs(v-[10,5,10][i])<1e-10));
+});
+
+test("typing scale previews the real mesh, preserves incomplete input across sync, and saves only a valid draft", async t => {
+  const f = await fixture(t); await f.workshop.importFiles([f.file()]);
+  const input = f.registry.get("object-scale"), apply = f.registry.get("object-apply");
+  const type = value => { input.value = value; input.dispatch("input"); };
+  type("2.00");
+  assert.equal(input.value, "2.00");
+  assert.deepEqual(f.workshop.getHeldDraft().scale.toArray(), [2,2,2]);
+  assert.equal(f.calls.edits, 0);
+  type("");
+  f.client.emit("objects"); await f.settle();
+  assert.equal(input.value, ""); assert.equal(apply.disabled, true);
+  assert.equal(await f.workshop.commitSelected(), false);
+  type("1e308"); assert.deepEqual(f.workshop.getHeldDraft().scale.toArray(), [2,2,2]);
+  assert.equal(await f.workshop.commitSelected(), false);
+  type("2"); assert.equal(await f.workshop.commitSelected(), true); await f.settle();
+  const original = f.workshop.group.children[0];
+  type("0.5");
+  assert.equal(original.visible, false);
+  assert.deepEqual(f.workshop.group.children.find(mesh => mesh.userData.isDraft).scale.toArray(), [.5,.5,.5]);
+  assert.deepEqual(f.state().objects[0].scale, [2,2,2]);
+  f.workshop.cancelDraft(); assert.equal(original.visible, true); assert.equal(Number(input.value), 2);
+  type("0.25"); assert.equal(await f.workshop.commitSelected(), true); await f.settle();
+  assert.deepEqual(f.state().objects[0].scale, [.25,.25,.25]);
+});
+
+test("a placed object's pending finish selection survives live sizing and saves together", async t => {
+  const f = await fixture(t); await f.workshop.importFiles([f.file()]);
+  await f.workshop.commitSelected(); await f.settle();
+  f.registry.get("workshop-dialog").showModal();
+  f.registry.get("object-finish").value = "galaxy";
+  f.registry.get("object-surface").value = "walls";
+  const scale = f.registry.get("object-scale");
+  scale.value = "0.75"; scale.dispatch("input");
+  assert.equal(f.registry.get("object-finish").value, "galaxy");
+  assert.equal(f.state().objects[0].finish, "solid");
+  assert.equal(await f.workshop.commitSelected(), true); await f.settle();
+  assert.equal(f.state().objects[0].finish, "galaxy");
+  assert.equal(f.state().objects[0].surface, "walls");
+  assert.deepEqual(f.state().objects[0].scale, [.75,.75,.75]);
+});
+
+test("scale scrubbing preserves clicks, works at millimetre scale, and ignores changes to a replaced selection", async t => {
+  const f = await fixture(t); await f.workshop.importFiles([f.file()]);
+  const input = f.registry.get("object-scale");
+  const oldFrame = globalThis.requestAnimationFrame, oldCancel = globalThis.cancelAnimationFrame;
+  let frame;
+  globalThis.requestAnimationFrame = callback => { frame = callback; return 1; };
+  globalThis.cancelAnimationFrame = () => { frame = null; };
+  t.after(() => {
+    if (oldFrame) globalThis.requestAnimationFrame = oldFrame; else delete globalThis.requestAnimationFrame;
+    if (oldCancel) globalThis.cancelAnimationFrame = oldCancel; else delete globalThis.cancelAnimationFrame;
+  });
+  const pointer = (type, x) => input.dispatch(type, { pointerType: "mouse", pointerId: 8, button: 0, clientX: x, preventDefault() {} });
+  input.value = "0.001"; input.dispatch("input"); await f.workshop.commitSelected(); await f.settle();
+  pointer("pointerdown", 10); pointer("pointerup", 12);
+  assert.equal(f.workshop.getState().current.committed, true);
+  pointer("pointerdown", 10); pointer("pointermove", 60); frame();
+  assert.ok(Math.abs(f.workshop.getState().current.scale[0] - .001 * Math.sqrt(2)) < 1e-9);
+  pointer("pointermove", 110); pointer("pointerup", 110);
+  assert.deepEqual(f.workshop.getState().current.scale, [.002,.002,.002]);
+  assert.equal(f.calls.edits, 1); assert.deepEqual(f.state().objects[0].scale, [.001,.001,.001]);
+  pointer("pointerdown", 10); pointer("pointermove", 100);
+  f.workshop.cancelDraft(); pointer("pointerup", 100);
+  assert.equal(f.workshop.getState().current.committed, true);
+});
+
+test("large STL size previews coalesce terrain checks, validate on save and discard stale validations", async t => {
+  const facet = new TextDecoder().decode(source).match(/facet normal[\s\S]*?endfacet/)[0];
+  const stl = new TextEncoder().encode("solid mesh\n" + (facet + "\n").repeat(2000) + "endsolid mesh").buffer;
+  const f = await fixture(t, connected(), stl, 2000); await f.workshop.importFiles([f.file()]);
+  const type = value => { const input = f.registry.get("object-scale"); input.value = String(value); input.dispatch("input"); };
+  const checks = f.calls.environment;
+  type(2); type(3); type(4);
+  assert.deepEqual(f.workshop.getHeldDraft().scale.toArray(), [4,4,4]);
+  assert.equal(f.calls.environment, checks);
+  assert.equal(f.registry.get("object-apply").disabled, true);
+  await f.settle(() => f.workshop.getState().current.valid);
+  assert.equal(f.calls.environment, checks + 1);
+  type(5); assert.equal(await f.workshop.commitSelected(), true); await f.settle();
+  assert.equal(f.calls.environment, checks + 2);
+  assert.deepEqual(f.state().objects[0].scale, [5,5,5]);
+  type(2); f.workshop.cancelDraft();
+  await new Promise(resolve => setTimeout(resolve, 200));
+  assert.equal(f.calls.environment, checks + 2);
+  assert.equal(f.workshop.getState().current.committed, true);
 });
 
 test("other owners render but every mutation and import reuse remains own-only", async (t) => {

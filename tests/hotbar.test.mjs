@@ -75,6 +75,26 @@ test("selecting a saved STL restores canvas focus; same slot and Q put it away w
   assert.equal(h.workshop.getState().current,null);assert.equal(h.hotbar.getState().aiming,false);
   assert.equal(h.workshop.getState().ownAssets.length,1);assert.equal(h.removals,0);assert.equal(h.commits,0);
 });
+
+test("slot icons load once across frames and a late previous owner's icon cannot replace them", async () => {
+  const h = harness(), requests = [];
+  const state = { userId: "one", worldId: "class", canEdit: true, ownAssets: [{ id: "one-file", name: "塔.stl" }], objects: [] };
+  h.workshop.getState = () => state;
+  h.workshop.getAssetThumbnail = id => new Promise(resolve => requests.push({ id, resolve }));
+  const slot = h.canvas.parentElement.children[0].children[1];
+  h.hotbar.update(0);
+  h.hotbar.update(16);
+  state.userId = "two"; state.ownAssets = [{ id: "two-file", name: "橋.stl" }];
+  h.hotbar.update(32);
+  assert.deepEqual(requests.map(request => request.id), ["one-file", "two-file"]);
+  requests[1].resolve("data:new");
+  requests[0].resolve("data:old");
+  await new Promise(setImmediate);
+  assert.equal(slot.children.length, 4);
+  assert.equal(slot.children[1].textContent, "橋");
+  assert.equal(slot.children[3].src, "data:new");
+  assert.equal(slot.children[3].alt, "");
+});
 test("stash button clears the hand, while saving, typing, modals and XR transitions protect it",async()=>{
   const h=harness();await h.selectDraft();
   for(const setup of [

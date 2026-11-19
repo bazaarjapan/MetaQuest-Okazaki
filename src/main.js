@@ -239,7 +239,7 @@ const changeSound=()=>{const volume=Number($('#movement-volume').value)/100;move
 $('#movement-sound').onchange=changeSound;$('#movement-volume').oninput=changeSound;
 document.addEventListener('visibilitychange',()=>{if(document.hidden)movementAudio.stop();});
 const exhibitLabels=createExhibitLabels(scene);
-const workshop = createWorkshop(THREE, { scene, domElement: renderer.domElement, camera,
+const workshop = createWorkshop(THREE, { scene, renderer, domElement: renderer.domElement, camera,
   getEnvironment: regionalPlacementEnvironment, getViewPosition: userPosition,
   getStation: () => stationPosition, onLocate: locateWorkshopObject,
   schoolClient, isXR: () => state.xr,
@@ -1546,7 +1546,7 @@ window.__okazaki = {
     panelVisible: panel.visible && vrFieldPanel.getState().expanded,
     vrPanel: vrFieldPanel.getState(),
     pointers: { left: controllerPointers.left.getState(), right: controllerPointers.right.getState() },
-    version: "1.10.14",
+    version: "1.10.15",
     vrReturn: { buttonVisible: vrReturnButton.getState().visible,
       holdProgress: vrReturnButton.getState().progress, exiting: xrExitPending,
       hasResume: hasVRResume, view: lastXRView ? {
