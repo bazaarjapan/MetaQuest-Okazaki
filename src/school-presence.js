@@ -4,7 +4,8 @@ import { creativeConfig } from "./creative-controls.js";
 import { validAvatarMotion } from "./avatar-motion.js";
 
 export const presenceLimits = Object.freeze({ remoteParticipants: 33, labelWidth: 256,
-  labelHeight: 64, labelCharacters: 20, teleportDistance: 25, smoothing: 12 });
+  labelHeight: 64, labelCharacters: 20, teleportDistance: 25, smoothing: 12,
+  simplifyDistance: 32, restoreDetailDistance: 26 });
 
 // Labels use the explicitly selected avatar nickname, never Google profile
 // names, pictures or email addresses. Canvas text cannot become HTML markup.
@@ -27,20 +28,32 @@ export function interpolateYaw(from, to, amount) {
   return Math.atan2(Math.sin(result), Math.cos(result));
 }
 
-export function remoteParticipants(state) {
-  if (!state?.user?.id || !state.world?.id || state.connection !== "connected") return [];
-  const found = new Set(), result = [];
+function remoteFeet(value, ownId) {
+  if (!value || typeof value.id !== "string" || !value.id || value.id.length > 80 ||
+      value.id === ownId || !Number.isFinite(value.yaw)) return null;
+  return eyeToFeet(value.position);
+}
+
+function visitRoster(state, visit) {
+  const found = new Set();
+  if (!state?.user?.id || !state.world?.id || state.connection !== "connected") return found;
   for (const value of Array.isArray(state.participants) ? state.participants : []) {
-    if (result.length >= presenceLimits.remoteParticipants) break;
-    if (!value || typeof value.id !== "string" || !value.id || value.id.length > 80 ||
-      value.id === state.user.id || found.has(value.id) || !Number.isFinite(value.yaw)) continue;
-    const feet = eyeToFeet(value.position);
-    if (!feet) continue;
+    if (found.size >= presenceLimits.remoteParticipants) break;
+    const feet = remoteFeet(value, state.user.id);
+    if (!feet || found.has(value.id)) continue;
     found.add(value.id);
+    visit(value, feet);
+  }
+  return found;
+}
+
+export function remoteParticipants(state) {
+  const result = [];
+  visitRoster(state, (value, feet) => {
     result.push({ id: value.id, name: presenceLabel(value.name), color: presenceColor(value.color),
       role: value.role === "teacher" ? "teacher" : "student", feet, yaw: value.yaw,
       animation: validAvatarMotion(value.animation) ? value.animation : null });
-  }
+  });
   return result;
 }
 
@@ -62,58 +75,85 @@ export function createSchoolPresence(THREE, { scene, client,
 
   function clear() { for (const id of [...actors.keys()]) remove(id); }
 
-  function receive(snapshot) {
+  const incoming = new THREE.Vector3();
+  function accept(participant, feet) {
+    const color = presenceColor(participant.color);
+    let actor = actors.get(participant.id);
+    incoming.fromArray(feet);
+    if (!actor) {
+      const avatar = createBlockAvatar(THREE, { color, identity: participant.id, batchBlocks: true });
+      group.add(avatar.group);
+      const label = createAvatarLabel(THREE, { parent: avatar.group, documentTarget });
+      actor = { id: participant.id, avatar, label, color, name: null, distant: false,
+        position: incoming.clone(), target: incoming.clone(), yaw: participant.yaw,
+        targetYaw: participant.yaw, motionTime: -Infinity };
+      actors.set(participant.id, actor);
+    } else if (actor.color !== color) {
+      actor.color = color;
+      actor.avatar.setColor(color);
+    }
+    if (actor.name === null || actor.rawName !== participant.name) {
+      actor.rawName = participant.name;
+      actor.label.setName(participant.name);
+      actor.name = actor.label.getState().name;
+    }
+    if (actor.target.distanceToSquared(incoming) > 0.0001) actor.motionTime = time;
+    actor.animation = validAvatarMotion(participant.animation) ? participant.animation : null;
+    if (actor.position.distanceToSquared(incoming) > presenceLimits.teleportDistance ** 2) {
+      actor.position.copy(incoming);
+      actor.yaw = participant.yaw;
+    }
+    actor.target.copy(incoming);
+    actor.targetYaw = participant.yaw;
+  }
+
+  function receive(state, event = "state", changedId) {
     if (disposed) return;
-    const state = snapshot ?? client.getState();
     const nextContext = state?.user?.id && state.world?.id && state.connection === "connected" ?
       `${state.user.id}:${state.world.id}` : null;
-    if (nextContext !== context) { clear(); context = nextContext; }
-    const next = remoteParticipants(state), remaining = new Set(next.map((entry) => entry.id));
-    for (const id of [...actors.keys()]) if (!remaining.has(id)) remove(id);
-    for (const participant of next) {
-      let actor = actors.get(participant.id);
-      if (actor && actor.color !== participant.color) { remove(participant.id); actor = null; }
-      if (!actor) {
-        const avatar = createBlockAvatar(THREE, { color: participant.color, identity: participant.id });
-        group.add(avatar.group);
-        actor = { id: participant.id, avatar, color: participant.color, name: null,
-          position: new THREE.Vector3(...participant.feet), target: new THREE.Vector3(...participant.feet),
-          yaw: participant.yaw, targetYaw: participant.yaw, motionTime: -Infinity };
-        actor.label = createAvatarLabel(THREE, { parent: avatar.group, documentTarget });
-        actors.set(participant.id, actor);
-      }
-      const position = new THREE.Vector3(...participant.feet);
-      if (actor.target.distanceToSquared(position) > 0.0001) actor.motionTime = time;
-      actor.animation = participant.animation;
-      if (actor.position.distanceTo(position) > presenceLimits.teleportDistance) {
-        actor.position.copy(position); actor.yaw = participant.yaw;
-      }
-      actor.target.copy(position); actor.targetYaw = participant.yaw;
-      if (actor.name !== participant.name) { actor.name = participant.name; actor.label.setName(participant.name); }
-      actor.avatar.update({ position: actor.position, yaw: actor.yaw, animation: actor.animation ?? "idle", time, visible: true });
-    }
+    const contextChanged = nextContext !== context;
+    if (contextChanged) { clear(); context = nextContext; }
     group.visible = Boolean(context);
+    if (!context) return;
+    if (!contextChanged && event === "pose" && changedId) {
+      if (changedId === state.user.id) return;
+      const value = state.participants.find((entry) => entry?.id === changedId);
+      const feet = remoteFeet(value, state.user.id);
+      if (!feet) remove(changedId);
+      else if (actors.has(changedId) || actors.size < presenceLimits.remoteParticipants) accept(value, feet);
+      return;
+    }
+    if (!contextChanged && !["state", "room", "participants", "pose", "auth", "connection"].includes(event)) return;
+    const remaining = visitRoster(state, accept);
+    for (const id of actors.keys()) if (!remaining.has(id)) remove(id);
   }
   receive(client.getState());
-  const unsubscribe = client.subscribe((state) => receive(state));
+  const unsubscribe = client.subscribe(receive);
 
   return { group,
-    update(dt = 0) {
+    update(dt = 0, viewerPosition) {
       if (disposed) return;
-      const delta = Number.isFinite(dt) ? Math.max(0, Math.min(0.1, dt)) : 0;
+      const delta = Number.isFinite(dt) ? Math.max(0, Math.min(0.25, dt)) : 0;
       time += delta;
       const alpha = 1 - Math.exp(-presenceLimits.smoothing * delta);
       for (const actor of actors.values()) {
         actor.position.lerp(actor.target, alpha);
-        actor.yaw = interpolateYaw(actor.yaw, actor.targetYaw, alpha);
+        if (actor.yaw !== actor.targetYaw) actor.yaw = interpolateYaw(actor.yaw, actor.targetYaw, alpha);
+        if (viewerPosition) {
+          const limit = actor.distant ? presenceLimits.restoreDetailDistance : presenceLimits.simplifyDistance;
+          actor.distant = actor.position.distanceToSquared(viewerPosition) > limit ** 2;
+        }
         actor.avatar.update({ position: actor.position, yaw: actor.yaw,
-          animation: time - actor.motionTime < .3 ? actor.animation ?? "walk" : "idle", time, visible: true });
+          animation: time - actor.motionTime < .3 ? actor.animation ?? "walk" : "idle", time, distant: actor.distant });
       }
     },
     getState: () => ({ visible: group.visible, count: actors.size, disposed,
-      actors: [...actors.values()].map((actor) => ({ id: actor.id, name: actor.name,
+      actors: [...actors.values()].map((actor) => {
+        const avatar = actor.avatar.getState();
+        return { id: actor.id, name: actor.name, distant: actor.distant,
         color: actor.color, position: actor.position.toArray(), target: actor.target.toArray(),
-        yaw: actor.yaw, animation: actor.avatar.getState().animation, meshes: actor.avatar.getState().meshCount, label: actor.label.getState(), appearance: actor.avatar.getState().appearance })) }),
+        yaw: actor.yaw, animation: avatar.animation, meshes: avatar.meshCount, label: actor.label.getState(), appearance: avatar.appearance };
+      }) }),
     dispose() {
       if (disposed) return;
       disposed = true; unsubscribe?.(); clear(); group.removeFromParent(); group.visible = false;

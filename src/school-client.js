@@ -46,6 +46,7 @@ export function createSchoolClient(options = {}) {
   let csrf = null, nonce = null, clientId = null, authEpoch = 0, roomEpoch = 0;
   let socket = null, heartbeat = null, reconnectTimer = null, openingTimer = null, retry = 0;
   let poseSeq = 0, lastPoseAt = -Infinity, lastEditAt = -Infinity, lastFullStateRevision = -1, initialized = null, sessionRefresh = null;
+  let lastSentPose = null;
   let editTail = Promise.resolve();
   let metadataRefresh = null;
   let movementRecoveryTimer = null;
@@ -54,12 +55,12 @@ export function createSchoolClient(options = {}) {
     movementRecoveryTimer = null;
   }
   const getState = () => clone(state);
-  function emit(event = "state") {
+  function emit(event = "state", participantId) {
     // Share one immutable snapshot with all subscribers. Unchanged world/assets/
     // objects retain their cached readonly view, so30players' 8Hz pose traffic
     // does not repeatedly clone every STL object for every subscriber.
     const snapshot = readonlySnapshot({ ...state });
-    for (const listener of listeners) { try { listener(snapshot, event); } catch { /* One view must not disable the others. */ } }
+    for (const listener of listeners) { try { listener(snapshot, event, participantId); } catch { /* One view must not disable the others. */ } }
   }
   function clearRoom(code = "room_changed", keepWorld = false) {
     cancelMovementRecovery();
@@ -72,6 +73,7 @@ export function createSchoolClient(options = {}) {
     try { old?.close(1000, "room left"); } catch { /* Already closed. */ }
     for (const item of pending.values()) { clearTimer(item.timer); item.reject(new SchoolClientError(code)); }
     pending.clear(); retry = 0; poseSeq = 0; lastPoseAt = lastEditAt = -Infinity; lastFullStateRevision = -1; metadataRefresh = null;
+    lastSentPose = null;
     editTail = Promise.resolve();
     state.pendingSaves=0;state.saveError=false;
     if (!keepWorld) { state.world = null; state.assets = []; state.objects = []; state.snapshots = []; state.revision = 0; }
@@ -229,7 +231,7 @@ export function createSchoolClient(options = {}) {
     if (epoch !== authEpoch) throw new SchoolClientError("login_cancelled");
     return result;
   }
-  function applySnapshot(value) {
+  function applySnapshot(value, includeParticipants = false) {
     if (!value.world || value.world.id !== state.world?.id || !Number.isSafeInteger(value.revision)) return;
     // Assets are immutable and have no deletion API; metadata can arrive in an
     // older HTTP response even after a newer object broadcast. Keep that useful
@@ -241,11 +243,16 @@ export function createSchoolClient(options = {}) {
     }
     if (value.revision < state.revision) return;
     state.world = clone(value.world); state.revision = value.revision;
-    for (const key of ["objects", "participants", "snapshots"]) if (Array.isArray(value[key])) state[key] = clone(value[key]);
+    for (const key of ["objects", "snapshots"]) if (Array.isArray(value[key])) state[key] = clone(value[key]);
+    if (includeParticipants && Array.isArray(value.participants)) state.participants = clone(value.participants);
   }
   async function refreshWorld(epoch = authEpoch, room = roomEpoch, worldId = assertRoom()) {
     const result = await request(`/api/worlds/${worldId}/state`);
-    assertEpoch(epoch, room, worldId); applySnapshot(result); emit("room"); return result;
+    assertEpoch(epoch, room, worldId);
+    // Object revisions do not order movement. A slow HTTP response must not
+    // roll back a newer live pose or resurrect a peer who has already left.
+    applySnapshot(result, state.connection !== "connected");
+    emit("room"); return result;
   }
   function connect(worldId, epoch, room) {
     if (epoch !== authEpoch || room !== roomEpoch || !state.user || state.world?.id !== worldId) return;
@@ -289,6 +296,8 @@ export function createSchoolClient(options = {}) {
         // Only a full live snapshot also adopts the camera (snapshotSeq). An
         // earlier HTTP read must not label an old camera pose with a new epoch.
         state.restoreCommit = value.restoreCommit;
+        // A reconnect or restore adopts the camera again, even at identical coordinates.
+        lastSentPose = null;
         state.snapshotSeq++;
         if (openingTimer !== null) clearTimer(openingTimer); openingTimer = null;
         emit("room");
@@ -306,10 +315,10 @@ export function createSchoolClient(options = {}) {
         }
         const index = state.participants.findIndex((item) => item.id === value.participant.id);
         const participants = [...state.participants];
-        if (index >= 0) participants[index] = clone(value.participant);
-        else participants.push(clone(value.participant));
+        if (index >= 0) participants[index] = value.participant;
+        else participants.push(value.participant);
         state.participants = participants;
-        emit("pose");
+        emit("pose", value.participant.id);
       } else if (value.type === "objects" && Array.isArray(value.objects) && Number.isSafeInteger(value.revision) && value.revision >= state.revision) {
         state.objects = clone(value.objects); state.revision = value.revision; emit("objects");
         // A peer's new placement can arrive before that STL's metadata is in
@@ -338,6 +347,9 @@ export function createSchoolClient(options = {}) {
         // rejected. Do not turn that safe rejection into an auth/edit failure;
         // the authoritative full WS snapshot owns the next movement epoch.
         if (value.error === "stale_pose_epoch") return;
+        // A rejected final movement must be retried even if the player has
+        // stopped. Poses have no requestId and socket messages arrive in order.
+        if (!Object.hasOwn(value, "requestId") && value.error !== "ping_rate_limit") lastSentPose = null;
         // Pose has no request ID or mutation ACK. Keep correlated errors on the
         // existing failure path, even if their code happens to match this one.
         if (value.error === "pose_rate_limit" && !Object.hasOwn(value, "requestId")) {
@@ -463,11 +475,20 @@ export function createSchoolClient(options = {}) {
     }
   }
   function sendPose({ position, yaw, animation }) {
-    if (!state.user || !state.world || state.connection !== "connected" || !socket || socket.readyState !== 1 || now() - lastPoseAt < 125) return false;
+    const interval = state.participants.length >= 12 ? 250 : 125;
+    const time = now();
+    if (!state.user || !state.world || state.connection !== "connected" || !socket || socket.readyState !== 1 || time - lastPoseAt < interval) return false;
+    if (lastSentPose && yaw === lastSentPose.yaw && animation === lastSentPose.animation &&
+        position?.length === 3 && position[0] === lastSentPose.position[0] &&
+        position[1] === lastSentPose.position[1] && position[2] === lastSentPose.position[2]) return false;
     if (!Array.isArray(position) || position.length !== 3 || !position.every((n) => Number.isFinite(n) && Math.abs(n) <= 25000) || position[1] < -100 || position[1] > 1200 || !Number.isFinite(yaw) || Math.abs(yaw) > Math.PI * 100) return false;
     if (animation !== undefined && !["idle", "walk", "run", "glide", "boost"].includes(animation)) return false;
-    try { socket.send(JSON.stringify({ type: "pose", position: [...position], yaw, animation, seq: poseSeq++, restoreCommit: state.restoreCommit })); lastPoseAt = now(); return true; }
+    const pose = { position: [...position], yaw, animation };
+    try { socket.send(JSON.stringify({ type: "pose", ...pose, seq: poseSeq++, restoreCommit: state.restoreCommit })); }
     catch { return false; }
+    lastSentPose = pose;
+    lastPoseAt = time;
+    return true;
   }
   function subscribe(listener) { listeners.add(listener); listener(readonlySnapshot({ ...state }), "state"); return () => listeners.delete(listener); }
   function destroy() { clearRoom("client_closed"); listeners.clear(); authEpoch++; csrf = nonce = null; }

@@ -41,7 +41,9 @@ test("actual XR loop does not treat B held through tracking loss as a new resume
     f.step(); assert.equal(f.state.free,false,loss);assert.equal(f.rig.position.length(),0,loss);
     f.sources[1].gamepad.buttons[5].pressed=false;f.step();
     f.sources[1].gamepad.buttons[5].pressed=true;f.step();
-    assert.equal(f.state.free,true,loss);assert.ok(f.rig.position.length()>.1,loss);
+    assert.equal(f.state.free,true,loss);
+    assert.equal(f.rig.position.length(),0,"do not replay the interval spent paused");
+    f.step();assert.ok(f.rig.position.length()>.1,loss);
   }
 });
 test("actual XR loop records horizontal gaze while paused before resuming with vertical gaze", () => {
@@ -50,8 +52,11 @@ test("actual XR loop records horizontal gaze while paused before resuming with v
   f.step({orientation:new THREE.Quaternion().setFromEuler(new THREE.Euler(0,yaw,0,"YXZ"))});
   assert.ok(Math.abs(f.scope.xrMoveYaw-yaw)<1e-8);
   f.sources[1].gamepad.buttons[5].pressed=true;f.sources[1].gamepad.axes[3]=-1;
-  f.step({orientation:new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.PI/2,yaw,0,"YXZ"))});
+  const vertical={orientation:new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.PI/2,yaw,0,"YXZ"))};
+  f.step(vertical);
   assert.equal(f.state.free,true);
+  assert.equal(f.rig.position.length(),0);
+  f.step(vertical);
   assert.ok(Math.abs(f.rig.position.x + Math.sin(yaw)*.12)<1e-8);
   assert.ok(Math.abs(f.rig.position.z + Math.cos(yaw)*.12)<1e-8);
   assert.equal(f.rig.position.y,0);

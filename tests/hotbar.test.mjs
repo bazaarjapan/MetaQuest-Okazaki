@@ -52,7 +52,7 @@ function harness() {
   }
   const context=vm.createContext({THREE:{...THREE,Raycaster},document,window,setTimeout,clearTimeout,performance:{now:()=>now}});
   const factory=vm.runInContext(source+"\ncreateHotbar",context);
-  const hotbar=factory({workshop,client:{getState(){calls++;return {user:null};}},camera:new THREE.PerspectiveCamera(),canvas,
+  const hotbar=factory({workshop,getUser(){return null;},camera:new THREE.PerspectiveCamera(),canvas,
     scene:new THREE.Scene(),getEnvironment:()=>({terrainMeshes:ground}),getObstacles:()=>obstacles,isXR:()=>xr,isXRPending:()=>xrPending,isLooking:()=>looking,menu:{getState:()=>({open:menuOpen})},onActivate:()=>activations++});
   return {hotbar,canvas,window,workshop,document,setGround:value=>{ground=value;},setObstacles:value=>{obstacles=value;},setEditable:value=>{canEdit=value;},
     async selectDraft(){hotbar.update(0);canvas.parentElement.children[0].children[1].onclick();await new Promise(setImmediate);},

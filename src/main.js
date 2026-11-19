@@ -5,7 +5,7 @@ import * as THREE from "three";
 import "./xr-dev.js";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import {
-  viewpoints, clampPosition, stickAxes, flightConfig,
+  viewpoints, clampPosition, stickAxes, flightConfig, movementFrameSeconds,
   createFlightState, resetFlight, updateFlight,
 } from "./motion.js";
 import { createControllerHud } from "./controller-hud.js";
@@ -173,7 +173,7 @@ const raycaster = new THREE.Raycaster(),
   down = new THREE.Vector3(0, -1, 0),
   temp = new THREE.Vector3();
 const keys = new Set();
-let frameTime = 0,
+let frameTime = null,
   nextGroundCheck = 0,
   ground = 16.5;
 const controllers = [],
@@ -222,6 +222,7 @@ const flight = createFlightState();
 const xrFlightStart = createXRFlightStart(), xrViewOrientation = new THREE.Quaternion(), xrPhysicalOrientation = new THREE.Quaternion();
 let xrMoveYaw = 0;
 const schoolClient = createSchoolClient();
+let schoolState = schoolClient.getState();
 let schoolUI;
 let placementEnvironment = { terrain: null, obstacles: [], bounds: [-320, -381, 315, 372], terrainMeshes: [] };
 const regionalPlacementEnvironment=createRegionalPlacementEnvironment({getCore:()=>placementEnvironment,getManifest:()=>regionManifest,getMeshes:()=>regionStreamer.getMeshes()});
@@ -244,7 +245,7 @@ const workshop = createWorkshop(THREE, { scene, domElement: renderer.domElement,
   schoolClient, isXR: () => state.xr,
   onRequireLogin: () => schoolUI?.open(),
   onChange: () => { renderer.shadowMap.needsUpdate = true; } });
-const hotbar = createHotbar({ workshop, client: schoolClient, scene, camera, canvas: renderer.domElement,
+const hotbar = createHotbar({ workshop, getUser: () => schoolState.user, scene, camera, canvas: renderer.domElement,
   getEnvironment: regionalPlacementEnvironment, getObstacles: () => [...city.children.filter(mesh=>mesh!==terrainMesh), ...regionStreamer.getMeshes().filter(mesh=>mesh.userData.regionType==='building')],
   isXR: () => state.xr, isXRPending: () => xrEntering || creative?.getState().suspendedXR, menu: adaptiveUi,
   onActivate: () => {
@@ -351,9 +352,9 @@ function setTimeOfDay(value) {
   eveningUniform.value=evening?1:0;
   Object.assign(scene.fog,cityFogRange(regionProfiles[quality.id].radius,evening));
   citySky.set(evening);
-  skyLight.color.set(evening?0xffd6b3:0xdff2ff);skyLight.groundColor.set(evening?0x77748d:0x879080);skyLight.intensity=evening?1.4:1.7;
-  sun.color.set(evening?0xffba7c:0xfff2da);sun.intensity=evening?2:2.3;
-  sun.position.set(evening?-380:-280,evening?180:330,150);
+  skyLight.color.set(evening?0xffd8bd:0xd7edff);skyLight.groundColor.set(evening?0x695e80:0x8a8978);skyLight.intensity=evening?1.4:1.7;
+  sun.color.set(evening?0xffad6d:0xffe7bf);sun.intensity=evening?2:2.3;
+  sun.position.set(evening?-380:-280,evening?100:330,150);
   renderer.shadowMap.needsUpdate=true;$("#time-of-day").value=timeOfDay;
   try{localStorage.setItem("okazaki-time-of-day",timeOfDay);}catch{}
 }
@@ -374,7 +375,7 @@ const presence = createSchoolPresence(THREE, { scene, client: schoolClient });
 const vrWorkshop = createVRWorkshop(THREE, { camera, workshop, client: schoolClient,
   embedded: true,
   onShadowChange: () => { renderer.shadowMap.needsUpdate = true; } });
-let schoolState = schoolClient.getState(), lastSchoolSnapshot = 0, restoredWorld = null;
+let lastSchoolSnapshot = 0, restoredWorld = null;
 function syncActivityGate() {
   const previous = activityAllowed;
   activityAllowed = activityGate.update(schoolState,state.ready);
@@ -936,6 +937,7 @@ function setFree(value, { preserveView = false, preserveXRStartup = false } = {}
   creative?.clearInput({ release: !value });
   resetFlight(flight);
   touchControls.releaseAll();
+  frameTime = null;
   state.free = value;
   $("#free-move").checked = value;
   syncMovementHelp();
@@ -1244,6 +1246,7 @@ function xrMove(dt, now, viewerTransform) {
     return;
   }
   if (xrExitPending || pendingXRView) { syncButtons(session); return; }
+  const wasFree = state.free;
   const leftSource = [...session.inputSources].find((source) => source.handedness === "left" && source.gamepad);
   const action = updateExitHold(exitHold, { pressed: Boolean(leftSource?.gamepad.buttons[4]?.pressed),
     available: Boolean(leftSource), now });
@@ -1283,7 +1286,7 @@ function xrMove(dt, now, viewerTransform) {
       }
     }
   }
-  if (!state.free) {
+  if (!state.free || !wasFree) {
     resetFlight(flight);
     return;
   }
@@ -1379,8 +1382,7 @@ function desktopMove(dt) {
   }
 }
 renderer.setAnimationLoop((time, frame) => {
-  const dt = Math.min(Math.max((time - frameTime) / 1000, 0), 0.05);
-  frameTime = time;
+  const dt = movementFrameSeconds(frameTime, time);
   if (state.ready) {
     syncTouchControls();
     if (state.xr) {
@@ -1406,6 +1408,7 @@ renderer.setAnimationLoop((time, frame) => {
       $("#north span").style.transform =
         `rotate(${Math.atan2(dir.x, -dir.z)}rad)`;
     }
+    frameTime = !state.xr && document.hidden ? null : time;
     hotbar.update(time);
     regionStreamer.update(locateStreamTarget ?? userPosition(), quality.id, time);
     nearField.update({position:userPosition(),quality:quality.id,enabled:fieldStyle==='game'&&!state.qualityLoading,
@@ -1435,7 +1438,7 @@ renderer.setAnimationLoop((time, frame) => {
       schoolClient.sendPose({ position: userPosition().toArray(), yaw,
         animation: !state.xr && creative.getState().mode === "creative" ? creative.getState().animation : undefined });
     }
-    presence.update(dt);
+    presence.update(dt, userPosition());
     if (!activityAllowed) ownAvatar.group.visible = false;
     const heldDraft = !state.xr && !xrEntering ? workshop.getHeldDraft() : null;
     heldSTL.update({ draft: heldDraft, canEdit: Boolean(heldDraft),
@@ -1535,7 +1538,7 @@ window.__okazaki = {
     panelVisible: panel.visible && vrFieldPanel.getState().expanded,
     vrPanel: vrFieldPanel.getState(),
     pointers: { left: controllerPointers.left.getState(), right: controllerPointers.right.getState() },
-    version: "1.10.11",
+    version: "1.10.12",
     vrReturn: { buttonVisible: vrReturnButton.getState().visible,
       holdProgress: vrReturnButton.getState().progress, exiting: xrExitPending,
       hasResume: hasVRResume, view: lastXRView ? {

@@ -16,7 +16,7 @@ export function placementScaleFactor(event, scale) {
   return Math.max(lower,Math.min(upper,desired));
 }
 
-export function createHotbar({ workshop, client, camera, canvas, scene, getEnvironment, getObstacles = () => [], isXR, isXRPending = () => false, menu, isLooking = () => false, isCreative = () => true, onActivate = () => {} }) {
+export function createHotbar({ workshop, getUser, camera, canvas, scene, getEnvironment, getObstacles = () => [], isXR, isXRPending = () => false, menu, isLooking = () => false, isCreative = () => true, onActivate = () => {} }) {
   const root = document.createElement("div"); root.id = "stl-hotbar"; root.setAttribute("aria-label", "自分のSTL 10枠");
   const hint = document.createElement("div"); hint.id = "hotbar-hint"; hint.setAttribute("role", "status");
   const crosshair = document.createElement("div"); crosshair.id = "placement-crosshair"; crosshair.textContent = "+";
@@ -189,15 +189,16 @@ export function createHotbar({ workshop, client, camera, canvas, scene, getEnvir
       report(state.message);
     } finally { pending = false; render(); }
   };
-  function render() {
-    const state = currentState(), user = client.getState().user;
+  function render(state = currentState()) {
+    const user = getUser();
     heldControls.hidden = isXR() || isXRPending() || !state.canEdit || !workshop.getHeldDraft?.();
     stashButton.disabled = pending || state.busy || blocked();
     const desktopKeys = isCreative() && !menu.getState().mobile;
     heldHelp.hidden = !desktopKeys;
     const stashLabel = desktopKeys ? "手持ちをしまう Q" : "手持ちをしまう";
     if (stashButton.textContent !== stashLabel) stashButton.textContent = stashLabel;
-    loginButton.textContent = user ? `${user.namePending ? "名前を決める" : user.name} · ログイン中` : "ログイン";
+    const loginLabel = user ? `${user.namePending ? "名前を決める" : user.name} · ログイン中` : "ログイン";
+    if (loginButton.textContent !== loginLabel) loginButton.textContent = loginLabel;
     const signature = JSON.stringify([active, state.canEdit, state.ownAssets, state.objects.filter(item=>item.committed).map(item=>[item.assetId,item.title])]);
     if (signature === renderSignature) return; renderSignature = signature;
     slots.forEach((button,index) => {

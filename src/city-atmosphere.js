@@ -1,23 +1,38 @@
-// A small gradient sky gives real DEM hills a readable horizon in both eyes.
-export function cityFogRange(radius,evening=false){
-  return {near:Math.min(evening?650:900,radius*.4),far:radius+500};
+// The clear color and distant terrain use the same horizon tint as the sky art.
+export function cityFogRange(radius, evening = false) {
+  return { near: Math.min(evening ? 400 : 650, radius * .3), far: radius + 500 };
 }
-export function createCitySky(THREE,scene,documentTarget=document) {
-  const canvas=documentTarget.createElement('canvas');canvas.width=256;canvas.height=128;
-  const context=canvas.getContext('2d');
-  let texture=null;
+
+export function createCitySky(THREE, scene, load = url => new THREE.TextureLoader().loadAsync(url)) {
+  let selected = null, generation = 0, current = null;
   return {
-    set(evening){
-      const horizon=evening?'#e9b4a1':'#dce9ee';scene.fog.color.set(horizon);
-      if(!context){scene.background.set(horizon);return;}
-      const gradient=context.createLinearGradient(0,0,0,128);gradient.addColorStop(0,evening?'#707eaa':'#8db4cf');gradient.addColorStop(.47,horizon);gradient.addColorStop(.54,horizon);gradient.addColorStop(1,evening?'#c1a0a0':'#b4c3b8');
-      context.fillStyle=gradient;context.fillRect(0,0,256,128);
-      // Equirectangular backgrounds are converted once and cached by texture
-      // identity. Replace/dispose on a time change so the sky follows the fog.
-      texture?.dispose();texture=new THREE.CanvasTexture(canvas);
-      texture.colorSpace=THREE.SRGBColorSpace;texture.mapping=THREE.EquirectangularReflectionMapping;
-      texture.generateMipmaps=false;texture.minFilter=THREE.LinearFilter;scene.background=texture;
+    async set(evening) {
+      if (selected === evening) return;
+      selected = evening;
+      const request = ++generation;
+      const horizon = evening ? '#fcc09b' : '#c6e5ef';
+      scene.fog.color.set(horizon);
+      scene.background = new THREE.Color(horizon);
+      current?.dispose();
+      current = null;
+      try {
+        const sky = await load(evening ? '/sky/evening.webp' : '/sky/day.webp');
+        if (request !== generation) { sky.dispose(); return; }
+        sky.colorSpace = THREE.SRGBColorSpace;
+        sky.mapping = THREE.EquirectangularReflectionMapping;
+        sky.generateMipmaps = false;
+        sky.minFilter = THREE.LinearFilter;
+        current = scene.background = sky;
+      } catch {
+        if (request === generation) selected = null;
+      }
     },
-    dispose(){texture?.dispose();}
+    dispose() {
+      generation++;
+      selected = null;
+      if (current && scene.background === current) scene.background = null;
+      current?.dispose();
+      current = null;
+    },
   };
 }

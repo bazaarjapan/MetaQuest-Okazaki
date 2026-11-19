@@ -119,7 +119,11 @@ export function createFieldBuildingMaterial(THREE,uniform,options={}) {
         float nearView=1.0-smoothstep(100.0,300.0,distance(cameraPosition,vFieldPosition));
         float floorBand=1.0-smoothstep(.025,.065,cell.y);
         paint*=1.0-floorBand*(1.0-roof)*nearView*.16;
-        vec3 glass=mix(vec3(.07,.16,.19),vec3(.28,.40,.43),cell.y);
+        // Baked-looking ambient shade uses the existing facade pass and roof span.
+        float heightBlend=clamp((vFieldPosition.y-floorBase)/max(3.2,vFieldSpan.y-floorBase),0.,1.);
+        paint*=mix(vec3(.76,.80,.86),vec3(1.04,1.02,.99),heightBlend);
+        float reflection=smoothstep(.29,.73,cell.y+.14*(cell.x-.44));
+        vec3 glass=mix(vec3(.050,.115,.15),mix(vec3(.30,.50,.62),vec3(.57,.37,.31),fieldEvening),reflection);
         float frame=windowMask*(1.0-smoothstep(.035,.065,abs(cell.x-.44)));
         paint=mix(paint,glass,windowMask*(1.0-roof)*nearView*.85);
         paint=mix(paint,vec3(.48,.53,.49),frame*(1.0-roof)*nearView*.6);
@@ -130,13 +134,16 @@ export function createFieldBuildingMaterial(THREE,uniform,options={}) {
         float roofDistance=vFieldSpan.y-vFieldPosition.y;
         float coping=(1.0-smoothstep(.16,.27,roofDistance))*(1.0-roof);
         paint=mix(paint,vec3(.48,.51,.49),coping*.8);
-        vec3 roofPaint=mix(paint*.42,vec3(.20,.24,.25),.45);
-        roofPaint*=.98+.02*sin(vFieldPosition.x*2.8)*sin(vFieldPosition.z*2.8);
+        float pitched=smoothstep(.025,.15,1.-abs(vFieldNormal.y));
+        float warmRoof=smoothstep(.015,.095,vFieldColor.r-vFieldColor.b);
+        vec3 slate=mix(vec3(.15,.20,.23),vec3(.37,.19,.12),warmRoof);
+        vec3 roofPaint=mix(mix(paint*.40,vec3(.21,.26,.29),.45),slate,pitched*.83);
+        roofPaint*=1.-.06*nearView*pitched*(.5+.5*cos(vFieldPosition.y*16.));
         paint=mix(paint,roofPaint,roof);
         diffuseColor.rgb=paint;
       }`);
   };
-  material.customProgramCacheKey=()=> 'okazaki-field-building-v6'+(citySurfaceUniforms?'-grounded':'');
+  material.customProgramCacheKey=()=> 'okazaki-field-building-v7'+(citySurfaceUniforms?'-grounded':'');
   return material;
 }
 import {attachCitySurfaceShader} from './city-surface-map.js';

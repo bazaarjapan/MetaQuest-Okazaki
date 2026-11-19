@@ -41,6 +41,30 @@ test("avatar pose handles independent head pitch and block-limb movement", () =>
   assert.equal(avatar.getState().visible, false);
 });
 
+test("remote instancing preserves detailed cube transforms and per-part colors throughout motion", () => {
+  const avatar = createBlockAvatar(THREE, { identity: "remote", color: "#887744" });
+  const remote = createBlockAvatar(THREE, { identity: "remote", color: "#887744", batchBlocks: true });
+  const batch = remote.group.getObjectByName("avatar-blocks");
+  for (const motion of ["idle", "run", "boost", "glide"]) {
+    const pose = { position: [15, 10, -26], yaw: .72, pitch: .3, animation: motion, time: .94 };
+    avatar.update(pose); remote.update(pose);
+    remote.group.updateMatrixWorld(true);
+    const original = [];
+    avatar.group.traverseVisible((part) => {
+      if (part.geometry?.type === "BoxGeometry" && !part.name.startsWith("flame")) original.push(part);
+    });
+    assert.equal(batch.count, original.length);
+    for (const [index, part] of original.entries()) {
+      const color = new THREE.Color(), matrix = new THREE.Matrix4();
+      batch.getColorAt(index, color); batch.getMatrixAt(index, matrix);
+      matrix.premultiply(batch.matrixWorld);
+      assert.ok(matrix.elements.every((n, i) => Math.abs(part.matrixWorld.elements[i] - n) < 1e-6), part.name);
+      for (const key of ["r","g","b"]) assert.ok(Math.abs(part.material.color[key] - color[key]) < 1e-6);
+    }
+  }
+  avatar.dispose(); remote.dispose();
+});
+
 test("invalid avatar coordinates do not corrupt pose; getState is an independent snapshot", () => {
   const avatar = createBlockAvatar(THREE);
   avatar.update({ position: new THREE.Vector3(1, 2, 3), yaw: 0.2 });

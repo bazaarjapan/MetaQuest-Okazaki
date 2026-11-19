@@ -15,7 +15,10 @@ function fixture(documentTarget = null) {
   const scene = new THREE.Scene();
   const presence = createSchoolPresence(THREE, { scene, client, documentTarget });
   return { presence, scene, client, listeners, state: () => state,
-    set(value) { state = { ...state, ...value }; for (const listener of listeners) listener(state); } };
+    set(value, event, changedId) {
+      state = { ...state, ...value };
+      for (const listener of listeners) listener(state, event, changedId);
+    } };
 }
 function near(a, b, epsilon = 1e-7) { assert.ok(Math.abs(a - b) < epsilon, `${a} != ${b}`); }
 
@@ -66,7 +69,7 @@ test("other avatar smooths to latest eye pose; very large teleports snap rather 
 test("logout, leave, disconnect and world change remove old avatar geometry and unsubscribe once", () => {
   for (const next of [{ user: null }, { world: null }, { connection: "offline" }]) {
     const f = fixture(), actor = f.presence.group.children[0];
-    let disposed = 0; actor.getObjectByName("torso").geometry.addEventListener("dispose", () => disposed++);
+    let disposed = 0; actor.getObjectByName("avatar-blocks").geometry.addEventListener("dispose", () => disposed++);
     f.set(next); assert.equal(f.presence.getState().count, 0); assert.equal(disposed, 1);
     assert.equal(f.presence.group.visible, false); f.presence.dispose(); f.presence.dispose();
     assert.equal(f.listeners.size, 0); assert.equal(f.scene.children.length, 0);
@@ -80,7 +83,7 @@ test("logout, leave, disconnect and world change remove old avatar geometry and 
 test("avatar nickname and approved color updates are bounded; snapshot cannot mutate renderer position", () => {
   const f = fixture(), old = f.presence.group.children[0];
   f.set({ participants: [participant("other", { color: "#e67e22", name: "myNickname" })] });
-  assert.notEqual(f.presence.group.children[0], old);
+  assert.equal(f.presence.group.children[0], old);
   const view = f.presence.getState(); assert.equal(view.actors[0].name, "myNickname");
   assert.equal(view.actors[0].color, "#e67e22"); view.actors[0].position[0] = 999;
   assert.equal(f.presence.getState().actors[0].position[0], 1); f.presence.dispose();
@@ -117,4 +120,51 @@ test("classmates see run and rocket motion; stale movement folds wings and stops
   f.set({participants:[participant("other", {position:[10,21.65,3],animation:"boost"})]});
   for (let i=0;i<5;i++) f.presence.update(.1);
   assert.equal(f.presence.getState().actors[0].animation,"idle"); f.presence.dispose();
+});
+
+test("a pose packet reads only its sender's profile and changes no other target", () => {
+  const f = fixture();
+  const untouched = participant("other");
+  Object.defineProperty(untouched, "name", { get() { assert.fail("inspected another player's profile"); } });
+  const first = participant("first", { position: [9, 21.65, 3] });
+  f.set({ participants: [untouched, first] }, "pose", "first");
+  f.set({ participants: [untouched, { ...first, position: [16, 21.65, 3] }] }, "pose", "first");
+  f.set({}, "pose", "own");
+  f.set({}, "saving");
+  const actors = f.presence.getState().actors;
+  assert.equal(actors.find((entry) => entry.id === "other").target[0], 1);
+  assert.equal(actors.find((entry) => entry.id === "first").target[0], 16);
+  f.set({ participants: [participant("other")] }, "participants");
+  assert.equal(f.presence.getState().count, 1);
+  f.presence.dispose();
+});
+
+test("distant classmates keep their colored body and label with one mesh draw, then regain their wings up close", () => {
+  const context = { measureText: () => ({ width: 80 }), clearRect() {}, fillRect() {}, fillText() {} };
+  const f = fixture({ createElement: () => ({ getContext: () => context }) });
+  const actor = f.presence.group.children[0];
+  const batch = actor.getObjectByName("avatar-blocks");
+  const label = actor.getObjectByName("school-avatar-nickname");
+  const bodyDraws = () => {
+    const pieces = [];
+    actor.traverseVisible((part) => { if (part.isMesh || part.isLine) pieces.push(part); });
+    return pieces;
+  };
+  const nearby = new THREE.Vector3(1, 21.65, 3);
+  const far = nearby.clone().add(new THREE.Vector3(40, 0, 0));
+  f.presence.update(.05, nearby);
+  assert.equal(bodyDraws().length, 3);
+  f.set({ participants: [participant("other", { position: [2, 21.65, 3], animation: "boost" })] }, "pose", "other");
+  f.presence.update(.05, far);
+  assert.deepEqual(bodyDraws(), [batch]);
+  assert.equal(label.visible, true);
+  assert.equal(f.presence.getState().actors[0].distant, true);
+  const revision = batch.instanceMatrix.version;
+  f.presence.update(.05, nearby.clone().add(new THREE.Vector3(30, 0, 0)));
+  assert.equal(batch.instanceMatrix.version, revision);
+  f.presence.update(.05, nearby);
+  assert.equal(f.presence.getState().actors[0].distant, false);
+  assert.ok(bodyDraws().some((piece) => piece.name === "wing-membrane-0"));
+  assert.equal(actor.getObjectByName("school-avatar-nickname"), label);
+  f.presence.dispose();
 });
