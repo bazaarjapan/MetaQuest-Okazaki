@@ -91,7 +91,7 @@ footer > span { white-space: nowrap; }
  .panel-footer { padding-top: 6px; }
  footer { height: 26px; }
 }
-@media (max-width: 800px), (max-width: 1000px) and (max-height: 500px) {
+@media (max-width: 800px), (max-width: 1000px) and (max-height: 500px), (pointer: coarse) {
  body { grid-template-rows: 52px minmax(0,1fr) calc(72px + env(safe-area-inset-bottom,0px)); }
  header { padding: 0 12px; gap: 8px; }
  .brand strong { font-size: 14px; }

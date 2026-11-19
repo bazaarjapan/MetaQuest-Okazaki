@@ -75,7 +75,6 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
   const heading = element("div", undefined, "school-heading");
   const title = element("h2", "共同教室", "school-title"); title.id = "school-title";
   const closeButton = actionButton("閉じる", () => dialog.close(), "school-close"); heading.append(title, closeButton);
-  const description = element("p", "", "school-note");
   const status = element("p", "接続確認中…", "school-status"); status.id = "school-status"; status.setAttribute("role", "status"); status.setAttribute("aria-live", "polite");
   const autosave=element('p','','school-autosave');autosave.id='school-autosave';autosave.setAttribute('role','status');
   const movementStatus = element("p", "", "school-note"); movementStatus.id = "school-movement-status"; movementStatus.hidden = true;
@@ -86,17 +85,34 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
   let loginRole = "student", studentPanel = null, teacherPanel = null;
   const roleButtons = new Map();
   function selectLoginRole(role, focus = false) {
+    if (role !== loginRole) {
+      googleGeneration++;
+      preparingGoogle = 0;
+      if (studentPanel && role === "teacher") {
+        const password = studentPanel.querySelector("#student-password");
+        password.value = ""; password.setAttribute("aria-invalid", "false");
+      }
+    }
     loginRole = role;
-    if(!state.user){title.textContent=role==='teacher'?'先生の入り口':'生徒の入り口';description.textContent=role==='teacher'?'登録済みのGoogleアカウントで入ります。':'先生からもらったIDとパスワードを入力してください。';setStatus(role==='teacher'?'Googleのボタンでログインします。':'IDとパスワードを入力して「ワールドに入る」を押してください。');}
+    if (!state.user) {
+      title.textContent = role === "teacher" ? "先生の入り口" : "生徒の入り口";
+      if (!state.configured && state.error) setStatus(explainSchoolError(state.error), true);
+      else setStatus(role === "teacher" ? "登録済みの先生のGoogleアカウントを選んでください。" : "先生から受け取ったIDとパスワードを入力してください。");
+    }
     for (const [id, tab] of roleButtons) {
       tab.setAttribute("aria-selected", String(id === role)); tab.tabIndex = id === role ? 0 : -1;
     }
     if (studentPanel) studentPanel.hidden = Boolean(state.singleClassroom) && role !== "student";
     if (teacherPanel) teacherPanel.hidden = Boolean(state.singleClassroom) && role !== "teacher";
+    refreshDisabled();
     if (focus) roleButtons.get(role).focus();
   }
-  for (const [role, label] of [["teacher", "先生の入り口"], ["student", "生徒の入り口"]]) {
-    const tab = actionButton(label, () => {selectLoginRole(role);if(role==='teacher'&&state.configured)void showGoogleButton();}, `${role}-login-tab`);
+  for (const [role, label] of [["teacher", "先生 · Google"], ["student", "生徒 · ID"]]) {
+    const tab = actionButton(label, () => {
+      selectLoginRole(role);
+      if (role === "student") dialog.querySelector("#student-login-id")?.focus();
+      else if (state.configured) void showGoogleButton();
+    }, `${role}-login-tab`);
     tab.setAttribute("role", "tab"); tab.setAttribute("aria-controls", `${role}-login-panel`);
     tab.addEventListener("keydown", event => {
       if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
@@ -107,20 +123,20 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
   }
   const privacy = element("a", "ログイン・作品保存について（プライバシー）"); privacy.href = "/privacy.html";
   const body = element("div", undefined, "school-body");
-  body.append(description, status, autosave, movementStatus, loginTabs, content);
+  body.append(loginTabs, status, autosave, movementStatus, content);
   const footer = element("div", undefined, "school-footer"); footer.append(privacy);
   const logout = command("ログアウト", () => perform(() => client.logout(), "ログアウトしました。操作を再開するにはログインしてください。"), "school-logout");
   logout.hidden = true; footer.append(logout);
   const quickLogout = document.querySelector("#school-quick-logout");
   dialog.append(heading, body, footer); document.body.append(dialog);
   const summary = document.querySelector("#school-summary");
-  let state = client.getState(), renderKey = "", busy = false, googleGeneration = 0;
+  let state = client.getState(), renderKey = "", busy = false, googleGeneration = 0, preparingGoogle = 0;
   let googleHost = null, participantLabel = null, roomConnection = null;
   let issuedCredentials = [], credentialsOwner = null;
   let updateRoster = () => {};
   let loadRoster = async () => {};
   const inviteCode = parseSchoolInvite(globalThis.location?.href ?? "");
-  function setStatus(text, error = false) { if (status.textContent !== text) status.textContent = text; status.classList.toggle("is-error", error); }
+  function setStatus(text, error = false) { status.hidden = !text; if (status.textContent !== text) status.textContent = text; status.classList.toggle("is-error", error); }
   function updateMovementStatus() {
     const text = state.movementWarning === "pose_rate_limit" ? "移動の共有を一時的に制限しています。少し待って移動してください。" : "";
     if (movementStatus.textContent !== text) movementStatus.textContent = text;
@@ -129,23 +145,33 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
   async function perform(task, message) {
     if (busy) return;
     busy = true; refreshDisabled(); setStatus("処理中…");
-    try { await task(); if (message) setStatus(message); }
+    try {
+      await task();
+      if (message) setStatus(message);
+      else if (status.textContent === "処理中…") setStatus("");
+    }
     catch (error) { setStatus(explainSchoolError(error), true); }
     finally { busy = false; refreshDisabled(); }
   }
   function refreshDisabled() {
     for (const item of dialog.querySelectorAll("button[data-school-action]")) item.disabled = busy || item.dataset.unavailable === "true";
+    for (const tab of roleButtons.values()) tab.disabled = busy;
+    const googleButton = dialog.querySelector("#school-login");
+    if (googleButton && preparingGoogle) googleButton.disabled = true;
     if (quickLogout) quickLogout.disabled = busy;
   }
   function command(text, handler, id, unavailable = false) {
     const node = actionButton(text, handler, id); node.dataset.schoolAction = "true"; node.dataset.unavailable = String(unavailable); return node;
   }
   async function showGoogleButton() {
-    if(busy)return;
+    if (busy || preparingGoogle) return;
     const generation = ++googleGeneration;
+    preparingGoogle = generation;
     googleHost?.replaceChildren();
     const retryButton=dialog.querySelector('#school-login');if(retryButton)retryButton.hidden=false;
-    await perform(async () => {
+    setStatus("Googleログインを準備しています…");
+    refreshDisabled();
+    try {
       const [login, googleId] = await Promise.all([client.prepareGoogleLogin(), loadGoogleIdentity()]);
       if (generation !== googleGeneration || !dialog.open || client.getState().user || (state.singleClassroom&&loginRole!=='teacher')) return;
       const host = googleHost;
@@ -164,29 +190,41 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
         } });
       googleId.renderButton(host, { type: "standard", theme: "outline", size: "large", text: "signin_with", shape: "rectangular", width: Math.max(220, Math.min(320, host.clientWidth || dialog.clientWidth - 50)), locale: "ja" });
       const retry=dialog.querySelector('#school-login');if(retry)retry.hidden=true;
-      setStatus("Googleのボタンでログインしてください。");
-    });
+      setStatus("登録済みの先生のGoogleアカウントを選んでください。");
+    } catch (error) {
+      if (generation === googleGeneration && dialog.open) setStatus(explainSchoolError(error), true);
+    } finally {
+      if (preparingGoogle === generation) { preparingGoogle = 0; refreshDisabled(); }
+    }
   }
   function renderGuest() {
     studentPanel = teacherPanel = null;
     if (state.singleClassroom) {
       const form = element("form", undefined, "school-section");
       form.id = "student-login-panel"; form.setAttribute("role", "tabpanel"); form.setAttribute("aria-labelledby", "student-login-tab"); studentPanel = form;
-      form.append(element("h3", "ID・パスワードでログイン"));
-      const id = inputField("ID", { id: "student-login-id", maxLength: 40 }); id.input.autocomplete = "username";
-      const password = inputField("パスワード", { id: "student-password", type: "password", maxLength: 128 }); password.input.autocomplete = "current-password";
+      const id = inputField("ID", { id: "student-login-id", maxLength: 40 }); id.input.autocomplete = "username"; id.input.required = true; id.input.spellcheck = false; id.input.autocapitalize = "none";
+      const password = inputField("パスワード", { id: "student-password", type: "password", maxLength: 128 }); password.input.autocomplete = "current-password"; password.input.required = true;
+      password.input.setAttribute("aria-describedby", "school-status");
+      password.input.addEventListener("input", () => password.input.setAttribute("aria-invalid", "false"));
       const submit = element("button", "ワールドに入る"); submit.type = "submit"; submit.dataset.schoolAction = "true";
       form.append(id.label, password.label, submit);
       form.addEventListener("submit", event => { event.preventDefault(); void perform(async () => {
         const secret = password.input.value; password.input.value = "";
-        await client.loginStudent(id.input.value, secret);
+        try { await client.loginStudent(id.input.value, secret); }
+        catch (error) {
+          if (dialog.open && loginRole === "student" && !state.user && error.code === "invalid_student_login") {
+            password.input.setAttribute("aria-invalid", "true");
+            password.input.focus();
+          }
+          throw error;
+        }
       }); });
       content.append(form);
     }
     const section = element("section", undefined, "school-section");
     section.id = "teacher-login-panel"; teacherPanel = section;
     if (state.singleClassroom) { section.setAttribute("role", "tabpanel"); section.setAttribute("aria-labelledby", "teacher-login-tab"); }
-    section.append(element("h3", state.singleClassroom ? "Googleアカウントでログイン" : "1. Googleでログイン"));
+    if (!state.singleClassroom) section.append(element("h3", "1. Googleでログイン"));
     const help=element('details');help.append(element('summary','Googleの確認画面について'),element("p", "Googleの確認画面で「教職員異動検索」と表示される場合があります。登録済みの先生のGoogleアカウントを選んでください。", "school-note"));
     const googleButton = command("Googleでログイン", showGoogleButton, "school-login", !state.configured);
     googleHost = element("div", undefined, "school-google"); googleHost.id = "school-google";
@@ -244,7 +282,9 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
     content.append(section);
   }
   function renderStudents() {
-    const section = element("section", undefined, "school-section"); section.append(element("h3", "先生：生徒のIDを発行（最大30人）"));
+    const section = element("section", undefined, "school-section"); section.id = "school-students";
+    const heading = element("div", undefined, "student-roster-heading");
+    heading.append(element("h3", "生徒一覧・作品の場所"));
     const count = inputField("発行する人数", { type: "number", value: "1", id: "student-issue-count" }); count.input.min = "1"; count.input.max = "30";
     const output = element("textarea"); output.id = "student-issued-credentials"; output.readOnly = true; output.hidden = !issuedCredentials.length; output.rows = 8; output.setAttribute("aria-label", "今回発行したIDとパスワード");
     const credentialText = () => "ID\tパスワード\n" + issuedCredentials.map(row => `${row.loginId}\t${row.password}`).join("\n");
@@ -262,6 +302,7 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
     search.input.addEventListener("input", () => updateRoster());
     placedOnly.addEventListener("change", () => updateRoster());
     let students = null, rosterKey = "";
+    const issuePanel = element("details", undefined, "student-issuance"); issuePanel.id = "student-issue-panel";
     const showSecrets = result => {
       // Socket arrival may rerender the dialog during issuance. Keep this one
       // response in volatile UI memory and update the CURRENT textarea, not a
@@ -321,10 +362,11 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
       }
       refreshDisabled();
     };
-    section.append(count.label, command("ID・パスワードを発行", () => perform(async () => {
+    heading.append(command("一覧を更新", () => perform(refreshRoster, "生徒一覧を更新しました。"), "student-roster"));
+    issuePanel.append(element("summary", "新しい生徒IDを発行"), note, count.label, command("ID・パスワードを発行", () => perform(async () => {
       showSecrets(await client.students("issue", { count: Number(count.input.value) })); await refreshRoster();
-    }, "発行しました。表示された情報を控えてください。"), "student-issue"), note, output,
-    command("生徒一覧を確認・更新", () => perform(refreshRoster), "student-roster"), filters, roster);
+    }, "発行しました。表示された情報を控えてください。"), "student-issue"));
+    section.append(heading, issuePanel, output, filters, roster);
     content.append(section);
   }
   function renderRoom() {
@@ -333,7 +375,10 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
     section.append(element("h3", `現在の教室：${state.world.name}`));
     participantLabel = element("p", undefined, "school-note"); participantLabel.id = "school-participants";
     roomConnection = element("p", undefined, "school-note"); roomConnection.id = "school-connection";
-    section.append(participantLabel, roomConnection, element("p", "自分が読み込んだSTLだけを配置・変更できます。作品は教室に保存され、ほかの参加者にも見えます。", "school-note"));
+    const workNote = state.singleClassroom && state.user.role === "teacher"
+      ? "生徒の作品は「生徒一覧・作品の場所」から見に行ったり、生徒のホットバーに戻したりできます。"
+      : "自分が読み込んだSTLを配置・変更できます。教室に置いた作品は、ほかの参加者にも見えます。";
+    section.append(participantLabel, roomConnection, element("p", workNote, "school-note"));
     if(!state.singleClassroom){const actions = element("div", undefined, "school-actions");actions.append(command("教室を退出", () => client.leaveWorld(), "school-world-leave")); section.append(actions);}
     if (state.world.joinCode && state.user.role === "teacher") {
       if (!state.singleClassroom) {
@@ -346,7 +391,7 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
         catch { invite.input.focus(); invite.input.select(); setStatus("URL欄を選択しました。ブラウザのコピー操作でコピーしてください。"); }
       }, "school-invite-copy"));
       }
-      const advanced=element('details');advanced.id='school-save-details';advanced.append(element('summary','詳細：復元ポイント・巻き戻し'),element("p", "通常の保存は自動です。保存ボタンを押す必要はありません。ここは授業を過去の状態へ戻したいときだけ使います。", "school-note"));
+      const advanced=element('details');advanced.id='school-save-details';advanced.append(element('summary','詳細：復元ポイント・巻き戻し'),element("p", "復元ポイントを使うと、教室を授業中のある時点へ戻せます。", "school-note"));
       section.append(advanced);
       advanced.append(command("復元ポイントを追加（任意）", () => perform(() => client.saveWorld(), "復元ポイントを追加しました。通常の自動保存は継続しています。"), "school-world-save", state.connection !== "connected"));
       if (state.snapshots.length) {
@@ -367,8 +412,9 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
     content.append(section);
   }
   function updateConnection() {
-    autosave.hidden=!state.user;
-    autosave.textContent=state.connection!=='connected'?'接続確認中：保存の完了を確認できません。':state.pendingSaves?'自動保存中…このままお待ちください。':state.saveError?'保存を確認できませんでした。作品の状態を確認して、もう一度操作してください。':'自動保存 ON · 確定した作品と位置を保存します。保存操作は不要です。';
+    autosave.hidden=!state.user || state.user.namePending;
+    const saveMessage = state.connection!=='connected'?'接続確認中：保存の完了を確認できません。':state.pendingSaves?'自動保存中…このままお待ちください。':state.saveError?'保存を確認できませんでした。作品の状態を確認して、もう一度操作してください。':'自動保存 ON · 作品の配置や変更を確定すると、教室に保存されます。';
+    if (autosave.textContent !== saveMessage) autosave.textContent = saveMessage;
     autosave.classList.toggle('is-error',Boolean(state.saveError)||state.connection!=='connected');
     if (state.singleClassroom) { const entry = dialog.querySelector("#school-classroom-enter"); if (entry) entry.hidden = state.connection === "connected"; }
     const description = state.connection === "connected" ? "接続中：共同活動できます" : state.connection === "reconnecting" ? "再接続中：作品操作は一時停止" : state.world ? "接続待ち・停止中：作品操作はできません" : "教室を選んでください";
@@ -388,22 +434,28 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
       if (movementChanged) updateMovementStatus();
       return;
     }
-    if(state.user){title.textContent=state.user.role==='teacher'?'先生の管理画面':'自分のアカウント';description.textContent='作品と位置は自動保存されます。普段の保存操作は不要です。';}
+    if(state.user) title.textContent=state.user.namePending?'ワールドで使う名前':state.user.role==='teacher'?'先生の管理画面':'自分のアカウント';
+    if (!state.user && !state.singleClassroom) title.textContent = "教室にログイン";
     dialog.dataset.view = state.user ? "account" : "login";
     loginTabs.hidden = Boolean(state.user) || !state.singleClassroom;
     if (credentialsOwner !== state.user?.id) { issuedCredentials = []; credentialsOwner = state.user?.id; }
     updateMovementStatus();
     const key = JSON.stringify({ configured: state.configured, user: state.user, world: state.world, worlds: state.worlds, snapshots: state.snapshots });
     if (key !== renderKey) {
-      renderKey = key; googleGeneration++; googleHost = participantLabel = roomConnection = null;
+      renderKey = key; googleGeneration++; preparingGoogle = 0; googleHost = participantLabel = roomConnection = null;
       content.replaceChildren();loadRoster=async()=>{};
-      if (!state.user) renderGuest(); else { renderAccount(); renderEntry(); if (!state.user.namePending) renderRoom(); }
+      if (!state.user) renderGuest();
+      else if (state.singleClassroom && !state.user.namePending) { renderEntry(); renderRoom(); renderAccount(); }
+      else { renderAccount(); renderEntry(); if (!state.user.namePending) renderRoom(); }
       if(dialog.open&&state.user?.role==='teacher')void loadRoster().catch(error=>setStatus(explainSchoolError(error),true));
     }
     updateConnection();
     updateRoster();
     if (state.error) setStatus(explainSchoolError(state.error), true);
-    else if (event === "auth" || event === "state") setStatus(state.user ? (state.user.namePending ? "頭の上に表示する名前を決めてください。" : "ログイン中です。みんなのワールドに接続します。") : "ログインすると、街の移動・VR・作品づくりを始められます。");
+    else if (event === "auth" || event === "state") {
+      if (state.user) setStatus("");
+      else if (!state.singleClassroom) setStatus("Googleアカウントでログインしてください。");
+    }
   }
   async function open(role) {
     const allowed = await onBeforeOpen();
@@ -425,11 +477,11 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
   quickLogout?.addEventListener("click", clickLogout);
   const unsubscribe = client.subscribe(render);
   dialog.addEventListener("close", () => {
-    googleGeneration++;
+    googleGeneration++; preparingGoogle = 0;
     // A rendered GIS button is bound to the old callback/challenge generation.
     // Remove it on close rather than leaving a visible button that silently
     // ignores sign-in after the dialog is reopened.
-    googleHost?.replaceChildren(element("p", "ログインする場合は、もう一度「Googleログインを表示」を押してください。", "school-note"));
+    googleHost?.replaceChildren(element("p", "もう一度「Googleでログイン」を押してください。", "school-note"));
     try { globalThis.google?.accounts?.id?.cancel(); } catch { /* No global revoke. */ }
   });
   return { open, close: () => dialog.close(), isOpen: () => dialog.open, dialog,

@@ -13,7 +13,7 @@
   </head>
   <body>
     <section id="login-gate" aria-labelledby="login-gate-title">
-      <div><h1 id="login-gate-title">岡崎 みんなのワールド</h1><p>どちらの入り口から入りますか？</p><div class="login-role-choices"><button type="button" data-login-role="teacher"><strong>先生の入り口</strong><small>Googleアカウントでログイン</small></button><button type="button" data-login-role="student"><strong>生徒の入り口</strong><small>先生からもらったID・パスワード</small></button></div><p class="login-autosave-note">確定した作品と位置は自動保存。保存ボタンを押す必要はありません。</p><a class="manual-link" href="/manual" target="_blank" rel="noopener">先生・生徒の操作マニュアル ↗</a></div>
+      <div><h1 id="login-gate-title">岡崎 みんなのワールド</h1><p>どちらの入り口から入りますか？</p><div class="login-role-choices"><button type="button" data-login-role="teacher"><strong>先生の入り口</strong><small>Googleアカウントでログイン</small></button><button type="button" data-login-role="student"><strong>生徒の入り口</strong><small>先生からもらったID・パスワード</small></button></div><p class="login-autosave-note">作品の配置や変更を確定すると、教室に自動保存されます。</p><a class="manual-link" href="/manual" target="_blank" rel="noopener">先生・生徒の操作マニュアル ↗</a></div>
     </section>
     <header>
       <a class="brand" href="/" aria-label="岡崎駅フィールドノート ホーム"
@@ -49,21 +49,18 @@
           <small>現在地 · JR岡崎駅から</small>
           <strong id="current-location-detail"></strong>
         </div>
-        <div class="map-bottom">
-          <span id="status" role="status">準備中</span
-          ><button id="home" aria-label="開始地点に戻る" disabled>開始地点に戻る</button
-          ><button id="open-workshop" disabled>STL作品（ログイン）</button
-          ><button id="fullscreen" aria-label="3D画面を全画面表示">
-            全画面
-          </button>
-        </div>
+        <div class="map-bottom"><span id="status" role="status">準備中</span></div>
         <div id="canvas-hint">ドラッグで回転 · ホイールで拡大</div>
+        <div id="ground-pick-controls" hidden>
+          <span id="ground-pick-hint" role="status">作品を置きたい地面を選んでください。</span>
+          <button id="ground-pick-cancel" type="button" aria-describedby="ground-pick-hint">編集に戻る</button>
+        </div>
         <div id="rocket-hint" hidden>Z長押し：ロケット · X：停止</div>
       </section>
       <aside id="control-panel" aria-label="街の操作パネル">
         <div class="panel-heading">
           <h1>街を探索</h1>
-          <button id="quality-shortcut" class="quality-badge" aria-label="画質設定を開く">標準（くっきり）</button>
+          <button id="quality-shortcut" class="quality-badge" aria-label="画質設定を開く（標準）">画質：標準（くっきり）</button>
           <button id="panel-close" aria-label="操作パネルを閉じる">閉じる ×</button>
         </div>
         <nav class="control-tabs" role="tablist" aria-label="操作の種類">
@@ -73,6 +70,11 @@
         </nav>
         <div class="panel-body">
         <section id="panel-observe" role="tabpanel" aria-labelledby="tab-observe">
+        <div class="observe-actions" role="group" aria-label="作品と街の操作">
+          <button id="open-workshop" disabled>STL作品（ログイン）</button>
+          <button id="home" disabled>開始地点に戻る</button>
+          <button id="fullscreen" aria-label="3D画面を全画面表示">全画面</button>
+        </div>
         <div id="movement-controls" class="movement-controls" data-free="false">
           <label for="control-mode">移動・視点の操作</label>
           <select id="control-mode" disabled><option value="creative" selected>クリエイティブ風（PC・初期設定）</option><option value="drone">ドローン・見学（従来の操作）</option></select>
@@ -82,10 +84,11 @@
             <label><input id="free-move" type="checkbox" disabled aria-describedby="creative-help move-help" /><span>自由移動 <strong id="free-move-state" class="movement-state">OFF</strong><small><span class="desktop-copy">PCは初期ON・キーを離すと停止</span><span class="mobile-copy">指を離すと停止・Questはモード2</span></small></span></label>
             <p id="move-help" hidden><span class="desktop-copy">WASD：前後左右 / R・F：上下 / Q・E：旋回。</span><span class="mobile-copy">左：上下・旋回 / 右：前後・左右。指を離すと停止。</span></p>
           </div>
-          <p id="creative-help" hidden>WASD：移動 / Space：上昇 / Shift：下降 / F5：視点。Z長押し：ロケット離陸・加速、離すと滑空 / X：空中停止。画面クリックで見回す・Escで停止。</p>
-          <details class="movement-details"><summary>視点・スマホ・Questの操作を確認</summary><p class="movement-note">PC・スマホのクリエイティブ風は最初、三人称・後方視点。選んだ未配置STLは手元に表示します。視点ボタンで一人称・三人称を切替。スマホは左：上下・旋回／右：前後・左右。Questはモード2で開始し、VRは一人称です。VRは自由移動ONで開始。2D復帰・地点切替・ダイアログ操作では移動OFF。</p></details>
+          <p id="creative-help" hidden><span class="desktop-copy">WASD：移動 / Space：上昇 / Shift：下降 / F5：視点。Z長押し：ロケット離陸・加速、離すと滑空 / X：空中停止。画面クリックで見回す・Escで停止。</span><span class="mobile-copy">画面下の「移動」でスティックを表示。左で上下と旋回、右で前後左右に移動します。</span></p>
+          <details class="movement-details"><summary>視点・スマホ・Questの操作を確認</summary><p class="movement-note">PC・スマホのクリエイティブ風は最初、三人称・後方視点。選んだ未配置STLは手元に表示します。視点ボタンで一人称・三人称を切替。スマホは1本指で見回し、2本指で拡大。「移動」をオンにすると左のスティックで上下・旋回、右で前後・左右に移動できます。Questはモード2で開始し、VRは一人称です。VRは自由移動ONで開始。2D復帰・地点切替・ダイアログ操作では移動OFF。</p></details>
         </div>
-        <p class="panel-caption">JR岡崎駅から、街のつながりを観察。</p>
+        <div class="explore-tools">
+        <h2>見学地点</h2>
         <p id="school-summary" class="panel-caption" role="status">ログイン後に移動・VR・作品配置を使えます。「ログイン・教室」から入ってください。</p>
         <nav aria-label="見学地点" id="viewpoints">
           <button data-view="overview" class="view active" disabled>
@@ -111,8 +114,7 @@
           <h2 id="question">線路は街をどのように分けている？</h2>
           <p id="question-detail">線路を越えて東西を行き来できる場所を探してみよう。</p>
         </section>
-        <p class="panel-caption desktop-copy">操作モードと自由移動は、この「見学」タブで切り替えます。PCの初期はクリエイティブ風、Questはモード2です。接続後に画面クリック。VRは自由移動ONで開始し、Bボタンで停止・再開します。</p>
-        <p class="panel-caption mobile-copy">1本指で回転・2本指で拡大。「移動」をオンにすると左右の仮想スティックで飛べます。</p>
+        </div>
         </section>
         <section id="panel-region" role="tabpanel" class="region-setting" aria-labelledby="tab-region" hidden>
           <h2 id="region-title">岡崎市 広域マップ</h2>
@@ -125,6 +127,16 @@
           <p class="map-legend">灰：建物区画 / 緑：駅 / 橙：現在地。地図をタップ・クリックして移動。</p>
         </section>
         <section id="panel-settings" role="tabpanel" aria-labelledby="tab-settings" hidden>
+        <div id="quality-setting" class="quality-setting">
+          <label for="quality-select">画質</label>
+          <select id="quality-select" disabled>
+            <option value="performance">軽量</option>
+            <option value="balanced" selected>標準（くっきり・初期設定）</option>
+            <option value="high">高精細</option>
+          </select>
+          <p class="quality-persistence">選んだ画質はこの端末に保存されます。VRに入る前に切り替えられます。</p>
+          <p id="quality-note">画質を確認中…</p>
+        </div>
         <div class="quality-setting">
           <label for="time-of-day">空と光（自分の画面）</label>
           <select id="time-of-day"><option value="day">昼・青空</option><option value="evening">夕方・あたたかな光</option></select>
@@ -148,16 +160,6 @@
           <input id="movement-volume" type="range" min="0" max="100" step="5" value="35">
           <p>操作を始めると有効になります。メニュー表示中と移動OFFでは停止します。</p>
         </div>
-        <div id="quality-setting" class="quality-setting">
-          <label for="quality-select">画質（VRに入る前に選択）</label>
-          <select id="quality-select" disabled>
-            <option value="performance">軽量</option>
-            <option value="balanced" selected>標準（くっきり・初期設定）</option>
-            <option value="high">高精細</option>
-          </select>
-          <p id="quality-note">画質を確認中…</p>
-        </div>
-        <p class="setting-warning">初回は「標準」で開きます。画質はVRに入る前に選べます。次回はこの端末で選んだ画質を使います。</p>
         <details>
           <summary>この教材について</summary>
           <p>
@@ -201,7 +203,7 @@
           rel="noopener"
           >国土地理院</a
         >・<a href="https://github.com/gsi-cyberjapan/optimal_bvmap" target="_blank" rel="noopener">国土地理院最適化ベクトルタイル（加工）</a>　広域標高はライブ取得</span
-      ><span>MVP 1.10.16 · 生徒はIDログイン · 先生はGoogle · 共通ワールド</span>
+      ><span>MVP 1.10.17 · 生徒はIDログイン · 先生はGoogle · 共通ワールド</span>
     </footer>
     <dialog id="workshop-dialog" aria-labelledby="workshop-title">
       <div class="workshop-heading">
@@ -271,7 +273,7 @@
       </div>
       <p id="object-scale-help">倍率を入力すると大きさが変わります。マウスで数値欄を左右にドラッグしても調整できます。</p>
       <p id="object-y">読み込んだ作品の底面を実地面に合わせます。</p>
-      <button id="object-pick">地面をクリックして移動</button>
+      <button id="object-pick">地面を選んで移動</button>
       </details>
       <details class="workshop-help workshop-section"><summary>配置・回収・仕上げの操作ガイド</summary>
         <p class="workshop-note">下の10枠でSTLを選び、ホイールでサイズ変更、右クリックで配置、右ドラッグで見回せます。設置済みの枠をクリック・タップすると移動・回収・編集を選べます。街の自分の作品を左ボタン0.8秒長押し（またはR）でも回収できます。緑は配置可能、赤は配置不可、黄色は最後のプレビュー（未設置）です。</p>
@@ -284,47 +286,51 @@
         <p id="workshop-status" role="status"></p>
       </div>
     </dialog>
-    <dialog id="help-dialog">
-      <button id="close-help" class="dialog-close" aria-label="使い方を閉じる">
-        閉じる ×</button
-      ><small class="eyebrow">FIELD GUIDE</small>
-      <h2>好きな場所から、街を見よう。</h2>
-      <p><a href="/manual" target="_blank" rel="noopener">図解付き：先生・生徒の操作マニュアル ↗</a></p>
-      <h3>PC・タブレット</h3>
-      <p>
-        PCはクリエイティブ風・自由移動ONで始まります。「見学」タブで操作モードと自由移動を切り替えます。WASDで前後左右、Spaceで上昇、Shiftで下降。3D画面をクリックするとマウスで見回せ、Escで解除します。同じW/A/S/Dを350ms以内に二度押しして保持、またはCtrlで1.5倍速。Space二度押しで飛行/歩行、F5で一人称→後方→前方です。翼とロケットは標準装備・燃料無制限。Z長押しで離陸・加速（最高80m/s）、離すと滑空し、マウスで方向を変えます。マウス固定が使えないブラウザーでは、3D画面を右ドラッグすると左右旋回・上下の向きを変えられます。方向転換のドラッグではSTLを設置しません。Xで空中停止して通常の自由移動に戻ります。滑空中に下を向いて地面へ降りると歩行に戻ります。飛行中もSpace長押しで上昇できます（Zと同時押し可能）。ロケット飛行・滑空中はSpaceを350ms以内に2回押し、2回目を保持すると上昇補助が12m/sから36m/sになります。離すと高速上昇を解除し、歩行には切り替わりません。WASD・Shiftの通常移動はXで停止してから使ってください。マウスは自動で固定しません。保存済みのモード選択は次回も使います。従来のドローンを選ぶと、ドラッグで回転・ホイールで拡大、WASD・R/F上下・Q/E旋回を使えます。モード・地点の切替、ダイアログ、画面から離れたとき、2D復帰では移動OFFになります。VRは自由移動ONで開始します。ロケットはPC専用で、VRは従来のモード2です。壁衝突は未実装です。
-      </p>
-      <p>Escで右メニューを開き、3D画面をクリックすると移動を再開できます。下の10枠または1〜9・0でSTLを選ぶと、持ったままWASDで移動、F5で視点切替、右ドラッグで見回せます。「手持ちをしまう」、Qキー、または同じ枠をもう一度選ぶと、未確定の見た目・大きさ・回転を取り消してSTLを枠に戻します。緑の底面を確認して右クリックで配置し、自分の作品をねらって左ボタン0.8秒長押し（またはRキー）で回収できます。詳しい手順は先生向けガイドを確認してください。</p>
-      <h3>スマホ</h3>
-      <p>スマホは画面下の「見学」「広域」「設定」でパネルを開閉。1本指で回転、2本指で拡大。「移動」をオンにすると左の仮想スティックで上下・旋回、右で前後・左右へ移動できます。少し倒すとゆっくり、大きく倒すと速く移動し、指を離すと停止します。</p>
-      <h3>Meta Quest</h3>
-      <p>街の操作・VR表示にはログインが必要です。共同作業は2D画面で、生徒は先生から受け取ったID・パスワード、先生は登録済みGoogleアカウントで入ります。初回に名前を決めると共通ワールドに自動参加します。STLは2Dで読み込み、VR内の中央パネルの「作品」で選択・XYZ回転・拡大縮小・配置を行えます。他の人の作品は編集できません。</p>
-      <p>広域マップをクリックして、岡崎市の別の場所へ上空移動できます。VR中は中央パネルの「広域」を光線とトリガーで選び、地図内の移動先を選択します。Yボタンでいつでも駅へ戻れます。遠くの建物は軽量LOD1で、現在地付近だけを読み込みます。</p>
-      <p>
-        VRは中央の1枚の「岡崎まち フィールドノート」に案内・2D復帰・左右のコントローラー状態をまとめます。「見学」「広域」「作品」を同じパネル内で切り替えます。円の中の点がスティックの倒し量・方向、色付きのボタンが押下／タッチ、バーがトリガーとグリップの押し込み量です。Xを短く押して離すとメニュー全体が消え、もう一度短押しすると元の大きさ・タブで再表示します。
-      </p>
-      <p>
-        Questのブラウザーでこのページを開き、「QuestでVRを見る」を押します。左は水色・右はオレンジの光線です。先端の丸い目印をボタンに合わせ、ボタンの枠が光ったらその手のトリガーを1回押します。左右どちらでも地点・タブ・作品操作を選べます。ボタンの隙間や操作できない場所は選択されません。
-      </p>
-      <p>
-        B：自由移動ON/OFF / A：次の地点 / Y：開始地点 /
-        X短押し：離すとメニュー全体の表示切替。VRは自由移動ONで開始します。Bで停止・再開できます。左スティックの上下で上昇・下降、左右で連続旋回。右スティックの上下で前進・後退、左右で横移動します。前進・横移動は今見ている水平の向きに追従します。上下を見ても勝手に昇降せず、高さは左スティックで操作します。開始時にスティックを倒している場合は一度離すとONになります。
-      </p>
-      <p>
-        少し倒すとゆっくり、大きく倒すと速く移動します。同じ倒し量なら、倒し続けても速度は一定です。水平は最大12m/s、上下は最大6m/s、旋回は最大30°/秒。スティックを離すと即停止します。Bでその場停止、Yで開始地点へ戻れます。
-      </p>
-      <div class="notice">
-        VRから戻るには、中央パネルの大きな「2Dに戻る」に光線を合わせてトリガーを押すか、Xを1.5秒長押しします。メニューを消していても長押しで戻れます。短押しして離すとメニューの表示を切り替えます。長押し中の進捗はメニュー表示中だけ見えます。ページは再読み込みせず、見ていた位置・向きでブラウザー表示に戻ります。「VRに戻る」で今の場所から再開でき、自由移動ONで始まります。Bで停止できます。ページを閉じたり再読み込みした場合の視点保存ではありません。
+    <dialog id="help-dialog" aria-labelledby="help-title">
+      <div class="help-heading">
+        <h2 id="help-title">街の操作ガイド</h2>
+        <button id="close-help" class="dialog-close" type="button" aria-label="使い方を閉じる">閉じる ×</button>
       </div>
-      <div class="notice">
-        高精細では高解像度の空中写真と陰影を表示します。画質はVRに入る前に選んでください。動きが重い場合は2D画面に戻り「標準」または「軽量」へ変更します。元の写真がない建物の窓や駅内部を再現する機能ではありません。
+      <div class="help-body">
+        <details data-help-device="pc" name="help-device" open>
+          <summary>PCで移動・見回す</summary>
+          <dl data-help-mode="creative">
+            <dt>移動を始める</dt><dd>街の画面をクリックし、<kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> で前後左右へ。マウスを動かすと見回せます。</dd>
+            <dt>飛ぶ・降りる</dt><dd><kbd>Space</kbd> で上昇、<kbd>Shift</kbd> で下降。<kbd>Z</kbd> 長押しでロケット、<kbd>X</kbd> で空中停止。</dd>
+            <dt>メニューを開く</dt><dd><kbd>Esc</kbd> で移動を止めてメニューへ。<kbd>F5</kbd> で一人称と三人称を切り替えます。</dd>
+          </dl>
+          <dl data-help-mode="drone" hidden>
+            <dt>見回す</dt><dd>ドラッグで街を回転、ホイールで拡大・縮小します。</dd>
+            <dt>自由に移動</dt><dd>「見学」で「自由移動」をオンにし、<kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> で前後左右、<kbd>R</kbd>・<kbd>F</kbd> で上下、<kbd>Q</kbd>・<kbd>E</kbd> で旋回します。</dd>
+          </dl>
+          <a href="/manual/#pc" target="_blank" rel="noopener">PCのキー操作一覧 ↗</a>
+        </details>
+        <details data-help-device="touch" name="help-device">
+          <summary>画面のスティックで移動する</summary>
+          <dl>
+            <dt>移動を始める</dt><dd>画面下の「移動」をオンにすると、左右のスティックが出ます。</dd>
+            <dt>街を歩く・飛ぶ</dt><dd>左は上下・旋回、右は前後・左右です。少し倒すとゆっくり動き、指を離すと止まります。</dd>
+          </dl>
+          <a href="/manual/#mobile" target="_blank" rel="noopener">タッチ操作の手順 ↗</a>
+        </details>
+        <details data-help-device="quest" name="help-device">
+          <summary>Meta QuestでVRに入る</summary>
+          <dl>
+            <dt>VRを始める</dt><dd>2D画面でログインして「QuestでVRを見る」を選びます。狭い画面では「設定」から開けます。</dd>
+            <dt>移動・停止</dt><dd>左スティックは上下・旋回、右は前後・左右。Bボタンで停止・再開します。</dd>
+            <dt>2D画面に戻る</dt><dd>中央パネルの「2Dに戻る」をトリガーで選ぶか、Xボタンを1.5秒長押しします。</dd>
+          </dl>
+          <p>先生の指示と機器の利用条件に従い、周囲を片付けてから使いましょう。気分が悪くなったらすぐに外してください。</p>
+          <a href="/manual/#quest" target="_blank" rel="noopener">Questの操作図を見る ↗</a>
+        </details>
+        <h3>作品とワールド</h3>
+        <dl class="help-tasks">
+          <dt>作品を置く</dt><dd>「見学」から「自分のSTL作品」を開けます。作品と空いている地面を選び、画面下の「この場所に配置」を押します。<a href="/manual/#stl" target="_blank" rel="noopener">作品の操作手順 ↗</a></dd>
+          <dt>位置を確かめる</dt><dd>「まちレーダー」の中央が自分です。「見学」の「開始地点に戻る」で駅に戻れます。</dd>
+          <dt>動きが重いとき</dt><dd>メニュー上部の画質ボタンから「軽量」を選べます。画質は自分の端末に適用されます。</dd>
+        </dl>
       </div>
-      <div class="notice">
-        VRは先生の指示と機器の年齢・利用条件に従って使用してください。安全なプレイエリアを確保し、不快感があればすぐに外してください。PCだけでも同じ街を観察できます。
-      </div>
-      <p class="muted">
-        画像の読み込みにはネット接続が必要です。学校で使う前に、同時に使う台数で動作を確認してください。
-      </p>
+      <div class="help-footer"><a href="/manual" target="_blank" rel="noopener">先生・生徒の操作マニュアル ↗</a></div>
     </dialog>
     <script type="module" src="/src/main.js"></script>
   </body>

@@ -70,7 +70,7 @@ try{
  check('sound can be muted',(await state()).audio.enabled===false);
  await browser('click','#movement-sound');await browser('reload');await until('window.__okazaki?.getState().activityAllowed');
  check('sound settings persist through reload',(await state()).audio.enabled===true&&(await state()).audio.volume===.35);
- await browser('click','#school-button');await browser('click','#student-issue');
+ await browser('click','#school-button');await browser('click','#student-issue-panel > summary');await browser('click','#student-issue');
  await until("!document.querySelector('#student-issued-credentials').hidden");
  const secret=await evaluate("document.querySelector('#student-issued-credentials').value.split('\\n')[1].split('\\t')");
  session=sessions[1];await launch(fixtures.origin);await until("document.querySelector('#student-login-id')");
@@ -118,9 +118,19 @@ try{
  check('radar legend explains student and teacher colors',await evaluate("document.querySelector('.radar-legend').textContent.includes('生徒') && document.querySelector('.radar-legend').textContent.includes('先生')"));
  for(const [w,h] of [[390,844],[844,390]]){
   await browser('set','viewport',String(w),String(h));
+  await until("document.querySelector('.radar-heading').getAttribute('aria-expanded')==='"+(w===390?'false':'true')+"'");
+  if(w===390)await browser('click','.radar-heading');
+  const unobstructed=await evaluate(`(()=>{
+    const controls=['#world-radar','#current-location','#simple-menu','#simple-login','#north','.map-label','#status'];
+    const bounds=controls.map(selector=>document.querySelector(selector).getBoundingClientRect());
+    return bounds.every((a,i)=>bounds.slice(i+1).every(b=>a.right<=b.left||a.left>=b.right||a.bottom<=b.top||a.top>=b.bottom));
+  })()`);
+  check(`expanded radar and HUD controls do not overlap at ${w}x${h}`,unobstructed);
   check(`radar ${w}x${h} stays within screen`,await evaluate("(()=>{const r=document.querySelector('#world-radar').getBoundingClientRect();return r.top>=0&&r.left>=0&&r.right<=innerWidth+1&&r.bottom<=innerHeight+1;})()"));
  }
+ await browser('click','.radar-heading');
  await browser('set','viewport','1280','800');
+ await until("document.querySelector('.radar-heading').getAttribute('aria-expanded')==='true'");
  await browser('click','.radar-actions button');check('radar distance selector changes range',(await evaluate("document.querySelector('.radar-actions button').textContent")).includes('1,000'));
  await browser('screenshot','test-results/street-radar-student.png');
  session=sessions[0];

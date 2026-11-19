@@ -4,12 +4,17 @@
   const assert = (ok, name, detail) => { results.push({ok:Boolean(ok),name,detail}); if(!ok) throw new Error(name+': '+JSON.stringify(detail)); };
   const visible = el => Boolean(el && el.getBoundingClientRect().width && getComputedStyle(el).visibility !== 'hidden');
   const inside = el => { const r=el.getBoundingClientRect(); return r.left>=0 && r.top>=0 && r.right<=innerWidth+1 && r.bottom<=innerHeight+1; };
-  assert(s().ready && !s().ui.mobile && s().version==='1.10.16','compact-desktop-ready');
+  assert(s().ready && !s().ui.mobile && s().version==='1.10.17','compact-desktop-ready');
   assert(!s().ui.open && !visible(document.querySelector('#control-panel')),'right-menu-initially-closed');
   assert(document.querySelectorAll('#stl-hotbar button').length===10 && inside(document.querySelector('#stl-hotbar')),
     'ten-hotbar-slots-inside-screen');
+  document.querySelector('#simple-menu').focus();
   document.querySelector('#simple-menu').click();
   assert(s().ui.open && visible(document.querySelector('#control-panel')),'menu-button-opens-right-panel');
+  assert(document.activeElement.id==='tab-observe' && document.querySelector('#simple-menu').getAttribute('aria-expanded')==='true',
+    'opening-menu-focuses-selected-tab');
+  assert(document.querySelector('#panel-observe button')?.id==='open-workshop' && inside(document.querySelector('#open-workshop')),
+    'workshop-first-and-visible-on-entry');
   assert(document.documentElement.scrollHeight<=innerHeight+1 && document.documentElement.scrollWidth<=innerWidth+1,
     'entire-workspace-fits-one-window',{width:innerWidth,height:innerHeight,scrollHeight:document.documentElement.scrollHeight});
   assert(['#viewport','#control-panel','#enter-vr','.control-tabs'].every(id=>inside(document.querySelector(id))),
@@ -31,11 +36,17 @@
   document.querySelector('#quality-shortcut').click();
   assert(s().ui.active==='settings' && visible(document.querySelector('#quality-select')),'quality-badge-opens-settings');
   const selector=document.querySelector('#quality-select');
+  assert(document.activeElement===selector && document.querySelector('.panel-body').scrollTop===0,'quality-shortcut-focuses-first-setting');
   selector.value='high';selector.dispatchEvent(new Event('change',{bubbles:true}));
   while(s().qualityLoading) await wait(100);
   assert(s().quality.id==='high' && s().quality.shadows && s().quality.terrainSize[0]===3072 &&
-    document.querySelector('#quality-shortcut').textContent==='高精細','high-detail-real-renderer-settings');
+    document.querySelector('#quality-shortcut').textContent==='画質：高精細','high-detail-real-renderer-settings');
   assert(!s().touch.enabled && !visible(document.querySelector('#mobile-toolbar')),'mobile-input-hidden-on-desktop');
   document.querySelector('#tab-observe').click();
+  document.querySelector('#panel-close').click();
+  assert(!s().ui.open && document.activeElement.id==='simple-menu','close-returns-focus-to-menu-opener');
+  document.querySelector('#help').click();
+  assert(document.querySelector('#help-dialog details[open]').dataset.helpDevice==='pc','guide-matches-active-controls');
+  document.querySelector('#close-help').click();
   return JSON.stringify({passed:true,environment:'Desktop viewport layout, not device FPS',results});
 })();

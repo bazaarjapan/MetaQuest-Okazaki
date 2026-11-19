@@ -14,10 +14,10 @@ export function radarPeople(participants,userId,position,yaw,range) {
 }
 export function createWorldRadar({parent,onOpenWorks=()=>{},onFocusWorld=()=>{}}) {
   const root=document.createElement("section");root.id="world-radar";root.setAttribute("aria-label","作品と参加者のまちレーダー");
-  const heading=document.createElement("div");heading.className="radar-heading";heading.textContent="まちレーダー";
-  const fold=document.createElement("button");fold.textContent="−";fold.setAttribute("aria-label","レーダーを折りたたむ");fold.setAttribute("aria-expanded","true");
-  heading.append(fold);
+  const fold=document.createElement("button");fold.type="button";fold.className="radar-heading";fold.textContent="まちレーダー";
+  const mark=document.createElement("span");mark.setAttribute("aria-hidden","true");fold.append(mark);
   const body=document.createElement("div"),canvas=document.createElement("canvas");canvas.width=canvas.height=384;
+  body.id="radar-map";fold.setAttribute("aria-controls",body.id);
   canvas.setAttribute("role","img");
   const controls=document.createElement("div");controls.className="radar-actions";
   const zoom=document.createElement("button"),works=document.createElement("button");works.textContent="作品一覧";
@@ -31,8 +31,17 @@ export function createWorldRadar({parent,onOpenWorks=()=>{},onFocusWorld=()=>{}}
   const ranges=[100,300,1000,5000];let index=1,last=-Infinity,folded=false,latest=null;
   zoom.textContent="半径 300 m";zoom.setAttribute("aria-label","レーダーの表示距離を変更");
   zoom.onclick=()=>{index=(index+1)%ranges.length;zoom.textContent=`半径 ${ranges[index].toLocaleString()} m`;last=-Infinity;onFocusWorld();};
-  fold.onclick=()=>{folded=!folded;body.hidden=folded;fold.textContent=folded?"+":"−";fold.setAttribute("aria-expanded",String(!folded));fold.setAttribute("aria-label",folded?"レーダーを開く":"レーダーを折りたたむ");onFocusWorld();};
-  controls.append(zoom,works);body.append(canvas,legend,controls,summary);root.append(heading,body);parent.append(root);
+  const compact=window.matchMedia("(max-width: 800px), (max-width: 1000px) and (max-height: 500px), (pointer: coarse)");
+  const foldChoices=new Map();
+  function applyFold() {
+    folded=foldChoices.get(compact.matches) ?? compact.matches;last=-Infinity;
+    body.hidden=folded;root.dataset.folded=String(folded);mark.textContent=folded?"+":"−";
+    fold.setAttribute("aria-expanded",String(!folded));
+    fold.setAttribute("aria-label",folded?"まちレーダーを開く":"まちレーダーを折りたたむ");
+  }
+  fold.onclick=()=>{foldChoices.set(compact.matches,!folded);applyFold();onFocusWorld();};
+  compact.addEventListener("change",applyFold);applyFold();
+  controls.append(zoom,works);body.append(canvas,legend,controls,summary);root.append(fold,body);parent.append(root);
   const ctx=canvas.getContext("2d");
   return {
     update({position,yaw,objects,participants=[],userId,station,time,hidden=false}){
@@ -66,6 +75,6 @@ export function createWorldRadar({parent,onOpenWorks=()=>{},onFocusWorld=()=>{}}
       canvas.setAttribute("aria-label",`中央が自分、上が進行方向。半径${range}メートル。${summary.textContent}。水色は生徒${students}人、紫は先生${teachers}人、金色が自分の作品、青が駅、縁の菱形は範囲外。`);
     },
     getState:()=>latest,
-    destroy:()=>root.remove()
+    destroy(){compact.removeEventListener("change",applyFold);root.remove();}
   };
 }

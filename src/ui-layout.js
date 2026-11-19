@@ -5,20 +5,19 @@ export function nextPanel(id, offset) {
 }
 
 /** A wide menu that only scrolls when its content exceeds the viewport. */
-export function createAdaptiveUi() {
-  const media = matchMedia('(max-width: 800px), (max-width: 1000px) and (max-height: 500px)');
+export function createAdaptiveUi({ isEscapeReserved = () => false } = {}) {
+  const media = matchMedia('(max-width: 800px), (max-width: 1000px) and (max-height: 500px), (pointer: coarse)');
   const aside = document.querySelector('#control-panel');
-  const actions = document.createElement('div'); actions.className = 'simple-detail-actions';
-  for (const id of ['home', 'open-workshop', 'fullscreen']) actions.append(document.getElementById(id));
-  document.querySelector('#panel-observe').append(actions);
-  const observe = document.querySelector('#panel-observe');
-  const explore = document.createElement('div'); explore.className = 'explore-tools';
-  for (const child of [...observe.children]) if (child.id !== 'movement-controls') explore.append(child);
-  observe.append(explore);
+  const body = aside.querySelector('.panel-body');
   let active = 'observe', open = false, returnFocus = null;
+
+  function defaultOpener() {
+    return document.querySelector(media.matches ? '[data-mobile-panel=' + active + ']' : '#simple-menu');
+  }
   function render() {
     document.body.dataset.panelOpen = String(open);
     aside.inert = !open;
+    document.querySelector('#simple-menu')?.setAttribute('aria-expanded', String(open));
     aside.setAttribute('aria-hidden', String(!open));
     // Keep the compact mobile sheet for its selected task. VR setup belongs
     // with settings there; desktop keeps the always-visible action footer.
@@ -37,15 +36,24 @@ export function createAdaptiveUi() {
       mobile.classList.toggle('active', media.matches && open && active === id);
     }
   }
-  function close() {
+  function close({ restoreFocus = true } = {}) {
+    if (!open) return;
     open = false;
-    if (media.matches && aside.contains(document.activeElement)) returnFocus?.focus();
+    if (restoreFocus && !document.querySelector('dialog[open]') &&
+        (aside.contains(document.activeElement) || document.activeElement === document.body)) {
+      const target = returnFocus?.isConnected && returnFocus.getClientRects().length ? returnFocus : defaultOpener();
+      target?.focus({ preventScroll: true });
+    }
+    returnFocus = null;
     render();
   }
-  function show(id) {
-    if (!panelIds.includes(id)) return;
+  function show(id, opener = document.activeElement) {
+    if (!panelIds.includes(id) || document.querySelector('dialog[open], #login-gate:not([hidden])')) return;
+    if (!open) returnFocus = opener && opener !== document.body && !aside.contains(opener) ? opener : defaultOpener();
+    const resetScroll = !open || active !== id;
     active = id; open = true; render();
-    if (media.matches) document.querySelector('#tab-' + id).focus({ preventScroll: true });
+    if (resetScroll) body.scrollTop = 0;
+    document.querySelector('#tab-' + id).focus({ preventScroll: true });
   }
   for (const button of document.querySelectorAll('[data-panel-target]')) {
     button.addEventListener('click', () => show(button.dataset.panelTarget));
@@ -57,30 +65,37 @@ export function createAdaptiveUi() {
       else if (event.key === 'End') id = 'settings';
       if (!id) return;
       event.preventDefault(); event.stopPropagation(); show(id);
-      document.querySelector('#tab-' + id).focus();
     });
   }
   for (const button of document.querySelectorAll('[data-mobile-panel]')) {
     button.addEventListener('click', () => {
-      returnFocus = button;
       if (open && active === button.dataset.mobilePanel) close();
-      else show(button.dataset.mobilePanel);
+      else {
+        show(button.dataset.mobilePanel, button);
+        if (open) returnFocus = button;
+      }
     });
   }
   document.querySelector('#panel-close').addEventListener('click', close);
-  document.querySelector('#quality-shortcut').addEventListener('click', () => show('settings'));
+  document.querySelector('#quality-shortcut').addEventListener('click', () => {
+    show('settings');
+    if (!open || active !== 'settings') return;
+    body.scrollTop = 0;
+    const quality = document.querySelector('#quality-select');
+    if (!quality.disabled) quality.focus({ preventScroll: true });
+  });
   document.addEventListener('keydown', event => {
-    if (event.key === 'Escape' && !document.querySelector('dialog[open]')) {
+    if (event.key === 'Escape' && !event.repeat && !event.defaultPrevented &&
+        !document.querySelector('dialog[open], #login-gate:not([hidden])') && !isEscapeReserved()) {
       if (open) close(); else show(active);
     }
   });
-  document.querySelector('#viewport').addEventListener('pointerdown', close);
+  document.querySelector('#viewport').addEventListener('pointerdown', () => close({ restoreFocus: false }));
   media.addEventListener('change', () => {
-    if (media.matches && aside.contains(document.activeElement)) {
-      returnFocus = document.querySelector('[data-mobile-panel=' + active + ']');
-      returnFocus.focus({ preventScroll: true });
-    }
-    open = false; render();
+    if (open) {
+      returnFocus = defaultOpener();
+      close();
+    } else render();
   });
   render();
   return { show, close, getState: () => ({ mobile: media.matches, active, open }) };
