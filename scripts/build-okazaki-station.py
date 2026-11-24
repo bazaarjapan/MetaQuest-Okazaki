@@ -1,8 +1,14 @@
 """Build the JR Okazaki landmark with Blender 5.x in background mode.
 
-blender -b -noaudio --factory-startup --python-exit-code 1 -P scripts/build-okazaki-station.py
-Optional Blender script arguments after --: --blend PATH, --glb PATH, --font PATH.
-The font is used only while tessellating the station name, and is not packaged.
+Export saved Blender edits to the app (the .blend is only read):
+blender -b --factory-startup --python-exit-code 1 -P scripts/build-okazaki-station.py -- --export-edited
+
+Regenerate both the editable model and the GLB from the survey measurements:
+blender -b --factory-startup --python-exit-code 1 -P scripts/build-okazaki-station.py -- --rebuild
+
+--blend PATH and --glb PATH override the paths. With no mode, an existing
+.blend is exported, or a new one is generated at an unused path. --font PATH
+selects the Japanese font used to generate the sign during a rebuild.
 """
 
 import argparse
@@ -20,7 +26,14 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--blend", type=Path, default=ROOT / "art" / "okazaki-station.blend")
 parser.add_argument("--glb", type=Path, default=ROOT / "public" / "station" / "okazaki-station.glb")
 parser.add_argument("--font", type=Path)
+mode = parser.add_mutually_exclusive_group()
+mode.add_argument("--export-edited", action="store_true", help="Export a saved .blend without changing it.")
+mode.add_argument("--rebuild", action="store_true", help="Regenerate the .blend and overwrite it if present.")
 args = parser.parse_args(sys.argv[sys.argv.index("--") + 1 :] if "--" in sys.argv else [])
+if args.blend.suffix.lower() != ".blend" or args.glb.suffix.lower() != ".glb":
+    parser.error("Expected --blend FILE.blend and --glb FILE.glb.")
+ARCHITECTURE = ("Concourse and entrance signs", "East transfer deck", "Platform roofs and edges")
+CLOCK = "EastPlazaClock"
 manifest = json.loads((ROOT / "public/city/manifest.json").read_text(encoding="utf-8"))
 anchor_x, anchor_y, anchor_z = manifest["station"]
 
@@ -139,7 +152,7 @@ def roof_cap(part, start, end, center, halfwidth, base, rise):
     )
 
 
-def bridge(part):
+def bridge(part, kanji):
     roof_cap(part, -0.35, 84.65, -0.45, 5.95, 27.02, 1.55)
     for u in range(2, 84, 3):
         for edge in (-6.4, 5.5):
@@ -365,7 +378,6 @@ def platform_sides(part, footprint, roof_h, ground):
 def reference_city(material):
     # Include a bounded, selectable-in-the-Outliner survey context only in the
     # editable file, so the .blend opens with the same ground and building mass.
-    parts = []
     for entry in manifest["parts"]:
         if entry["name"] not in ("Mesh-001", "Mesh-004"):
             continue
@@ -389,103 +401,138 @@ def reference_city(material):
         obj = city.object(material)
         obj.name = f"PLATEAU 2020 · {entry['name']}"
         obj.hide_select = True
-        parts.append(obj)
-    return parts
 
 
-bpy.ops.wm.read_factory_settings(use_empty=True)
-font_paths = [
-    args.font,
-    Path("C:/Windows/Fonts/NotoSansJP-VF.ttf"),
-    Path("/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"),
-    Path("/System/Library/Fonts/ヒラギノ角ゴシック W4.ttc"),
-]
-font_path = next((p for p in font_paths if p and p.is_file()), None)
-if not font_path:
-    raise FileNotFoundError("Supply a Japanese typeface with --font for the 岡崎駅 station sign.")
-kanji = bpy.data.fonts.load(str(font_path))
-material = bpy.data.materials.new("Station paint and glazing")
-material.use_nodes = True
-material.use_backface_culling = True
-bsdf = material.node_tree.nodes.get("Principled BSDF")
-bsdf.inputs["Roughness"].default_value = 0.72
-color = material.node_tree.nodes.new("ShaderNodeVertexColor")
-color.layer_name = "Paint"
-material.node_tree.links.new(color.outputs["Color"], bsdf.inputs["Base Color"])
+def build_editable_source():
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    font_paths = [
+        args.font,
+        Path("C:/Windows/Fonts/NotoSansJP-VF.ttf"),
+        Path("/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"),
+        Path("/System/Library/Fonts/ヒラギノ角ゴシック W4.ttc"),
+    ]
+    font_path = next((p for p in font_paths if p and p.is_file()), None)
+    if not font_path:
+        raise FileNotFoundError("Supply a Japanese typeface with --font for the 岡崎駅 station sign.")
+    kanji = bpy.data.fonts.load(str(font_path))
+    material = bpy.data.materials.new("Station paint and glazing")
+    material.use_nodes = True
+    material.use_backface_culling = True
+    bsdf = material.node_tree.nodes.get("Principled BSDF")
+    bsdf.inputs["Roughness"].default_value = 0.72
+    color = material.node_tree.nodes.new("ShaderNodeVertexColor")
+    color.layer_name = "Paint"
+    material.node_tree.links.new(color.outputs["Color"], bsdf.inputs["Base Color"])
 
-concourse = Part("Concourse and entrance signs")
-bridge(concourse)
-deck = Part("East transfer deck")
-transfer_deck(deck)
-platforms = Part("Platform roofs and edges")
-for start, end, width, h in [
-    ((80.8, 13.03), (82.62, 40.49), 5.45, 19.73),
-    ((94.23, 12.16), (95.93, 39.76), 5.27, 20.14),
-    ((109.16, -28.41), (113.72, 38.34), 6.04, 20.16),
-    ((103.21, -35.09), (108.38, 38.70), 4.77, 20.36),
-    ((84.73, 76.95), (91.05, 171.38), 4.45, 19.12),
-]:
-    platform_cap(platforms, start, end, width, h)
-for footprint, roof_h, ground in [
-    ([(85.33, 40.53), (80.07, 40.87), (78.14, 13.01), (83.38, 12.65)], 19.69, 15.91),
-    ([(98.65, 39.66), (93.2, 40.02), (91.62, 12.15), (96.79, 11.85)], 20.1, 15.9),
-    ([(116.79, 38.48), (110.77, 38.87), (106.11, -28.44), (112.13, -28.86)], 20.12, 15.95),
-    ([(106.11, -28.44), (105.63, -35.41), (100.91, -35.08), (106.09, 39.18), (110.77, 38.87)], 20.32, 15.91),
-    (
-        [
-            (89.19, 104.17),
-            (87.9, 104.26),
-            (87.78, 100.54),
-            (84.71, 100.76),
-            (85.12, 107.27),
-            (85.19, 108.44),
-            (89.44, 108.19),
-            (93.39, 171.49),
-            (88.94, 171.81),
-            (81.18, 53.99),
-            (83.57, 53.83),
-            (85.7, 76.66),
-            (87.47, 76.62),
-        ],
-        19.08,
-        15.63,
-    ),
-]:
-    platform_sides(platforms, footprint, roof_h, ground)
-clock = Part("EastPlazaClock")
-plaza_clock(clock)
-architectural_parts = [part.object(material) for part in (concourse, deck, platforms)]
-clock_object = clock.object(material)
-reference_city(material)
-bpy.context.scene["Survey reference"] = manifest["source"]
-bpy.context.scene["Survey source"] = "https://www.mlit.go.jp/plateau/"
-bpy.data.fonts.remove(kanji)
-for area in bpy.context.screen.areas:
-    if area.type == "VIEW_3D":
-        area.spaces.active.shading.color_type = "VERTEX"
-        area.spaces.active.overlay.show_overlays = False
-        region = area.spaces.active.region_3d
-        region.view_distance = 122
-        region.view_rotation = Vector((-1, -0.85, -0.65)).to_track_quat("-Z", "Y")
-        region.view_location = (7, 6, 5)
-args.blend.parent.mkdir(parents=True, exist_ok=True)
-args.glb.parent.mkdir(parents=True, exist_ok=True)
-bpy.context.preferences.filepaths.save_version = 0
-bpy.ops.wm.save_as_mainfile(filepath=str(args.blend.resolve()), compress=True)
-for obj in architectural_parts:
-    obj.select_set(True)
-bpy.context.view_layer.objects.active = architectural_parts[0]
-bpy.ops.object.join()
-bpy.context.view_layer.objects.active.name = "StationArchitecture"
-bpy.context.view_layer.objects.active.data.name = "StationArchitecture"
-clock_object.select_set(True)
-bpy.ops.export_scene.gltf(
-    filepath=str(args.glb.resolve()),
-    export_format="GLB",
-    use_selection=True,
-    export_vertex_color="MATERIAL",
-    export_animations=False,
-    export_texcoords=False,
-    export_cameras=False,
-    export_lights=False,
-)
+    concourse = Part(ARCHITECTURE[0])
+    bridge(concourse, kanji)
+    deck = Part(ARCHITECTURE[1])
+    transfer_deck(deck)
+    platforms = Part(ARCHITECTURE[2])
+    for start, end, width, h in [
+        ((80.8, 13.03), (82.62, 40.49), 5.45, 19.73),
+        ((94.23, 12.16), (95.93, 39.76), 5.27, 20.14),
+        ((109.16, -28.41), (113.72, 38.34), 6.04, 20.16),
+        ((103.21, -35.09), (108.38, 38.70), 4.77, 20.36),
+        ((84.73, 76.95), (91.05, 171.38), 4.45, 19.12),
+    ]:
+        platform_cap(platforms, start, end, width, h)
+    for footprint, roof_h, ground in [
+        ([(85.33, 40.53), (80.07, 40.87), (78.14, 13.01), (83.38, 12.65)], 19.69, 15.91),
+        ([(98.65, 39.66), (93.2, 40.02), (91.62, 12.15), (96.79, 11.85)], 20.1, 15.9),
+        ([(116.79, 38.48), (110.77, 38.87), (106.11, -28.44), (112.13, -28.86)], 20.12, 15.95),
+        (
+            [(106.11, -28.44), (105.63, -35.41), (100.91, -35.08), (106.09, 39.18), (110.77, 38.87)],
+            20.32,
+            15.91,
+        ),
+        (
+            [
+                (89.19, 104.17),
+                (87.9, 104.26),
+                (87.78, 100.54),
+                (84.71, 100.76),
+                (85.12, 107.27),
+                (85.19, 108.44),
+                (89.44, 108.19),
+                (93.39, 171.49),
+                (88.94, 171.81),
+                (81.18, 53.99),
+                (83.57, 53.83),
+                (85.7, 76.66),
+                (87.47, 76.62),
+            ],
+            19.08,
+            15.63,
+        ),
+    ]:
+        platform_sides(platforms, footprint, roof_h, ground)
+    clock = Part(CLOCK)
+    plaza_clock(clock)
+    for part in (concourse, deck, platforms, clock):
+        part.object(material)
+    reference_city(material)
+    bpy.context.scene["Survey reference"] = manifest["source"]
+    bpy.context.scene["Survey source"] = "https://www.mlit.go.jp/plateau/"
+    bpy.data.fonts.remove(kanji)
+    for area in bpy.context.screen.areas:
+        if area.type == "VIEW_3D":
+            area.spaces.active.shading.color_type = "VERTEX"
+            area.spaces.active.overlay.show_overlays = False
+            region = area.spaces.active.region_3d
+            region.view_distance = 122
+            region.view_rotation = Vector((-1, -0.85, -0.65)).to_track_quat("-Z", "Y")
+            region.view_location = (7, 6, 5)
+    args.blend.parent.mkdir(parents=True, exist_ok=True)
+    bpy.context.preferences.filepaths.save_version = 0
+    bpy.ops.wm.save_as_mainfile(filepath=str(args.blend.resolve()), compress=True)
+
+
+def export_landmark():
+    authored = []
+    for name in (*ARCHITECTURE, CLOCK):
+        obj = bpy.context.view_layer.objects.get(name)
+        if obj is None or obj.type != "MESH":
+            raise ValueError(f"Expected a mesh named {name!r} in the current view layer.")
+        authored.append(obj)
+    if bpy.context.mode != "OBJECT":
+        bpy.ops.object.mode_set(mode="OBJECT")
+    bpy.ops.object.select_all(action="DESELECT")
+    depsgraph = bpy.context.evaluated_depsgraph_get()
+    for obj in authored:
+        obj.hide_viewport = obj.hide_select = False
+        obj.hide_set(False)
+        # Mesh joins discard modifiers on all but the active object. Bake the
+        # evaluated edit in memory before batching the architecture for WebXR.
+        if obj.modifiers or obj.data.shape_keys:
+            evaluated = obj.evaluated_get(depsgraph)
+            mesh = bpy.data.meshes.new_from_object(
+                evaluated, preserve_all_data_layers=True, depsgraph=depsgraph
+            )
+            obj.modifiers.clear()
+            obj.data = mesh
+    for obj in authored[:-1]:
+        obj.select_set(True)
+    bpy.context.view_layer.objects.active = authored[0]
+    bpy.ops.object.join()
+    bpy.context.view_layer.objects.active.name = "StationArchitecture"
+    bpy.context.view_layer.objects.active.data.name = "StationArchitecture"
+    authored[-1].select_set(True)
+    args.glb.parent.mkdir(parents=True, exist_ok=True)
+    bpy.ops.export_scene.gltf(
+        filepath=str(args.glb.resolve()),
+        export_format="GLB",
+        use_selection=True,
+        export_vertex_color="MATERIAL",
+        export_animations=False,
+        export_texcoords=False,
+        export_cameras=False,
+        export_lights=False,
+    )
+
+
+if args.export_edited or (args.blend.is_file() and not args.rebuild):
+    bpy.ops.wm.open_mainfile(filepath=str(args.blend.resolve()), load_ui=False, use_scripts=False)
+else:
+    build_editable_source()
+export_landmark()
