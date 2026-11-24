@@ -140,7 +140,7 @@ assert.deepEqual(actualRegionFiles.sort(), [...expectedRegionFiles].sort(), "No 
 // station model are imagery, not DEM, and are the only permitted public PNGs.
 const allowedPng = new Set(["city/Texture-000.png", "city/Texture-001.png"]);
 const districtManifest = await readFile(new URL("station/district/manifest.json", publicRoot));
-assert.equal(hash(districtManifest), "18acfbd3fa22dac1b075e0bbc740c88994e2b56583b6559ed77ff4d299e51815", "Unexpected station district manifest");
+assert.equal(hash(districtManifest), "1db4194d9e4294b5c87330b5478babba2bce92282824039dc41a80fa90db29a5", "Unexpected station district manifest");
 const authoredModels = new Map([
   ["station/okazaki-station.glb", "97c0d75649da25c402dd30859240e07fbc5731235e2c287b3c5d40f0e0423681"],
 ]);

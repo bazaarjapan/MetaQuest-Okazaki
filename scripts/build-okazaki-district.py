@@ -602,7 +602,7 @@ def export_district(staging):
         "tiles": tiles,
     }
     (staging / "manifest.json").write_text(
-        json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf8"
+        json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf8", newline="\n"
     )
     for tile in tiles:
         (staging / tile["file"]).replace(args.output / tile["file"])
