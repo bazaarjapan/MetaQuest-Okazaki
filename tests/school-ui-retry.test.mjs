@@ -65,6 +65,30 @@ test("role-specific entry opens only the chosen form and tabs preserve entered s
   assert.equal(h.find('student-login-panel').hidden,false);assert.equal(h.find('teacher-login-panel').hidden,true);assert.equal(h.gisLoads,0);h.ui.destroy();
 });
 
+test("student login submits four digits as text and accepts prior issued passwords during the change", async () => {
+  const initial = { ...guest, configured: true, singleClassroom: true, error: null };
+  const submitted = [];
+  const h = harness(initial, async () => initial, {
+    loginStudent: async (id, password) => submitted.push([id, password]),
+  });
+  await h.ui.open("student");
+  const field = h.find("student-password"), form = h.find("student-login-panel");
+  const valid = new RegExp(`^(?:${field.pattern})$`, "v");
+  assert.equal(field.type, "password");
+  assert.equal(field.inputMode, "numeric");
+  assert.equal(field.autocomplete, "current-password");
+  assert.ok(valid.test("0042") && valid.test("００４２") && valid.test("T".repeat(24)));
+  assert.ok(!valid.test("042") && !valid.test("00042") && !valid.test("0A42"));
+  h.find("student-login-id").value = "fixture-user";
+  for (const value of ["0042", "００４２", "T".repeat(24)]) {
+    field.value = value;
+    form.listeners.get("submit")({ preventDefault() {} }); await tick();
+  }
+  assert.deepEqual(submitted, [["fixture-user", "0042"], ["fixture-user", "0042"], ["fixture-user", "T".repeat(24)]]);
+  assert.equal(field.value, "");
+  h.ui.destroy();
+});
+
 test("returning to student login while Google loads keeps its form usable and discards stale Google errors", async () => {
   const initial = { ...guest, configured: true, singleClassroom: true, error: null };
   let fail;
@@ -165,12 +189,12 @@ test("issued student passwords survive room rerender only for the issuing teache
   const connected = { ...initial, world: { id: "room", name: "共通ワールド" }, connection: "connected" };
   h.emit(connected, "world");
   assert.notEqual(h.find("student-issued-credentials"), oldOutput);
-  finishIssue({ credentials: [{ loginId: "s-test", password: "fixture-only-random-password" }] });
+  finishIssue({ credentials: [{ loginId: "s-test", password: "0017" }] });
   await tick(); await tick();
   assert.equal(h.find("student-issued-credentials").hidden, false);
-  assert.match(h.find("student-issued-credentials").value, /s-test\tfixture-only-random-password/);
+  assert.match(h.find("student-issued-credentials").value, /s-test\t0017/);
   h.emit({ ...connected, snapshots: [{ id: "snapshot", revision: 1 }] }, "snapshot");
-  assert.match(h.find("student-issued-credentials").value, /fixture-only-random-password/);
+  assert.match(h.find("student-issued-credentials").value, /0017/);
   h.emit({ ...guest, singleClassroom: true }, "auth");
   h.emit(initial, "auth");
   assert.equal(h.find("student-issued-credentials").hidden, true);

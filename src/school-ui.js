@@ -5,6 +5,7 @@ import { describeWorkLocation, exhibitTitle } from "./workshop-presentation.js";
 
 const ERROR_TEXT = {
   invalid_student_login: "IDまたはパスワードが違います。先生から受け取った内容を確認してください。",
+  student_reset_conflict: "ほかの先生がこの生徒のパスワードを更新しました。必要に応じてもう一度発行してください。",
   student_id_required: "Googleログインは登録済みの先生専用です。生徒は先生が発行したID・パスワードを使ってください。",
   name_required: "最初にアバターの名前を入力してください。",
   name_taken: "その名前は先生または別の生徒が使っています。別の名前にしてください（英字の大文字・小文字は区別しません）。",
@@ -32,7 +33,7 @@ const ERROR_TEXT = {
   request_timeout: "応答を確認できませんでした。保存状態を確認してから再操作してください。",
   edit_timeout: "配置の応答を確認できません。最新状態を読み直してから確認してください。",
   restore_recovery_pending: "ワールドの復元を安全に確認しています。少し待って再接続してください。",
-  login_rate_limit: "ログインの試行が多いため、1分ほど待ってからやり直してください。",
+  login_rate_limit: "ログインの試行が多いため、時間をおいてからやり直してください。",
   gis_unavailable: "Googleログインを読み込めませんでした。通信・ブラウザの制限を確認し、もう一度お試しください。",
   invalid_csrf: "ログインの準備が更新されました。生徒はID・パスワードで再試行し、先生はGoogleログインを表示し直してください。",
   already_logged_in: "このブラウザではログイン済みです。教室を選んで参加してください。",
@@ -203,13 +204,19 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
       const form = element("form", undefined, "school-section");
       form.id = "student-login-panel"; form.setAttribute("role", "tabpanel"); form.setAttribute("aria-labelledby", "student-login-tab"); studentPanel = form;
       const id = inputField("ID", { id: "student-login-id", maxLength: 40 }); id.input.autocomplete = "username"; id.input.required = true; id.input.spellcheck = false; id.input.autocapitalize = "none";
-      const password = inputField("パスワード", { id: "student-password", type: "password", maxLength: 128 }); password.input.autocomplete = "current-password"; password.input.required = true;
+      const password = inputField("パスワード（数字4桁）", { id: "student-password", type: "password", maxLength: 24 });
+      password.input.autocomplete = "current-password";
+      password.input.inputMode = "numeric";
+      // Accept a legacy issued credential during the deployment / rotation window.
+      password.input.pattern = "[0-9０-９]{4}|[A-Za-z0-9_\\-]{24}";
+      password.input.title = "先頭の0も含めて、先生から受け取った数字4桁を入力してください。";
+      password.input.required = true;
       password.input.setAttribute("aria-describedby", "school-status");
       password.input.addEventListener("input", () => password.input.setAttribute("aria-invalid", "false"));
       const submit = element("button", "ワールドに入る"); submit.type = "submit"; submit.dataset.schoolAction = "true";
       form.append(id.label, password.label, submit);
       form.addEventListener("submit", event => { event.preventDefault(); void perform(async () => {
-        const secret = password.input.value; password.input.value = "";
+        const secret = password.input.value.normalize("NFKC"); password.input.value = "";
         try { await client.loginStudent(id.input.value, secret); }
         catch (error) {
           if (dialog.open && loginRole === "student" && !state.user && error.code === "invalid_student_login") {
@@ -286,10 +293,10 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
     const heading = element("div", undefined, "student-roster-heading");
     heading.append(element("h3", "生徒一覧・作品の場所"));
     const count = inputField("発行する人数", { type: "number", value: "1", id: "student-issue-count" }); count.input.min = "1"; count.input.max = "30";
-    const output = element("textarea"); output.id = "student-issued-credentials"; output.readOnly = true; output.hidden = !issuedCredentials.length; output.rows = 8; output.setAttribute("aria-label", "今回発行したIDとパスワード");
+    const output = element("textarea"); output.id = "student-issued-credentials"; output.readOnly = true; output.hidden = !issuedCredentials.length; output.rows = 8; output.setAttribute("aria-label", "今回発行したIDと4桁のパスワード");
     const credentialText = () => "ID\tパスワード\n" + issuedCredentials.map(row => `${row.loginId}\t${row.password}`).join("\n");
     if (issuedCredentials.length) output.value = credentialText();
-    const note = element("p", "パスワードは発行・再発行した時だけ表示します。各生徒に自分の1行だけを安全に渡してください。再発行しても名前・作品は残ります。", "school-note");
+    const note = element("p", "数字4桁のパスワードは発行・再発行したときに表示されます。先頭の0も含めて控え、各生徒には本人の1行だけを渡してください。", "school-note");
     const roster = element("div"); roster.id = "student-roster-list";
     const filters = element("div", undefined, "student-roster-filters"); filters.hidden = true;
     const search = inputField("名前・IDで生徒を検索", { type: "search", id: "student-roster-search" });
@@ -334,8 +341,8 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
         const row = element("section", undefined, "student-placement-row");
         row.dataset.studentId = student.id;
         row.append(element("h4", `${student.slot}. ${student.name} (${student.loginId})`), command("パスワード再発行", () => {
-          if (!confirm("この生徒の古いパスワードを無効にして再発行しますか？作品は残ります。")) return;
-          void perform(async () => showSecrets(await client.students("reset", { id: student.id })), "新しいパスワードを本人に渡してください。");
+          if (!confirm("この生徒に新しい4桁のパスワードを発行しますか？以前のパスワードは使えなくなります。ID・名前・作品は引き継がれます。")) return;
+          void perform(async () => showSecrets(await client.students("reset", { id: student.id })), "新しい4桁のパスワードを本人に渡してください。");
         }));
         const objects = state.objects.filter(item => item.ownerId === student.id);
         row.append(element("p", state.connection !== "connected" ? "再接続後に配置を確認できます。" :

@@ -41,7 +41,7 @@ export async function handleSchoolRequest(request, env, dependencies = {}) {
     const data = await readJson(request), challenge = await getChallenge(request, env.DB, now);
     if (data.csrf !== challenge.csrf) fail(403, "invalid_csrf");
     await limitGoogleAttempt(env.DB, challenge, now);
-    const result = await authenticateStudent(env.DB, data, now, await sha256(request.headers.get("CF-Connecting-IP") ?? "local"),
+    const result = await authenticateStudent(env.DB, data, now, await sha256(request.headers.get("CF-Connecting-IP") ?? "local"), env.STUDENT_PIN_PEPPER,
       () => consumeChallenge(env.DB, challenge, now));
     const response = json({ user: result.user, csrf: result.csrf });
     response.headers.append("Set-Cookie", sessionCookie(SESSION_COOKIE, result.token, LIMITS.sessionSeconds));
@@ -67,8 +67,8 @@ export async function handleSchoolRequest(request, env, dependencies = {}) {
   if (request.method !== "GET") requireCsrf(request, session);
   if (path === "/api/classroom/enter" && request.method === "POST") return json({ world: worldPublic(await enterClassroom(env.DB, session, now), session.role === "teacher") });
   if (path === "/api/classroom/students" && request.method === "GET") return json({ students: (await studentRoster(env.DB, session)).map(({ avatar, ...row }) => ({ ...row, name: JSON.parse(avatar).name })) });
-  if (path === "/api/classroom/students" && request.method === "POST") return json({ credentials: await issueStudents(env.DB, session, await readJson(request), now) }, 201);
-  if (path === "/api/classroom/students/reset" && request.method === "POST") return json({ credentials: [await resetStudent(env.DB, session, (await readJson(request)).id)] });
+  if (path === "/api/classroom/students" && request.method === "POST") return json({ credentials: await issueStudents(env.DB, session, await readJson(request), now, env.STUDENT_PIN_PEPPER) }, 201);
+  if (path === "/api/classroom/students/reset" && request.method === "POST") return json({ credentials: [await resetStudent(env.DB, session, (await readJson(request)).id, env.STUDENT_PIN_PEPPER)] });
   if (env.SINGLE_CLASSROOM === "true" && request.method === "POST" && ["/api/worlds", "/api/worlds/join"].includes(path)) fail(409, "single_classroom_only");
   if (path === "/api/auth/logout" && request.method === "POST") {
     const worlds = await all(env.DB, "SELECT world_id FROM school_members WHERE user_id=?", session.id);

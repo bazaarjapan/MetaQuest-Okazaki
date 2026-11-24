@@ -2,7 +2,7 @@
 
 ## 1.8への更新（2026-10-17）
 
-最新の利用手順は [SCHOOL_GUIDE.md](SCHOOL_GUIDE.md)。以下の1.7資料の個別教室・生徒Googleログインは旧方式です。1.8は `SINGLE_CLASSROOM=true`、先生は既存のGoogle許可リスト、生徒は先生発行のID・144ビットランダムパスワード（salt付きSHA-256のみD1に保存）です。`0002_single_classroom.sql` を追加適用してからWorkerを公開します。旧データは削除しません。固定IDの新共通ワールドを最初の先生ログインで作成します。先生4人＋生徒30人、各自10作品、全体20万三角形が上限です。生徒枠削除・再割当て・旧作品自動移行はありません。
+最新の利用手順は [SCHOOL_GUIDE.md](SCHOOL_GUIDE.md)。以下の1.7資料の個別教室・生徒Googleログインは旧方式です。共通ワールドは `SINGLE_CLASSROOM=true` を使い、先生は登録済みのGoogleアカウント、生徒は先生発行のIDと数字4桁のパスワードで入ります。`0002_single_classroom.sql` を追加適用してからWorkerを公開します。旧データは削除しません。固定IDの新共通ワールドを最初の先生ログインで作成します。先生4人＋生徒30人、各自10作品、全体20万三角形が上限です。生徒枠削除・再割当て・旧作品自動移行はありません。
 
 更新はPR・レビュー・CIを経由し、最終mainの成功を確認してCodexからローカル公開します。Actionsは公開しません。D1移行は加算のみ、旧Workerへのロールバックでは新しいテーブルを残します。教師の許可リストsecretをソースやログへ出さないでください。
 
@@ -35,6 +35,8 @@ D1 と R2 の専用リソースは作成済みです。Worker への本番接続
 先生は、サーバー側の `TEACHER_GOOGLE_SUBS` または `TEACHER_GOOGLE_EMAILS` の許可リストで指定します。変更されにくい Google `sub` による指定を推奨します。メール指定は署名検証後の Gmail／Google Workspace の権威あるメールに限り使用されます。生徒のブラウザから送られた `role` や `ownerId` で先生にはなれません。
 
 先生の個人情報はコード、PR、公開資料に書かず、Cloudflare secretへ登録します。`wrangler secret put`は即座に新バージョンを公開するため、レビュー前のコードから不用意に実行しません。本番公開では、gitignore対象のローカル秘密ファイルを用意し、レビュー・CI・merge後の正確なmainから `npm run deploy -- --secrets-file .cache/school-secrets.json` でコードと同時に登録できます。認証用の値をGitHub Secretsやログへコピーしません。[Cloudflare公式のsecret管理](https://developers.cloudflare.com/workers/configuration/secrets/)を参照してください。
+
+生徒の4桁パスワードを発行・照合する Worker には、暗号学的乱数32バイトをパディングなしのbase64urlにした43文字の秘密値を `STUDENT_PIN_PEPPER` として登録します。初回デプロイでコードと同時に設定し、次回以降も同じ値を使います。管理者は一括再発行に備えて、この値をアクセス制限付きの秘密保管場所に保存してください。キーを変更すると発行済みの4桁パスワードすべてに再発行が必要になります。一括切り替えと照合の手順は[生徒ログイン情報の一括再発行](STUDENT_LOGIN_ROTATION.md)を参照してください。
 
 ## 3. Worker 接続と SQL の適用
 
