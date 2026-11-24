@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import {createSurfaceIndex,projectSurfacePolygon} from '../src/placement.js';
 import {streetRectangle,streetSegments,createVectorStreets} from '../src/vector-streets.js';
+import {appendRoadMeasures} from '../src/district-street-material.js';
 function terrain(){const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute([0,0,0,0,1,10,10,2,10,10,1,0],3));g.setIndex(new THREE.BufferAttribute(new Uint32Array([0,1,2,0,2,3]),1));return new THREE.Mesh(g);}
 test('vector surfaces clip to real terrain, follow its slope and keep front faces upward',()=>{
  const mesh=terrain(),a=mesh.geometry.attributes.position.array,before=[...a],index=createSurfaceIndex(a,mesh.geometry.index.array);
@@ -16,6 +17,17 @@ test('vector surfaces clip to real terrain, follow its slope and keep front face
 test('subdivision preserves source route and limits each terrain query to twenty metres',()=>{
  const data={roads:[{line:[[0,0],[55,0]],width:9}],rails:[]},before=JSON.stringify(data),segments=streetSegments(data);
  assert.deepEqual(segments.map(s=>s.length),[20,20,15]);assert.deepEqual(segments.map(s=>s.along),[0,20,40]);assert.equal(JSON.stringify(data),before);
+});
+test('curb joints follow a surveyed road around a turn and across clipped terrain', () => {
+  const segment = streetSegments({roads:[{line:[[0,0],[24,0],[24,10]],width:6}]});
+  const left = [], right = [];
+  appendRoadMeasures(left, [20,11,3.4], segment[0]);
+  appendRoadMeasures(right, [20,12,3.4, 24,12,3.4], segment[1]);
+  assert.deepEqual(left, right.slice(0, 3));
+  assert.deepEqual(right, [20,-3.4,3, 24,-3.4,3]);
+  const turn = [];
+  appendRoadMeasures(turn, [27.5,10,2], segment[2]);
+  assert.deepEqual(turn, [26,3.5,3]);
 });
 test('raised rails include top and side geometry without extending outside real ground',()=>{
  const mesh=terrain(),index=createSurfaceIndex(mesh.geometry.attributes.position.array,mesh.geometry.index.array),points=projectSurfacePolygon(index,streetRectangle([-5,5],[15,5],.18),.02,.14);

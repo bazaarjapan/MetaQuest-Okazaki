@@ -1,0 +1,463 @@
+{
+  "version": 1,
+  "origin": [
+    95.924560546875,
+    16.5,
+    49.00273132324219
+  ],
+  "bounds": [
+    -404.075439453125,
+    -450.9972686767578,
+    595.924560546875,
+    549.0027313232422
+  ],
+  "tileSize": 250,
+  "survey": {
+    "sourceRoofSurfaces": 2599,
+    "decoratedRoofSurfaces": 2586,
+    "frontages": 2498,
+    "styles": {
+      "gable": 400,
+      "hip": 1608,
+      "measured": 119,
+      "sheet": 135,
+      "station": 13,
+      "terrace": 324
+    },
+    "source": "国土交通省 PLATEAU 岡崎市 2020年度 建築物 / 国土地理院 最適化ベクトルタイル 道路中心線",
+    "method": "実測屋根面・高さと道路中心線から外観を制作。屋根形状の補完、色、窓、笠木、屋上設備は授業用の表現。駅舎の専用モデルを優先。"
+  },
+  "tiles": [
+    {
+      "id": "r0-c0",
+      "file": "r0-c0.glb",
+      "bytes": 360552,
+      "triangles": 10921,
+      "sha256": "35d7a98a41a621b28bfcc9c33090bd10d7721cf84cc7bb65b0a57f132fd93b62",
+      "bounds": [
+        -404.075439453125,
+        -450.9972686767578,
+        -154.075439453125,
+        -200.9972686767578
+      ],
+      "heightRange": [
+        10.375,
+        34.875
+      ],
+      "regionBuildings": [
+        "b--1--1"
+      ],
+      "sourceRoofs": 196,
+      "sourceFiles": [
+        "city/mesh-1.bin",
+        "city/mesh-2.bin",
+        "city/mesh-3.bin",
+        "region/b--1--1.bin"
+      ]
+    },
+    {
+      "id": "r0-c1",
+      "file": "r0-c1.glb",
+      "bytes": 294560,
+      "triangles": 8851,
+      "sha256": "f4b1f0b33160b1601b2276037fceb05f8e1fb5ed5f747795087a8e992af16875",
+      "bounds": [
+        -154.075439453125,
+        -450.9972686767578,
+        95.924560546875,
+        -200.9972686767578
+      ],
+      "heightRange": [
+        10.34375,
+        54.484375
+      ],
+      "regionBuildings": [
+        "b--1--1",
+        "b-0--1"
+      ],
+      "sourceRoofs": 154,
+      "sourceFiles": [
+        "city/mesh-1.bin",
+        "city/mesh-2.bin",
+        "city/mesh-3.bin",
+        "region/b--1--1.bin",
+        "region/b-0--1.bin"
+      ]
+    },
+    {
+      "id": "r0-c2",
+      "file": "r0-c2.glb",
+      "bytes": 332780,
+      "triangles": 9928,
+      "sha256": "a6d20362e6ba153d22ef2aaf0981fa32aff7bb46837abbd70484f7abb551c3f1",
+      "bounds": [
+        95.924560546875,
+        -450.9972686767578,
+        345.924560546875,
+        -200.9972686767578
+      ],
+      "heightRange": [
+        13.125,
+        44.296875
+      ],
+      "regionBuildings": [
+        "b-0--1"
+      ],
+      "sourceRoofs": 180,
+      "sourceFiles": [
+        "city/mesh-1.bin",
+        "city/mesh-2.bin",
+        "city/mesh-3.bin",
+        "region/b-0--1.bin"
+      ]
+    },
+    {
+      "id": "r0-c3",
+      "file": "r0-c3.glb",
+      "bytes": 362088,
+      "triangles": 11145,
+      "sha256": "0f628f6680e06bf804ec68b464c805765840f2040fd590884d1a963d5bc183c9",
+      "bounds": [
+        345.924560546875,
+        -450.9972686767578,
+        595.924560546875,
+        -200.9972686767578
+      ],
+      "heightRange": [
+        14.921875,
+        44.296875
+      ],
+      "regionBuildings": [
+        "b-0--1",
+        "b-0--2",
+        "b-1--1"
+      ],
+      "sourceRoofs": 186,
+      "sourceFiles": [
+        "region/b-0--1.bin",
+        "region/b-0--2.bin",
+        "region/b-1--1.bin"
+      ]
+    },
+    {
+      "id": "r1-c0",
+      "file": "r1-c0.glb",
+      "bytes": 243140,
+      "triangles": 7540,
+      "sha256": "35b94e319333b52d8ef4ce834b942db8f487c4d73515bd93661757aa0d773ae6",
+      "bounds": [
+        -404.075439453125,
+        -200.9972686767578,
+        -154.075439453125,
+        49.00273132324219
+      ],
+      "heightRange": [
+        10.609375,
+        30.53125
+      ],
+      "regionBuildings": [
+        "b--1--1",
+        "b--1-0"
+      ],
+      "sourceRoofs": 130,
+      "sourceFiles": [
+        "city/mesh-1.bin",
+        "city/mesh-3.bin",
+        "region/b--1--1.bin",
+        "region/b--1-0.bin"
+      ]
+    },
+    {
+      "id": "r1-c1",
+      "file": "r1-c1.glb",
+      "bytes": 305752,
+      "triangles": 9301,
+      "sha256": "77646de8d6132e3eb8b4eedf0ccc0d4e786a8ad360873df1d65757205aab6556",
+      "bounds": [
+        -154.075439453125,
+        -200.9972686767578,
+        95.924560546875,
+        49.00273132324219
+      ],
+      "heightRange": [
+        14.125,
+        39.0
+      ],
+      "regionBuildings": [],
+      "sourceRoofs": 161,
+      "sourceFiles": [
+        "city/mesh-1.bin"
+      ]
+    },
+    {
+      "id": "r1-c2",
+      "file": "r1-c2.glb",
+      "bytes": 222940,
+      "triangles": 6686,
+      "sha256": "e41dede0d6fef994617dfb6fe86b8592f61d8f7d2335ffb206cb24aa6e75803d",
+      "bounds": [
+        95.924560546875,
+        -200.9972686767578,
+        345.924560546875,
+        49.00273132324219
+      ],
+      "heightRange": [
+        15.4375,
+        62.34375
+      ],
+      "regionBuildings": [
+        "b-0--1",
+        "b-0-0"
+      ],
+      "sourceRoofs": 115,
+      "sourceFiles": [
+        "city/mesh-1.bin",
+        "region/b-0--1.bin",
+        "region/b-0-0.bin"
+      ]
+    },
+    {
+      "id": "r1-c3",
+      "file": "r1-c3.glb",
+      "bytes": 251284,
+      "triangles": 7746,
+      "sha256": "d819a190c5df5bec194a8d5624d7e56aa3dbf77bda8bd70e921b8e5793fc32cb",
+      "bounds": [
+        345.924560546875,
+        -200.9972686767578,
+        595.924560546875,
+        49.00273132324219
+      ],
+      "heightRange": [
+        16.109375,
+        47.515625
+      ],
+      "regionBuildings": [
+        "b-0--1",
+        "b-0-0",
+        "b-1--1",
+        "b-1-0"
+      ],
+      "sourceRoofs": 137,
+      "sourceFiles": [
+        "region/b-0--1.bin",
+        "region/b-0-0.bin",
+        "region/b-1--1.bin",
+        "region/b-1-0.bin"
+      ]
+    },
+    {
+      "id": "r2-c0",
+      "file": "r2-c0.glb",
+      "bytes": 368000,
+      "triangles": 11326,
+      "sha256": "938d043fc1012e66e6c1f0a4d24216a60a2cdf37b76147f5c2c317ea77b0a288",
+      "bounds": [
+        -404.075439453125,
+        49.00273132324219,
+        -154.075439453125,
+        299.0027313232422
+      ],
+      "heightRange": [
+        13.890625,
+        31.984375
+      ],
+      "regionBuildings": [
+        "b--1-0"
+      ],
+      "sourceRoofs": 197,
+      "sourceFiles": [
+        "city/mesh-1.bin",
+        "region/b--1-0.bin"
+      ]
+    },
+    {
+      "id": "r2-c1",
+      "file": "r2-c1.glb",
+      "bytes": 319096,
+      "triangles": 9768,
+      "sha256": "23b911de37faabeb0c3d74bee9767724e20ad4e4e7dfbcdff158d4b6338d94ff",
+      "bounds": [
+        -154.075439453125,
+        49.00273132324219,
+        95.924560546875,
+        299.0027313232422
+      ],
+      "heightRange": [
+        14.828125,
+        57.109375
+      ],
+      "regionBuildings": [],
+      "sourceRoofs": 169,
+      "sourceFiles": [
+        "city/mesh-1.bin"
+      ]
+    },
+    {
+      "id": "r2-c2",
+      "file": "r2-c2.glb",
+      "bytes": 187792,
+      "triangles": 5653,
+      "sha256": "61e46575c4c96cf351149781347a2639b63ec88980cfa4894f2399dd2c251b95",
+      "bounds": [
+        95.924560546875,
+        49.00273132324219,
+        345.924560546875,
+        299.0027313232422
+      ],
+      "heightRange": [
+        15.8125,
+        36.984375
+      ],
+      "regionBuildings": [
+        "b-0-0"
+      ],
+      "sourceRoofs": 102,
+      "sourceFiles": [
+        "city/mesh-1.bin",
+        "region/b-0-0.bin"
+      ]
+    },
+    {
+      "id": "r2-c3",
+      "file": "r2-c3.glb",
+      "bytes": 320876,
+      "triangles": 9726,
+      "sha256": "4332a4d7e03a1dc73b225eb7fbe6c88b30d3848283124a0d6210e6bf66a9a489",
+      "bounds": [
+        345.924560546875,
+        49.00273132324219,
+        595.924560546875,
+        299.0027313232422
+      ],
+      "heightRange": [
+        15.515625,
+        78.28125
+      ],
+      "regionBuildings": [
+        "b-0-0",
+        "b-1-0"
+      ],
+      "sourceRoofs": 163,
+      "sourceFiles": [
+        "region/b-0-0.bin",
+        "region/b-1-0.bin"
+      ]
+    },
+    {
+      "id": "r3-c0",
+      "file": "r3-c0.glb",
+      "bytes": 424276,
+      "triangles": 13107,
+      "sha256": "2c7518bcd6467e0685a1530b41e61cad3d5043de61af91e933e6fde95a43d2c0",
+      "bounds": [
+        -404.075439453125,
+        299.0027313232422,
+        -154.075439453125,
+        549.0027313232422
+      ],
+      "heightRange": [
+        13.0,
+        27.296875
+      ],
+      "regionBuildings": [
+        "b--1-0",
+        "b--1-1"
+      ],
+      "sourceRoofs": 241,
+      "sourceFiles": [
+        "city/mesh-1.bin",
+        "region/b--1-0.bin",
+        "region/b--1-1.bin"
+      ]
+    },
+    {
+      "id": "r3-c1",
+      "file": "r3-c1.glb",
+      "bytes": 276408,
+      "triangles": 8479,
+      "sha256": "5339a4badf3e0b9131f1d1a57f6ea322b35d3192c74118aed104db175ef5ee48",
+      "bounds": [
+        -154.075439453125,
+        299.0027313232422,
+        95.924560546875,
+        549.0027313232422
+      ],
+      "heightRange": [
+        13.53125,
+        56.078125
+      ],
+      "regionBuildings": [
+        "b--1-0",
+        "b--1-1",
+        "b-0-0",
+        "b-0-1"
+      ],
+      "sourceRoofs": 148,
+      "sourceFiles": [
+        "city/mesh-1.bin",
+        "region/b--1-0.bin",
+        "region/b--1-1.bin",
+        "region/b-0-0.bin",
+        "region/b-0-1.bin"
+      ]
+    },
+    {
+      "id": "r3-c2",
+      "file": "r3-c2.glb",
+      "bytes": 285044,
+      "triangles": 8722,
+      "sha256": "aac3d3912ab1b31ed779a7c9e22cbaa27fb4bb25c36aefd40985e562b6999a5c",
+      "bounds": [
+        95.924560546875,
+        299.0027313232422,
+        345.924560546875,
+        549.0027313232422
+      ],
+      "heightRange": [
+        15.65625,
+        43.90625
+      ],
+      "regionBuildings": [
+        "b-0-0",
+        "b-0-1"
+      ],
+      "sourceRoofs": 150,
+      "sourceFiles": [
+        "city/mesh-1.bin",
+        "region/b-0-0.bin",
+        "region/b-0-1.bin"
+      ]
+    },
+    {
+      "id": "r3-c3",
+      "file": "r3-c3.glb",
+      "bytes": 581880,
+      "triangles": 18087,
+      "sha256": "6ee8e81d6a7bda84c676676880ea266c36feb9ddc2837f33d225aa93c49ed311",
+      "bounds": [
+        345.924560546875,
+        299.0027313232422,
+        595.924560546875,
+        549.0027313232422
+      ],
+      "heightRange": [
+        17.046875,
+        37.703125
+      ],
+      "regionBuildings": [
+        "b-0-0",
+        "b-0-1",
+        "b-1-0",
+        "b-1-1"
+      ],
+      "sourceRoofs": 313,
+      "sourceFiles": [
+        "region/b-0-0.bin",
+        "region/b-0-1.bin",
+        "region/b-1-0.bin",
+        "region/b-1-1.bin"
+      ]
+    }
+  ]
+}
