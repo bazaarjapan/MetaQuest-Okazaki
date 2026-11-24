@@ -201,7 +201,7 @@ export async function startSchoolBrowserServer({ singleClassroom = process.argv.
   try {
     mf = new Miniflare(convertV4MiniflareOptions({ name: "school-browser", host, port, modules: true, script,
       compatibilityDate: "2026-09-29", log: new Log(LogLevel.WARN), cf: false, telemetry: { enabled: false },
-      bindings: { SINGLE_CLASSROOM: String(singleClassroom), APP_ORIGIN: origin, GOOGLE_CLIENT_ID: "browser-fixture-not-google.apps.googleusercontent.com",
+      bindings: { STUDENT_PIN_PEPPER: randomBytes(32).toString("base64url"), SINGLE_CLASSROOM: String(singleClassroom), APP_ORIGIN: origin, GOOGLE_CLIENT_ID: "browser-fixture-not-google.apps.googleusercontent.com",
         TEACHER_GOOGLE_SUBS: "browser-fixture-not-google-teacher" },
       d1Databases: { DB: randomUUID() }, r2Buckets: { STL_BUCKET: `browser-fixture-${randomUUID()}` },
       durableObjects: { SCHOOL_ROOMS: { className: "SchoolRoom", useSQLite: true } },

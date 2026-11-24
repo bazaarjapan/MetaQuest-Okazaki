@@ -1,6 +1,7 @@
 import { fail, randomToken, sha256, publicAvatar, requireAvatarName, LIMITS } from "./school-common.mjs";
 import { first, run, all } from "./school-store.mjs";
 import { CLASSROOM_ID } from "./classroom-id.mjs";
+import { newStudentPin, verifyStudentPassword } from "./student-pin.mjs";
 
 export async function enterClassroom(db, user, now) {
   if (user.role !== "teacher" && !await first(db, "SELECT user_id FROM school_student_credentials WHERE user_id=?", user.id)) fail(403, "student_id_required");
@@ -30,21 +31,17 @@ export async function studentRoster(db, user) {
   return all(db, `SELECT c.slot,c.login_id AS loginId,u.id,u.avatar_json AS avatar FROM school_student_credentials c
     JOIN school_users u ON u.id=c.user_id ORDER BY c.slot`);
 }
-// Passwords are generated, never user-chosen: 24 base64url characters = 144
-// random bits. Salted SHA-256 is appropriate for these high-entropy credentials
-// (like session tokens). No plaintext password is stored or logged.
-async function newPassword() {
-  const password = randomToken().slice(0,24), salt = randomToken();
-  return { password, salt, hash: await sha256(`${salt}:${password}`) };
-}
-export async function issueStudents(db, user, value, now) {
+export async function issueStudents(db, user, value, now, pepper) {
   teacher(user); await enterClassroom(db, user, now);
   const count = value.count;
   if (!Number.isInteger(count) || count < 1 || count > 30) fail(400, "invalid_student_count");
   // One D1 batch transaction: concurrent teachers cannot issue beyond 30.
-  const statements = [], results = [];
+  const statements = [], results = [], issuedPins = new Set();
   for (let i=0; i<count; i++) {
-    const id = crypto.randomUUID(), loginId = `s-${randomToken().slice(0,10).toLowerCase()}`, key = await newPassword();
+    const id = crypto.randomUUID(), loginId = `s-${randomToken().slice(0,10).toLowerCase()}`;
+    let key;
+    do { key = await newStudentPin(pepper); } while (issuedPins.has(key.password));
+    issuedPins.add(key.password);
     statements.push(db.prepare(`INSERT INTO school_users(id,google_sub,role,avatar_json,created_at) VALUES(?,?,'student',?,?)`)
       .bind(id, `classroom:${id}`, JSON.stringify({ name: "名前未登録", color: "#4a90e2", namePending: true }), now));
     statements.push(db.prepare(`INSERT INTO school_student_credentials(slot,user_id,login_id,salt,password_hash,created_at)
@@ -58,37 +55,48 @@ export async function issueStudents(db, user, value, now) {
   }
   return results;
 }
-export async function resetStudent(db, user, id) {
+export async function resetStudent(db, user, id, pepper) {
   await admittedTeacher(db, user);
   const entry = await first(db, "SELECT * FROM school_student_credentials WHERE user_id=?", id);
   if (!entry) fail(404, "student_not_found");
-  const key = await newPassword();
-  await db.batch([
-    db.prepare("UPDATE school_student_credentials SET salt=?,password_hash=? WHERE user_id=?").bind(key.salt,key.hash,id),
-    db.prepare("DELETE FROM school_sessions WHERE user_id=?").bind(id),
+  const key = await newStudentPin(pepper, entry);
+  const [updated] = await db.batch([
+    db.prepare("UPDATE school_student_credentials SET salt=?,password_hash=? WHERE user_id=? AND password_hash=?")
+      .bind(key.salt,key.hash,id,entry.password_hash),
+    db.prepare(`DELETE FROM school_sessions WHERE user_id=? AND EXISTS
+      (SELECT 1 FROM school_student_credentials WHERE user_id=? AND password_hash=?)`).bind(id,id,key.hash),
   ]);
+  if (!updated.meta.changes) fail(409, "student_reset_conflict");
   return { id, loginId: entry.login_id, password: key.password };
 }
-export async function authenticateStudent(db, value, now, bucket, beforeSession = async () => {}) {
+export async function authenticateStudent(db, value, now, bucket, pepper, beforeSession = async () => {}) {
   const loginId = typeof value.loginId === "string" ? value.loginId.trim().toLowerCase() : "";
   if (!/^s-[a-z0-9_-]{10}$/.test(loginId) || typeof value.password !== "string" || value.password.length > 128) fail(401,"invalid_student_login");
-  for (const [key, maximum] of [[`student-id:${await sha256(loginId)}`,8],[`student-ip:${bucket}`,120]]) {
-    const row = await first(db, `INSERT INTO school_auth_limits(bucket,window_at,counter,expires_at) VALUES(?,?,1,?)
-      ON CONFLICT(bucket) DO UPDATE SET counter=CASE WHEN window_at=excluded.window_at THEN counter+1 ELSE 1 END,
-      window_at=excluded.window_at,expires_at=excluded.expires_at
-      WHERE school_auth_limits.window_at<>excluded.window_at OR school_auth_limits.counter<? RETURNING counter`,key,Math.floor(now/60),now+120,maximum);
-    if (!row) fail(429,"login_rate_limit");
-  }
-  const credential = await first(db,"SELECT * FROM school_student_credentials WHERE lower(login_id)=?",loginId);
-  const hash = await sha256(`${credential?.salt ?? "invalid"}:${value.password}`);
-  if (!credential || hash !== credential.password_hash) fail(401,"invalid_student_login");
+  const ipAttempt = await first(db, `INSERT INTO school_auth_limits(bucket,window_at,counter,expires_at) VALUES(?,?,1,?)
+    ON CONFLICT(bucket) DO UPDATE SET counter=CASE WHEN window_at=excluded.window_at THEN counter+1 ELSE 1 END,
+    window_at=excluded.window_at,expires_at=excluded.expires_at
+    WHERE window_at<>excluded.window_at OR counter<120 RETURNING counter`, `student-ip:${bucket}`, Math.floor(now/60), now+120);
+  if (!ipAttempt) fail(429, "login_rate_limit");
+  const credential = await first(db, "SELECT * FROM school_student_credentials WHERE lower(login_id)=?", loginId);
+  const account = `student-pin:${await sha256(`${loginId}:${credential?.salt ?? ""}`)}`;
+  // Reserve an attempt before verifying, including concurrent requests across
+  // IP addresses. A new salt grants freshly issued PINs their own budget.
+  const attempt = await first(db, `INSERT INTO school_auth_limits(bucket,window_at,counter,expires_at) VALUES(?,?,1,?)
+    ON CONFLICT(bucket) DO UPDATE SET
+      counter=CASE WHEN expires_at<=excluded.window_at THEN 1 ELSE counter+1 END,
+      window_at=CASE WHEN counter=0 OR expires_at<=excluded.window_at THEN excluded.window_at ELSE window_at END,
+      expires_at=CASE WHEN counter=0 OR expires_at<=excluded.window_at THEN excluded.expires_at ELSE expires_at END
+    WHERE expires_at<=excluded.window_at OR counter<5 RETURNING window_at`, account, now, now+15*60);
+  if (!attempt) fail(429, "login_rate_limit");
+  if (!await verifyStudentPassword(credential, value.password, pepper)) fail(401, "invalid_student_login");
+  await run(db, "UPDATE school_auth_limits SET counter=counter-1 WHERE bucket=? AND window_at=? AND counter>0", account, attempt.window_at);
   await beforeSession();
   await run(db, "DELETE FROM school_sessions WHERE expires_at<=?", now);
   const token = randomToken(), csrf = randomToken();
   // Conditional insertion also rejects a password reset racing this login.
   const session = await first(db, `INSERT INTO school_sessions(token_hash,user_id,csrf,expires_at,created_at)
     SELECT ?,user_id,?,?,? FROM school_student_credentials WHERE user_id=? AND password_hash=? RETURNING user_id`,
-    await sha256(token),csrf,now+LIMITS.sessionSeconds,now,credential.user_id,hash);
+    await sha256(token),csrf,now+LIMITS.sessionSeconds,now,credential.user_id,credential.password_hash);
   if (!session) fail(401,"invalid_student_login");
   const user = await first(db,"SELECT * FROM school_users WHERE id=?",session.user_id);
   return { token, csrf, user: publicAvatar(user) };

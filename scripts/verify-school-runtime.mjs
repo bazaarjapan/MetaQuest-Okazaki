@@ -186,7 +186,7 @@ try {
   mf = new Miniflare(convertV4MiniflareOptions({ name: "school-runtime", host: "127.0.0.1", port: 0, modules: true, script,
     compatibilityDate: "2026-09-29", log: new Log(LogLevel.WARN),
     cf: false, telemetry: { enabled: false },
-    bindings: { APP_ORIGIN: origin, GOOGLE_CLIENT_ID: "runtime-fixture.apps.googleusercontent.com", TEACHER_GOOGLE_SUBS: "runtime-fixture-teacher" },
+    bindings: { STUDENT_PIN_PEPPER: randomBytes(32).toString("base64url"), APP_ORIGIN: origin, GOOGLE_CLIENT_ID: "runtime-fixture.apps.googleusercontent.com", TEACHER_GOOGLE_SUBS: "runtime-fixture-teacher" },
     d1Databases: { DB: randomUUID() }, r2Buckets: { STL_BUCKET: `runtime-fixture-${randomUUID()}` },
     durableObjects: { SCHOOL_ROOMS: { className: "SchoolRoom", useSQLite: true } },
     serviceBindings: { ASSETS: sourceAsset },
@@ -422,6 +422,7 @@ try {
     const issued = (await expectJson("/api/classroom/students", teacher, { count: 30 }, 201)).credentials;
     await expectError("/api/classroom/students", teacher, { count: 1 }, 409, "class_full");
     const shared = (await expectJson("/api/classroom/enter", teacher, {})).world;
+    assert.ok(issued.length === 30 && issued.every(entry => typeof entry.password === "string" && /^[0-9]{4}$/.test(entry.password)), "Every issued student password is four digits");
     const logins = await Promise.all(issued.map(async (entry,index) => {
       const challengeResponse = await fetchApi("/api/session");
       const challenge = await challengeResponse.json(), cookie = challengeResponse.headers.get("Set-Cookie").split(";")[0];
@@ -465,7 +466,8 @@ try {
     assert.equal(denied.error,"object_owner_required");
     await expectJson(`/api/worlds/${shared.id}/save`,otherTeachers[0],{});
     const reset=(await expectJson("/api/classroom/students/reset",teacher,{id:logins[0].id})).credentials[0];
-    assert.notEqual(reset.password,issued[0].password);
+    assert.ok(typeof reset.password === "string" && /^[0-9]{4}$/.test(reset.password), "Reissued student password is four digits");
+    assert.ok(reset.password !== issued[0].password, "Reset invalidates the previous password");
     await expectError(`/api/worlds/${shared.id}/state`,logins[0],null,401,"login_required");
     connections.forEach(({probe})=>probe.close());
     return {realStudentPasswordLogins:31,realOpenSockets:34,teacherCheckpoint:true,resetRevokesSession:true,
