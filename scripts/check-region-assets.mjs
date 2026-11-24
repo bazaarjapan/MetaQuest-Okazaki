@@ -139,6 +139,16 @@ assert.deepEqual(actualRegionFiles.sort(), [...expectedRegionFiles].sort(), "No 
 // B3DM batch metadata when rebuilding or deploying. Texture PNGs in the original
 // station model are imagery, not DEM, and are the only permitted public PNGs.
 const allowedPng = new Set(["city/Texture-000.png", "city/Texture-001.png"]);
+const districtManifest = await readFile(new URL("station/district/manifest.json", publicRoot));
+assert.equal(hash(districtManifest), "18acfbd3fa22dac1b075e0bbc740c88994e2b56583b6559ed77ff4d299e51815", "Unexpected station district manifest");
+const authoredModels = new Map([
+  ["station/okazaki-station.glb", "97c0d75649da25c402dd30859240e07fbc5731235e2c287b3c5d40f0e0423681"],
+]);
+for (const cell of JSON.parse(districtManifest).tiles) {
+  assert.match(cell.file, /^r[0-3]-c[0-3]\.glb$/);
+  authoredModels.set("station/district/" + cell.file, cell.sha256);
+}
+assert.equal(authoredModels.size, 17, "Station and 16 distinct district cells");
 let publicFiles = 0;
 async function auditPublic(directory, prefix = "") {
   for (const entry of await readdir(directory, { withFileTypes: true })) {
@@ -147,9 +157,9 @@ async function auditPublic(directory, prefix = "") {
     assert.ok(!/(?:^|\/)(?:dem(?:_png|10b)?|batch(?:table|metadata)?|geoid)(?:[\/.\-_]|$)/i.test(relative), "Raw elevation/batch artifacts must not be public");
     if (entry.isDirectory()) { await auditPublic(target, relative + "/"); continue; }
     assert.ok(!entry.isSymbolicLink(), "No symlink escape in public asset tree");
-    if (relative === "station/okazaki-station.glb") {
-      // Only the reviewed, independently authored Blender model may ship as GLB.
-      assert.equal(hash(await readFile(target)), "97c0d75649da25c402dd30859240e07fbc5731235e2c287b3c5d40f0e0423681", "Unexpected station model");
+    if (authoredModels.has(relative)) {
+      assert.equal(hash(await readFile(target)), authoredModels.get(relative), `Unexpected Blender model: ${relative}`);
+      authoredModels.delete(relative);
     } else {
       assert.ok(!/\.(?:zip|gml|b3dm|glb|terrain|dem|partial)$/i.test(relative), "Raw CityGML/B3DM/DEM source must not be public");
     }
@@ -170,6 +180,7 @@ async function auditPublic(directory, prefix = "") {
   }
 }
 await auditPublic(publicRoot);
+assert.equal(authoredModels.size, 0, "All reviewed Blender models must be present");
 console.log(JSON.stringify({
   ok: true,
   building: { tiles: building.tiles.length, triangles: buildingTriangles, vertices: buildingVertices, bytes: buildingBytes, maxAssetBytes: maxBuildingAssetBytes, maxQuantizationErrorMeters, normalizedNormalLength: [minNormalLength, maxNormalLength] },

@@ -81,6 +81,7 @@ export function createRegionStreamer(THREE, parentGroup, {
   });
   let tiles = new Map();
   let generation = 0;
+  let buildingRevision = 0;
   let disposed = false;
   let wanted = new Set();
   let queue = [];
@@ -116,6 +117,7 @@ export function createRegionStreamer(THREE, parentGroup, {
     const entry = resident.get(id);
     if (!entry) return;
     resident.delete(id);
+    if (entry.type === "building") buildingRevision++;
     release(entry);
   }
 
@@ -330,6 +332,7 @@ export function createRegionStreamer(THREE, parentGroup, {
         ? tile.vertices * 15 + tile.indices * 4 : tile.bytes) + (geometry.attributes.fieldColor?.array.byteLength ?? 0);
       resident.set(tile.id, { mesh, seam, type: tile.type, triangles: tile.triangles+seamTriangles,
         bytes: tile.bytes, geometryBytes:geometryBytes+(seamData?.positions.length??0)*4*8/3, textureBytes: decodedBytes });
+      if (tile.type === "building") buildingRevision++;
       geometry = map = material = null;
       negativeCache.delete(tile.id);
     } catch (error) {
@@ -455,6 +458,8 @@ export function createRegionStreamer(THREE, parentGroup, {
     coreLoop=loops[0];
   }
   return { setManifest, setCoreTerrain, update, getState,
+    hasBuilding: id => resident.get(id)?.type === "building",
+    getBuildingRevision: () => buildingRevision,
     getGroundMeshes: () => [...resident.values()].filter((entry) => entry.type === "terrain").map((entry) => entry.mesh),
     getMeshes: () => [...resident.values()].map((entry) => entry.mesh), dispose };
 }

@@ -10,7 +10,7 @@ export function worldToMap(position, bounds) {
   return { u: width ? (position.x - bounds[0]) / width : 0.5,
     v: height ? (position.z - bounds[1]) / height : 0.5 };
 }
-export function drawRegionMap(context, rect, manifest, position, coreBounds) {
+export function drawRegionMap(context, rect, manifest, position, station) {
   const { x, y, w, h } = rect;
   const bounds = manifest.bounds;
   const plot = (px, pz) => {
@@ -24,8 +24,8 @@ export function drawRegionMap(context, rect, manifest, position, coreBounds) {
     const a = plot(tile.bounds[0], tile.bounds[1]), b = plot(tile.bounds[2], tile.bounds[3]);
     context.fillRect(a[0], a[1], Math.max(1, b[0] - a[0]), Math.max(1, b[1] - a[1]));
   }
-  if (coreBounds) {
-    const a = plot(coreBounds[0], coreBounds[1]), b = plot(coreBounds[2], coreBounds[3]);
+  if (station) {
+    const a = plot(station[0] - 500, station[2] - 500), b = plot(station[0] + 500, station[2] + 500);
     context.fillStyle = "#087f71";
     context.fillRect(a[0], a[1], Math.max(5, b[0] - a[0]), Math.max(5, b[1] - a[1]));
   }

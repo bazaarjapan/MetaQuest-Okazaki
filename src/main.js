@@ -1,5 +1,6 @@
 import { createAvatarLabel } from "./avatar-label.js";
 import { createStationLandmark } from "./station-landmark.js";
+import { createStationDistrict } from "./station-district.js";
 import {createCitySurfaceMap,applyCityGroundMaterial} from './city-surface-map.js';
 import { createLocationHud } from "./location-hud.js";
 import * as THREE from "three";
@@ -179,6 +180,7 @@ const regionStreamer = createRegionStreamer(THREE, regionGroup,{fieldUniform,eve
   terrainTexture:tile=>({url:fieldStyle==='game'&&fieldManifest?.region[tile.id]
     ? `/field/${fieldManifest.region[tile.id].file}`:`/region/${tile.texture}`})});
 const nearField=createNearField(THREE,{maxAnisotropy:renderer.capabilities.getMaxAnisotropy(),citySurfaceUniforms:citySurfaceMap.uniforms,gameUniform:fieldUniform});
+const stationDistrict = createStationDistrict(scene, { hasBuilding: regionStreamer.hasBuilding });
 let regionManifest = null, regionUiTime = 0;
 const textures = new Map();
 let detail = null, terrainMesh = null, terrainFile = "Texture-001.png";
@@ -467,6 +469,7 @@ async function loadCity() {
   $('#field-style').value=fieldStyle;
   const manifest = await fetchChecked("/city/manifest.json", "json");
   stationPosition = manifest.station;
+  vectorStreets.setDistrictCenter(stationPosition);
   // Detail assets are optional: the original published atlas remains a fallback.
   try { detail = await fetchChecked("/city/detail.json", "json"); } catch { detail = null; }
   for (const [i, p] of manifest.parts.entries()) {
@@ -613,11 +616,25 @@ async function loadRegion() {
   $("#region-summary").textContent = `モデル収録範囲 約${width.toFixed(1)} × ${height.toFixed(1)} km · ${buildings.tiles.length}建物区画`;
   const selector = $("#region-cell");
   selector.replaceChildren(new Option("移動先の区画を選択…", ""));
+  const nearby = document.createElement("optgroup");
+  nearby.label = "岡崎駅周辺の1 km四方";
+  for (const [id, name, east, south] of [
+    ["nw", "北西の街区", -350, -350], ["ne", "北東の街区", 350, -350],
+    ["sw", "南西の街区", -350, 350], ["se", "南東の街区", 350, 350],
+  ]) {
+    const option = new Option(name, "district-" + id);
+    option.dataset.east = east;
+    option.dataset.south = south;
+    nearby.append(option);
+  }
+  const citywide = document.createElement("optgroup");
+  citywide.label = "岡崎の広域区画";
+  selector.append(nearby, citywide);
   const tiles = [...buildings.tiles].sort((a, b) => a.bounds[1] - b.bounds[1] || a.bounds[0] - b.bounds[0]);
   for (const tile of tiles) {
     const x = (tile.bounds[0] + tile.bounds[2]) / 2, z = (tile.bounds[1] + tile.bounds[3]) / 2;
     const dx = x - 95.92456, dz = z - 49.00273;
-    selector.append(new Option(`駅から ${dx >= 0 ? "東" : "西"}${(Math.abs(dx) / 1000).toFixed(1)}km / ${dz >= 0 ? "南" : "北"}${(Math.abs(dz) / 1000).toFixed(1)}km · ${tile.id}`, tile.id));
+    citywide.append(new Option(`駅から ${dx >= 0 ? "東" : "西"}${(Math.abs(dx) / 1000).toFixed(1)}km / ${dz >= 0 ? "南" : "北"}${(Math.abs(dz) / 1000).toFixed(1)}km · ${tile.id}`, tile.id));
   }
   selector.disabled = false;
   $("#region-go").disabled = false;
@@ -638,7 +655,7 @@ function drawDesktopRegionMap() {
   if (!regionManifest) return;
   const canvas = $("#region-map");
   drawRegionMap(canvas.getContext("2d"), { x: 0, y: 0, w: canvas.width, h: canvas.height },
-    regionManifest, userPosition(), coreBounds());
+    regionManifest, userPosition(), stationPosition);
 }
 let locateStreamTarget = null;
 async function locateWorkshopObject(item, stillValid = () => true) {
@@ -670,7 +687,7 @@ async function locateWorkshopObject(item, stillValid = () => true) {
     return false;
   } finally { locateStreamTarget=null; }
 }
-function visitRegionPoint(x, z) {
+function visitRegionPoint(x, z, { district = false } = {}) {
   if (!regionManifest || !Number.isFinite(x) || !Number.isFinite(z)) return;
   let height = 0;
   const containing = regionManifest.buildings.filter((tile) => x >= tile.bounds[0] && x <= tile.bounds[2] && z >= tile.bounds[1] && z <= tile.bounds[3]);
@@ -682,13 +699,17 @@ function visitRegionPoint(x, z) {
   const aerialHeight = containing.length ? Math.max(150, height + 100) : 850;
   const position = constrainPosition(new THREE.Vector3(x, Math.min(1100, aerialHeight), z));
   const target = new THREE.Vector3(position.x, Math.max(10, position.y - 100), position.z - 250);
+  if (district) {
+    target.x = x + (stationPosition[0] - x) * 0.28;
+    target.z = z + (stationPosition[2] - z) * 0.28;
+  }
   resetFlight(flight);
   touchControls.releaseAll();
   setFree(false);
   state.current = "region";
   if (state.xr) teleport(position, target);
   else {
-    setDesktopView(position, target);
+    setDesktopView(position, target, { preset: district });
   }
   updateLabels("region");
   adaptiveUi.close();
@@ -704,7 +725,13 @@ $("#region-map").addEventListener("click", (event) => {
   visitRegionPoint(p.x, p.z);
 });
 $("#region-go").onclick = () => {
-  const tile = regionManifest?.buildings.find((entry) => entry.id === $("#region-cell").value);
+  const option = $("#region-cell").selectedOptions[0];
+  if (stationPosition && option?.dataset.east !== undefined) {
+    visitRegionPoint(stationPosition[0] + Number(option.dataset.east),
+      stationPosition[2] + Number(option.dataset.south), {district: true});
+    return;
+  }
+  const tile = regionManifest?.buildings.find((entry) => entry.id === option?.value);
   if (tile) visitRegionPoint((tile.bounds[0] + tile.bounds[2]) / 2, (tile.bounds[1] + tile.bounds[3]) / 2);
 };
 function terrainVariant(id,style=fieldStyle) {
@@ -1198,7 +1225,7 @@ vrFieldPanel = createVRFieldPanel(THREE, { camera, controllerHud, vrWorkshop,
     location: locationHud.getState().text,
     horizontalSpeed: flight.horizontalSpeed, verticalSpeed: flight.verticalSpeed }),
   drawMap: (context, rect) => {
-    if (regionManifest) drawRegionMap(context, rect, regionManifest, userPosition(), coreBounds());
+    if (regionManifest) drawRegionMap(context, rect, regionManifest, userPosition(), stationPosition);
   },
   onAction: (action, { x, y, rect }) => {
     if (action === "return") return returnTo2D();
@@ -1452,7 +1479,11 @@ renderer.setAnimationLoop((time, frame) => {
     }
     frameTime = !state.xr && document.hidden ? null : time;
     hotbar.update(time);
-    regionStreamer.update(locateStreamTarget ?? userPosition(), quality.id, time);
+    const observer = userPosition();
+    regionStreamer.update(locateStreamTarget ?? observer, quality.id, time);
+    stationDistrict.update({station: stationPosition, position: observer,
+      camera: state.xr ? renderer.xr.getCamera() : camera, enabled: fieldStyle === "game", quality: quality.id,
+      xr: state.xr, time, buildingRevision: regionStreamer.getBuildingRevision()});
     nearField.update({position:userPosition(),quality:quality.id,enabled:fieldStyle==='game'&&!state.qualityLoading,
       manifest:fieldManifest,core:terrainMesh,terrain:regionStreamer.getGroundMeshes(),time});
     const sceneryGeometryVersion=`${terrainMesh?.geometry.id}:${regionStreamer.getMeshes().map(m=>m.geometry.id).join(',')}`;
@@ -1568,6 +1599,7 @@ window.__okazaki = {
         colorVertices:mesh.geometry.attributes.fieldColor?.count??0,textured:Boolean(mesh.material.map)}))},
     ...state,
     stationLandmark: stationLandmark.getState(),
+    stationDistrict: stationDistrict.getState(),
     device: { questBrowser },
     school: schoolClient.getState(),
     activityAllowed,
@@ -1590,7 +1622,7 @@ window.__okazaki = {
     panelVisible: panel.visible && vrFieldPanel.getState().expanded,
     vrPanel: vrFieldPanel.getState(),
     pointers: { left: controllerPointers.left.getState(), right: controllerPointers.right.getState() },
-    version: "1.10.19",
+    version: "1.10.20",
     vrReturn: { buttonVisible: vrReturnButton.getState().visible,
       holdProgress: vrReturnButton.getState().progress, exiting: xrExitPending,
       hasResume: hasVRResume, view: lastXRView ? {
