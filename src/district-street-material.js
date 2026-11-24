@@ -25,8 +25,8 @@ export function applyDistrictStreetFinish(shader, layer, station) {
   } else {
     const ballast = layer === 2;
     finish = `
-      vec2 grainPoint = vStreetWorld.xz * ${ballast ? "6.0" : "12.0"};
-      float grain = districtGrain(floor(grainPoint));
+      vec2 grainPoint = mat2(0.8, -0.6, 0.6, 0.8) * vStreetWorld.xz * ${ballast ? "15.0" : "32.0"};
+      float grain = districtStone(grainPoint);
       float resolved = 1.0 - smoothstep(0.2, 1.0, max(fwidth(grainPoint.x), fwidth(grainPoint.y)));
       vec3 finishColor = diffuseColor.rgb * (1.0 + (grain - 0.5) * resolved * ${ballast ? "0.55" : "0.13"});`;
   }
@@ -36,6 +36,13 @@ export function applyDistrictStreetFinish(shader, layer, station) {
       vec3 p = fract(vec3(cell.xyx) * 0.1031);
       p += dot(p, p.yzx + 33.33);
       return fract((p.x + p.y) * p.z);
+    }
+    float districtStone(vec2 point) {
+      vec2 cell = floor(point), uv = fract(point);
+      uv = smoothstep(vec2(0.12), vec2(0.88), uv);
+      float a = mix(districtGrain(cell), districtGrain(cell + vec2(1,0)), uv.x);
+      float b = mix(districtGrain(cell + vec2(0,1)), districtGrain(cell + vec2(1,1)), uv.x);
+      return mix(a, b, uv.y);
     }
   ` + shader.fragmentShader;
   shader.fragmentShader = shader.fragmentShader.replace("#include <color_fragment>", `#include <color_fragment>
