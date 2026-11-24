@@ -8,8 +8,8 @@ export const viewpoints = {
     detail: "線路を越えて東西を行き来できる場所を探してみよう。",
   },
   east: {
-    title: "駅の東側から見る",
-    description: "駅前の道路と建物の集まりを観察",
+    title: "岡崎駅東口から見る",
+    description: "線路をまたぐ駅舎と東口の広場を観察",
     position: [195, 76, 105],
     target: [95.92456, 20, 49.00273],
     question: "駅の近くには、どんな建物が集まっている？",

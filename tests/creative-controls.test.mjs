@@ -94,6 +94,31 @@ test('work locator can choose first person without an avatar obscuring its targe
   assert.deepEqual(f.control.getState().pressedKeys,[]); f.control.dispose();
 });
 
+test('station presets keep the intended camera pose and restore the selected avatar view when walking resumes', () => {
+  for (const viewMode of ["back", "front", "first"]) {
+    const f = fixture({initialView: viewMode});
+    f.enable();
+    for (const place of Object.values(viewpoints)) {
+      f.camera.position.fromArray(place.position);
+      f.camera.lookAt(...place.target);
+      const direction = f.camera.getWorldDirection(new THREE.Vector3());
+      f.control.syncFromCamera({preset: true});
+      f.control.step(0, {enabled: false});
+      assert.equal(f.control.getState().sightseeing, true);
+      assert.equal(f.avatar.group.visible, false);
+      close(f.camera.position.distanceTo(new THREE.Vector3(...place.position)), 0);
+      close(f.camera.getWorldDirection(new THREE.Vector3()).distanceTo(direction), 0);
+      f.control.step(0, {enabled: true});
+      assert.equal(f.control.getState().sightseeing, false);
+      assert.equal(f.control.getState().viewMode, viewMode);
+      assert.equal(f.avatar.group.visible, viewMode !== "first");
+      f.control.step(0, {enabled: false});
+      assert.equal(f.avatar.group.visible, viewMode !== "first");
+    }
+    f.control.dispose();
+  }
+});
+
 test('creative Shift descent cannot penetrate known terrain',()=>{
   const f=fixture({groundHeight:()=>30});f.enable();f.key('ShiftLeft');
   for(let i=0;i<40;i++)f.control.step(.1,{enabled:true});

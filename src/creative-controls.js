@@ -76,6 +76,7 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
   const keys = new Set();
   const lastMovementTap = new Map(), fastMovementKeys = new Set();
   let mode = "drone", viewMode = "first", yaw = 0, pitch = 0, roll = 0;
+  let sightseeing = false;
   let enabled = false, blocked = false, xr = false, suspendedXR = false;
   let flying = true, verticalVelocity = 0, jumpQueued = false;
   let wingFlight = false, wingSpeed = 0, fastClimb = false, animation = "idle", groundedState = false;
@@ -140,7 +141,7 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
   }
   function renderView(obstacles) {
     const eye = eyePosition(), rotation = headOrientation().clone();
-    if (viewMode === "first") { cameraDistance = 0; setWorldView(eye, rotation); }
+    if (sightseeing || viewMode === "first") { cameraDistance = 0; setWorldView(eye, rotation); }
     else {
       const direction = new THREE.Vector3(0, 0, -1).applyQuaternion(rotation);
       const position = eye.clone().addScaledVector(direction,
@@ -175,8 +176,9 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
     }
     updateAvatar();
   }
-  function syncFromCamera({ firstPerson = false } = {}) {
+  function syncFromCamera({ firstPerson = false, preset = false } = {}) {
     if (disposed || xr || suspendedXR) return;
+    sightseeing = preset;
     adopt(worldView(), firstPerson ? "first" : viewMode); clearInput();
     if (mode === "creative") { getControls() && (getControls().enabled = false); renderView(); }
     updateAvatar(); notify();
@@ -253,6 +255,7 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
   }
   function cycleView() {
     if (disposed || mode !== "creative" || xr || suspendedXR || dialogOpen()) return false;
+    sightseeing = false;
     viewMode = creativeViews[(creativeViews.indexOf(viewMode) + 1) % creativeViews.length];
     renderView(); notify(); return true;
   }
@@ -360,6 +363,7 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
     enabled = Boolean(options.enabled);
     blocked = Boolean(options.blocked) || dialogOpen() || editable(documentTarget?.activeElement);
     xr = Boolean(options.xr);
+    if (enabled && !blocked && !xr && !suspendedXR) sightseeing = false;
     if (!active()) {
       if (previousActive || keys.size || xr || blocked) clearInput({ release: true });
       // DEM may arrive after a teleport or while the menu is open. An upward
@@ -368,7 +372,7 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
         let floor;try{floor=groundHeight(anchor.x,anchor.z);}catch{}
         if(Number.isFinite(floor)&&typeof floor==='number'&&anchor.y<floor){anchor.y=floor;verticalVelocity=0;renderView();}
       }
-      if (mode === "creative" && viewMode !== "first" && !xr && !suspendedXR) {
+      if (!sightseeing && mode === "creative" && viewMode !== "first" && !xr && !suspendedXR) {
         const meshes = cameraObstacles() ?? [];
         // Streaming can change the view even while movement is OFF. Refresh
         // on mesh changes without raycasting the same stationary scene each frame.
@@ -475,6 +479,7 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
     return view;
   }
   function restoreAfterXR(view, { entryFailed = false } = {}) {
+    if (!entryFailed) sightseeing = false;
     if (mode === "creative") adopt(view ?? worldView(), entryFailed ? preXRViewMode : "first");
     suspendedXR = false; xr = false; enabled = false;
     clearInput({ release: true });
@@ -482,7 +487,7 @@ export function createCreativeControls(THREE, { camera, rig = camera?.parent,
     updateAvatar(); notify();
   }
   function getState() {
-    return { mode, viewMode, anchor: anchor.toArray(), eye: eyePosition().toArray(),
+    return { mode, viewMode, sightseeing, anchor: anchor.toArray(), eye: eyePosition().toArray(),
       yaw, pitch, flying, wingFlight, wingSpeed, fastClimb, animation, grounded:groundedState, enabled, blocked, xr, suspendedXR, moving,
       pointerLocked: locked(), mouseSteering: Boolean(mouseDrag), mouseIntent: mouseDrag && !mouseDrag.dragged && mouseDrag.canPlace ? "place" : mouseDrag?.intent ?? null, pointerError, groundAvailable, pressedKeys: [...keys],
       sprinting: keys.has("ControlLeft") || keys.has("ControlRight") || fastMovementKeys.size > 0, cameraDistance, disposed };

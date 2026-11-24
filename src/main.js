@@ -1,4 +1,5 @@
 import { createAvatarLabel } from "./avatar-label.js";
+import { createStationLandmark } from "./station-landmark.js";
 import {createCitySurfaceMap,applyCityGroundMaterial} from './city-surface-map.js';
 import { createLocationHud } from "./location-hud.js";
 import * as THREE from "three";
@@ -89,6 +90,10 @@ let preferenceStorage;
 try { preferenceStorage = window.localStorage; } catch { /* Optional preference only. */ }
 let quality = readQuality(preferenceStorage);
 let fieldStyle=readFieldStyle(preferenceStorage),fieldManifest=null;
+const fieldStyleNote = $('#field-style-note');
+const gameStyleDescription = fieldStyleNote.textContent;
+const photoStyleDescription = '航空写真と元の建物の色で表示します。';
+if (fieldStyle === 'photo') fieldStyleNote.textContent = photoStyleDescription;
 const fieldUniform={value:fieldStyle==='game'?1:0};
 const eveningUniform={value:0};
 const state = {
@@ -105,6 +110,13 @@ const state = {
 };
 let initialMovementInterrupted = false;
 const scene = new THREE.Scene();
+const stationLandmark = createStationLandmark(scene, async () => {
+  const [{ GLTFLoader }, data] = await Promise.all([
+    import("three/addons/loaders/GLTFLoader.js"),
+    fetchChecked("/station/okazaki-station.glb", "buffer"),
+  ]);
+  return (await new GLTFLoader().parseAsync(data, "/station/")).scene;
+});
 scene.background = new THREE.Color("#dce9ee");
 scene.fog = new THREE.Fog("#dce9ee", 800, 1700);
 const citySky=createCitySky(THREE,scene);
@@ -406,6 +418,7 @@ function adoptSchoolPose() {
 schoolClient.subscribe((next, event) => {
   schoolState = next;
   if (event === "pose") return;
+  stationLandmark.setWorks(next.objects);
   $("#open-workshop").textContent = next.user && next.world ? "自分のSTL作品" : "STL作品（ログイン）";
   if (ownIdentity !== (next.user?.id ?? null)) {
     ownIdentity = next.user?.id ?? null; ownAvatar.setIdentity(ownIdentity); setFree(false);
@@ -539,7 +552,7 @@ async function loadCity() {
   document
     .querySelectorAll("[data-view],#home,#free-move,#mobile-flight")
     .forEach((b) => (b.disabled = false));
-  goTo("overview");
+  goTo("overview", { preset: false });
   $("#control-mode").disabled = false;
   // Quest starts in Mode 2 even with an old creative preference or a narrow
   // browser panel. Device defaults never overwrite the remembered PC choice.
@@ -557,6 +570,7 @@ async function loadCity() {
     setFree(true, { preserveView: true });
   }
   addStationLabel(manifest.station);
+  void stationLandmark.update(stationPosition, fieldStyle === "game");
   await checkVR();
   loadRegion().catch((error) => {
     state.regionError = error.message;
@@ -646,7 +660,7 @@ async function locateWorkshopObject(item, stillValid = () => true) {
       if(feet) {
         // Ground-relative eye position avoids falling from an overhead camera.
         const position=new THREE.Vector3(feet[0],feet[1]+1.675,feet[2]);
-        state.current="region";setDesktopView(position,target,new THREE.Vector3(0,1,0),Math.PI,true);
+        state.current="region";setDesktopView(position,target,{maxPolarAngle:Math.PI,firstPerson:true});
         updateLabels("region");
         adaptiveUi.close();drawDesktopRegionMap();drawPanel();return true;
       }
@@ -751,11 +765,14 @@ $('#field-style').onchange=async event=>{
     if(oldFile!==nextFile){textures.get(oldFile)?.dispose();textures.delete(oldFile);}
     if(regionManifest)regionStreamer.setManifest(fieldRegionManifest());
     try{preferenceStorage?.setItem(FIELD_STYLE_KEY,fieldStyle);}catch{}
-    $('#field-style-note').textContent=fieldStyle==='game'?'道・線路・川は地図に沿って表示。草木・信号・街灯・車両・飛行は街を楽しむための装飾です。':'航空写真と元の建物の色で表示します。';
+    fieldStyleNote.textContent = fieldStyle === 'game' ? gameStyleDescription : photoStyleDescription;
   }catch{
     fieldStyle=previous;event.target.value=previous;
     $('#field-style-note').textContent='表示を切り替えられませんでした。現在の表示で続けられます。';
-  }finally{state.qualityLoading=false;$('#field-style').disabled=false;$('#quality-select').disabled=false;await checkVR();}
+  }finally{
+    void stationLandmark.update(stationPosition, fieldStyle === "game");
+    state.qualityLoading=false;$('#field-style').disabled=false;$('#quality-select').disabled=false;await checkVR();
+  }
 };
 function fieldRegionManifest(){
   return {...regionManifest,tiles:regionManifest.tiles.map(tile=>tile.type==='terrain'&&fieldStyle==='game'&&fieldManifest?.region[tile.id]
@@ -820,8 +837,15 @@ function addStationLabel(position) {
   const label = new THREE.Sprite(
     new THREE.SpriteMaterial({ map: texture, depthTest: false }),
   );
-  label.position.set(position[0], 55, position[2]);
-  label.scale.set(55, 13.75, 1);
+  label.position.set(position[0], 44, position[2]);
+  const eyePosition = new THREE.Vector3();
+  label.onBeforeRender = (_renderer, _scene, viewCamera) => {
+    // Keep the marker readable at a distance without covering the station up close.
+    const depth = -eyePosition.copy(label.position).applyMatrix4(viewCamera.matrixWorldInverse).z;
+    const width = Math.min(55, Math.max(0, depth) * 0.38 / viewCamera.projectionMatrix.elements[5]);
+    label.scale.set(width, width / 4, 1);
+    label.updateMatrixWorld();
+  };
   scene.add(label);
 }
 function updateLabels(id) {
@@ -847,7 +871,7 @@ function updateLabels(id) {
   $("#status").textContent =
     `${state.xr ? "VR" : questBrowser ? "Questの2D画面" : "2D"}で観察中 · ${state.free ? "自由移動" : "地点から見学"}`;
 }
-function goTo(id) {
+function goTo(id, { preset = true } = {}) {
   if (!viewpoints[id]) return;
   vrFieldPanel?.selectTab("observe");
   resetFlight(flight);
@@ -861,13 +885,13 @@ function goTo(id) {
     const target = new THREE.Vector3(...v.target);
     teleport(position, target);
   } else {
-    setDesktopView(new THREE.Vector3(...v.position), new THREE.Vector3(...v.target));
+    setDesktopView(new THREE.Vector3(...v.position), new THREE.Vector3(...v.target), { preset });
   }
   ground = 16.5;
   updateLabels(id);
   if (panel) drawPanel();
 }
-function setDesktopView(position, target, up = new THREE.Vector3(0, 1, 0), maxPolarAngle = Math.PI * 0.485, firstPerson = false) {
+function setDesktopView(position, target, { up = new THREE.Vector3(0, 1, 0), maxPolarAngle = Math.PI * 0.485, firstPerson = false, preset = false } = {}) {
   // Recreate controls to discard stale orbit damping/pan and its cached up axis.
   controls.dispose();
   rig.position.set(0, 0, 0); rig.rotation.set(0, 0, 0);
@@ -878,14 +902,14 @@ function setDesktopView(position, target, up = new THREE.Vector3(0, 1, 0), maxPo
   controls.maxPolarAngle = maxPolarAngle;
   camera.position.copy(position); controls.target.copy(target); controls.update();
   camera.updateMatrixWorld(true);
-  creative?.syncFromCamera({ firstPerson });
+  creative?.syncFromCamera({ firstPerson, preset });
 }
 function restoreDesktopView(view) {
   const position = new THREE.Vector3().fromArray(view.position);
   const orientation = new THREE.Quaternion().fromArray(view.quaternion);
   const target = position.clone().add(new THREE.Vector3(0, 0, -60).applyQuaternion(orientation));
   const up = new THREE.Vector3(0, 1, 0).applyQuaternion(orientation);
-  setDesktopView(position, target, up, Math.PI);
+  setDesktopView(position, target, { up, maxPolarAngle: Math.PI });
 }
 async function returnTo2D() {
   const session = renderer.xr.getSession();
@@ -1467,10 +1491,11 @@ renderer.setAnimationLoop((time, frame) => {
     presence.update(dt, userPosition());
     if (!activityAllowed) ownAvatar.group.visible = false;
     const heldDraft = !state.xr && !xrEntering ? workshop.getHeldDraft() : null;
+    const currentView = creative.getState();
     heldSTL.update({ draft: heldDraft, canEdit: Boolean(heldDraft),
-      xr: state.xr || xrEntering, hidden: document.hidden,
-      firstPerson: creative.getState().mode === "creative" && creative.getState().viewMode === "first",
-      thirdPerson: creative.getState().mode === "creative" && creative.getState().viewMode !== "first" });
+      xr: state.xr || xrEntering, hidden: document.hidden || currentView.sightseeing,
+      firstPerson: currentView.mode === "creative" && currentView.viewMode === "first",
+      thirdPerson: currentView.mode === "creative" && currentView.viewMode !== "first" });
     syncAvatarViewButtons();
     if ((state.free || state.current === "region") && time > nextGroundCheck) {
       nextGroundCheck = time + 150;
@@ -1542,6 +1567,7 @@ window.__okazaki = {
       coreParts:city.children.map(mesh=>({name:mesh.name,gameBuilding:Boolean(mesh.material.userData.fieldBuilding),
         colorVertices:mesh.geometry.attributes.fieldColor?.count??0,textured:Boolean(mesh.material.map)}))},
     ...state,
+    stationLandmark: stationLandmark.getState(),
     device: { questBrowser },
     school: schoolClient.getState(),
     activityAllowed,
@@ -1564,7 +1590,7 @@ window.__okazaki = {
     panelVisible: panel.visible && vrFieldPanel.getState().expanded,
     vrPanel: vrFieldPanel.getState(),
     pointers: { left: controllerPointers.left.getState(), right: controllerPointers.right.getState() },
-    version: "1.10.18",
+    version: "1.10.19",
     vrReturn: { buttonVisible: vrReturnButton.getState().visible,
       holdProgress: vrReturnButton.getState().progress, exiting: xrExitPending,
       hasResume: hasVRResume, view: lastXRView ? {
@@ -1604,7 +1630,7 @@ window.__okazaki = {
     assetSource: "PLATEAU 23202 2020",
   }),
 };
-goTo("overview");
+goTo("overview", { preset: false });
 loadCity().catch((error) =>
   fail(
     new Error(

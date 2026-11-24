@@ -147,7 +147,12 @@ async function auditPublic(directory, prefix = "") {
     assert.ok(!/(?:^|\/)(?:dem(?:_png|10b)?|batch(?:table|metadata)?|geoid)(?:[\/.\-_]|$)/i.test(relative), "Raw elevation/batch artifacts must not be public");
     if (entry.isDirectory()) { await auditPublic(target, relative + "/"); continue; }
     assert.ok(!entry.isSymbolicLink(), "No symlink escape in public asset tree");
-    assert.ok(!/\.(?:zip|gml|b3dm|glb|terrain|dem|partial)$/i.test(relative), "Raw CityGML/B3DM/DEM source must not be public");
+    if (relative === "station/okazaki-station.glb") {
+      // Only the reviewed, independently authored Blender model may ship as GLB.
+      assert.equal(hash(await readFile(target)), "97c0d75649da25c402dd30859240e07fbc5731235e2c287b3c5d40f0e0423681", "Unexpected station model");
+    } else {
+      assert.ok(!/\.(?:zip|gml|b3dm|glb|terrain|dem|partial)$/i.test(relative), "Raw CityGML/B3DM/DEM source must not be public");
+    }
     if (/\.png$/i.test(relative)) assert.ok(allowedPng.has(relative), `Unexpected public PNG could contain DEM: ${relative}`);
     assert.ok((await stat(target)).size < limit, `Asset under 25 MiB: ${relative}`);
     if (/\.json$/i.test(relative)) {
