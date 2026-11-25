@@ -147,6 +147,12 @@ assert.equal(effects.length, district.surfaces.bytes);
 assert.equal(hash(effects), district.surfaces.sha256);
 assert.equal(effects.readUInt32BE(16), 256);
 assert.equal(effects.readUInt32BE(20), 256);
+const { facadeAtlas } = await import("../src/facade-material.js");
+const facades = await readFile(new URL(`station/${facadeAtlas.file}`, publicRoot));
+assert.equal(facades.length, facadeAtlas.bytes);
+assert.equal(hash(facades), facadeAtlas.sha256);
+const facadeImage = await sharp(facades).metadata();
+assert.deepEqual([facadeImage.width, facadeImage.height, facadeImage.hasAlpha], [1024, 512, true]);
 const authoredModels = new Map([
   ["station/okazaki-station.glb", "97c0d75649da25c402dd30859240e07fbc5731235e2c287b3c5d40f0e0423681"],
 ]);
