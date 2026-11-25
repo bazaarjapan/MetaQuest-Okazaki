@@ -30,6 +30,7 @@ import { createSurfaceIndex } from "./placement.js";
 import { createWorkshop } from "./workshop.js";
 import { createCreativeControls, constrainCreativeFeet, readControlMode, controlPreferenceKey, initialPCMovement, sampleGroundFootprint, isQuestBrowser } from "./creative-controls.js";
 import { createBlockAvatar } from "./block-avatar.js";
+import { createAvatarEditor } from "./avatar-editor.js";
 import { createSchoolClient } from "./school-client.js";
 import { createSchoolUI } from "./school-ui.js";
 import { createActivityGate } from "./activity-gate.js";
@@ -357,8 +358,14 @@ let xrExitPending = false, xrEntering = false, hasVRResume = false;
 let lastXRView = null, pendingXRView = null;
 let panel;
 let simulationSeconds = 0;
+const avatarEditor = createAvatarEditor(THREE, { renderer, client: schoolClient, onBeforeOpen: () => {
+  if (state.xr || xrEntering) return false;
+  setFree(false); creative.clearInput({ release: true });
+  return true;
+} });
 schoolUI = createSchoolUI({ client: schoolClient, button: $("#school-button"),
   getViewPosition: userPosition, getStation: () => stationPosition,
+  onEditAvatar: () => { schoolUI.close(); $("#school-button").focus({ preventScroll: true }); avatarEditor.open(); },
   onLocateObject: async id => workshop.selectObject(id) && await workshop.locateSelected(),
   onBeforeOpen: () => {
     if (state.xr || xrEntering) return false;
@@ -431,6 +438,7 @@ schoolClient.subscribe((next, event) => {
     ownIdentity = next.user?.id ?? null; ownAvatar.setIdentity(ownIdentity); setFree(false);
   }
   if (next.user?.color && ownColor !== next.user.color) { ownColor = next.user.color; ownAvatar.setColor(ownColor); }
+  ownAvatar.setDesign(next.user?.design);
   ownAvatarLabel.setName(next.user?.name);
   if (!next.user) { ownColor = null; ownAvatar.setColor(0x367fab); heldSTL.clear(); }
   if (!next.world || next.connection !== "connected") { vrWorkshop.cancelPicking(); restoredWorld = null; }

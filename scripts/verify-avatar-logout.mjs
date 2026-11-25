@@ -31,7 +31,7 @@ try{
   if(person){
    await browser('cookies','set',person.browserCookie.name,person.browserCookie.value,'--url',fixtures.origin+'/','--path','/','--secure','--httpOnly','--sameSite','Lax');await browser('reload');
   }else{
-   await browser('click','#login-gate [data-login-role=student]');await browser('fill','#student-login-id',studentCredentials[0]);await browser('fill','#student-password',studentCredentials[1]);await browser('click','#student-login-panel button');await until("document.querySelector('#school-avatar-name')");await browser('fill','#school-avatar-name','名札確認生徒');await browser('click','#school-avatar-save');await browser('click','#school-close');
+   await browser('click','#login-gate [data-login-role=student]');await browser('fill','#student-login-id',studentCredentials[0]);await browser('fill','#student-password',studentCredentials[1]);await browser('click','#student-login-panel button');await until("window.__okazaki?.getState().activityAllowed&&!document.querySelector('#school-dialog').open");
   }
   await until('window.__okazaki?.getState().activityAllowed');
   check(role+' sees logout immediately',await evaluate("!document.querySelector('#school-quick-logout').hidden"));

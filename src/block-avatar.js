@@ -1,4 +1,6 @@
 import { validAvatarMotion } from "./avatar-motion.js";
+import { avatarDesign, avatarDesignFields, avatarOptions } from "./avatar-design.js";
+import { avatarDetailBlocks } from "./avatar-detail.js";
 // Original, low-cost block-shaped avatar. No third-party character assets.
 export function avatarAppearance(identity) {
   // Only the server's opaque user ID seeds the look. No name, email, Google
@@ -13,7 +15,7 @@ export function avatarAppearance(identity) {
     accent: [0xf5ba42, 0xe76b91, 0x72d8c0, 0xb7a2ed, 0xff8855, 0xe9eee9][(seed >>> 12) % 6],
     hairStyle: (seed >>> 16) % 3, pattern: (seed >>> 20) % 3 };
 }
-export function createBlockAvatar(THREE, { color = 0x367fab, identity = null, batchBlocks = false } = {}) {
+export function createBlockAvatar(THREE, { color = 0x367fab, identity = null, design: initialDesign = null, batchBlocks = false } = {}) {
   const group = new THREE.Group();
   group.name = "school-block-avatar";
   const geometry = new THREE.BoxGeometry(1, 1, 1);
@@ -41,9 +43,7 @@ export function createBlockAvatar(THREE, { color = 0x367fab, identity = null, ba
   group.add(head);
   const face = block("face", [0.43, 0.43, 0.43], [0, 0, 0], 0xeac198, head);
   const hair = block("hair", [0.45, 0.12, 0.45], [0, 0.17, 0], 0x403631, head);
-  for (const x of [-0.09, 0.09]) {
-    block("eye", [0.07, 0.065, 0.012], [x, 0.02, -0.222], 0x253345, head);
-  }
+  const eyes = [-0.09, 0.09].map(x => block("eye", [0.07, 0.065, 0.012], [x, 0.02, -0.222], 0x253345, head));
   const leftArm = block("left-arm", [0.2, 0.66, 0.25], [-0.4, 1.06, 0], 0xeac198);
   const rightArm = block("right-arm", [0.2, 0.66, 0.25], [0.4, 1.06, 0], 0xeac198);
   const hand = new THREE.Group(); hand.name = "held-stl-hand";
@@ -115,24 +115,29 @@ export function createBlockAvatar(THREE, { color = 0x367fab, identity = null, ba
   for (const child of [...group.children]) { child.position.y -= 1; body.add(child); }
   group.add(body);
   let motion = "idle";
-  let appearance = { skin: 0xeac198, hair: 0x403631, trousers: 0x33455d };
+  let appearance, design = avatarDesign(initialDesign), requestedDesign = initialDesign;
+  let details = [], localDetails = [];
   // Remote avatars share one draw for their solid cubes. The detached cubes
   // retain their transforms for the same limb, head and clothing animation.
   let batch = null, batchDirty = true, previousStance = null, previousPitch = null;
   const cubes = [], cubeMatrix = new THREE.Matrix4();
+  function makeBatch(capacity) {
+    batch?.removeFromParent();
+    batch?.dispose();
+    batch = new THREE.InstancedMesh(geometry, material(0xffffff, "blocks"), capacity);
+    batch.name = "avatar-blocks";
+    batch.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    batch.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 2);
+    body.add(batch);
+  }
   if (batchBlocks) {
     body.traverse((part) => {
       if (part.geometry === geometry && !flames.includes(part)) cubes.push({ part, parent: part.parent });
     });
-    batch = new THREE.InstancedMesh(geometry, material(0xffffff, "blocks"), cubes.length);
-    batch.name = "avatar-blocks";
-    batch.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    // The bounding volume includes every limb throughout its full gait.
-    batch.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 2);
     for (const { part } of cubes) part.removeFromParent();
-    body.add(batch);
+    makeBatch(cubes.length);
   }
-  function updateBatch() {
+  function updateBatch(distant) {
     head.updateMatrix();
     let count = 0;
     for (const { part, parent } of cubes) {
@@ -144,28 +149,78 @@ export function createBlockAvatar(THREE, { color = 0x367fab, identity = null, ba
       if (batchDirty) batch.setColorAt(count, part.material.color);
       count++;
     }
+    for (const detail of details) {
+      if (distant && detail.close) continue;
+      cubeMatrix.copy(detail.matrix);
+      if (detail.head) cubeMatrix.premultiply(head.matrix);
+      batch.setMatrixAt(count, cubeMatrix);
+      if (batchDirty) batch.setColorAt(count, detail.color);
+      count++;
+    }
     batch.count = count;
     batch.instanceMatrix.needsUpdate = true;
     if (batchDirty) batch.instanceColor.needsUpdate = true;
     batchDirty = false;
   }
-  function setIdentity(value) {
-    if (disposed) return;
-    appearance = avatarAppearance(value);
+  function clearLocalDetails() {
+    for (const mesh of localDetails) { mesh.removeFromParent(); mesh.dispose(); }
+    localDetails = [];
+  }
+  function applyAppearance() {
+    appearance = avatarAppearance(identity);
+    if (design) {
+      appearance.skin = avatarOptions.skinTone.find(([id]) => id === design.skinTone)?.[2] ?? appearance.skin;
+      appearance.hair = avatarOptions.hairColor.find(([id]) => id === design.hairColor)?.[2] ?? appearance.hair;
+    }
     face.material.color.set(appearance.skin);
     hair.material.color.set(appearance.hair);
     leftLeg.material.color.set(appearance.trousers);
     frontTrim.material.color.set(appearance.accent);
     hair.scale.set(...[[.45, .12, .45], [.25, .21, .45], [.45, .1, .33]][appearance.hairStyle]);
     hair.position.y = appearance.hairStyle === 1 ? .22 : .17;
-    hairSide.visible = appearance.hairStyle === 2;
+    hair.visible = !design || design.hairStyle === "classic";
+    hairSide.visible = hair.visible && appearance.hairStyle === 2;
+    for (const eye of eyes) eye.visible = !design || design.face === "classic";
     for (const trim of [frontTrim, backTrim]) {
+      trim.visible = !design || design.outfit === "classic";
       trim.scale.set(...[[.56, .12, .016], [.13, .59, .016], [.22, .22, .016]][appearance.pattern]);
       trim.position.x = appearance.pattern === 2 ? .12 : 0;
     }
+    details = design ? avatarDetailBlocks(design, appearance).map(detail => ({
+      head: detail.head, close: detail.close, color: new THREE.Color(detail.color),
+      matrix: new THREE.Matrix4().makeRotationZ(detail.angle)
+        .scale(new THREE.Vector3(...detail.size)).setPosition(...detail.position),
+    })) : [];
+    if (batchBlocks) {
+      const capacity = cubes.length + details.length;
+      if (capacity > batch.instanceMatrix.count) makeBatch(capacity);
+    } else {
+      clearLocalDetails();
+      for (const parent of [head, body]) {
+        const parts = details.filter(detail => detail.head === (parent === head));
+        if (!parts.length) continue;
+        const mesh = new THREE.InstancedMesh(geometry, material(0xffffff, "blocks"), parts.length);
+        mesh.name = "avatar-design-details";
+        parts.forEach(({ matrix, color }, index) => { mesh.setMatrixAt(index, matrix); mesh.setColorAt(index, color); });
+        parent.add(mesh); localDetails.push(mesh);
+      }
+    }
     batchDirty = true;
   }
-  setIdentity(identity);
+  function setIdentity(value) {
+    if (disposed || value === identity) return;
+    identity = value;
+    applyAppearance();
+  }
+  function setDesign(value) {
+    if (disposed || value === requestedDesign) return;
+    requestedDesign = value;
+    const next = avatarDesign(value);
+    if (avatarDesignFields.every(field => next?.[field] === design?.[field])) return;
+    design = next;
+    applyAppearance();
+  }
+  applyAppearance();
   // Body/rockets share a cube; shell, membrane and veins each share one geometry.
   torso.userData.avatarPart = true;
   group.visible = false;
@@ -186,6 +241,7 @@ export function createBlockAvatar(THREE, { color = 0x367fab, identity = null, ba
     const stance = distant ? "distant" : motion;
     if (batch && !batchDirty && (distant || motion === "idle") &&
         stance === previousStance && head.rotation.x === previousPitch) return;
+    if (distant !== (previousStance === "distant")) batchDirty = true;
     previousStance = stance;
     previousPitch = head.rotation.x;
     const airborne = !distant && (motion === "glide" || motion === "boost");
@@ -209,7 +265,7 @@ export function createBlockAvatar(THREE, { color = 0x367fab, identity = null, ba
     });
     for (const flame of flames) flame.visible = !distant && motion === "boost";
     if (holding) rightArm.rotation.x = Math.PI / 3;
-    if (batch) updateBatch();
+    if (batch) updateBatch(distant);
     else group.updateMatrixWorld(true);
   }
   function dispose() {
@@ -217,6 +273,7 @@ export function createBlockAvatar(THREE, { color = 0x367fab, identity = null, ba
     disposed = true;
     group.removeFromParent();
     batch?.dispose();
+    clearLocalDetails();
     for (const entry of geometries) entry.dispose();
     for (const entry of materials.values()) entry.dispose();
     group.visible = false;
@@ -227,9 +284,10 @@ export function createBlockAvatar(THREE, { color = 0x367fab, identity = null, ba
       batchDirty = true;
     }
   }
-  return { group, hand, update, setHolding, setColor, setIdentity, dispose,
+  return { group, hand, update, setHolding, setColor, setIdentity, setDesign, dispose,
     getState: () => ({ position: group.position.toArray(), yaw: group.rotation.y,
       pitch: head.rotation.x, visible: group.visible, disposed, holding, animation: motion,
       wingsOpen: motion === "glide" || motion === "boost", boosting: motion === "boost",
-      meshCount: batch ? 21 - cubes.length : 20, lineCount: 2, geometryCount: geometries.size, materialCount: materials.size, appearance: { ...appearance } }) };
+      meshCount: batch ? 21 - cubes.length : 20 + localDetails.length, lineCount: 2,
+      geometryCount: geometries.size, materialCount: materials.size, appearance: { ...appearance }, design: design && { ...design } }) };
 }

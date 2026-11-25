@@ -1,4 +1,5 @@
 import { avatarNickname } from "../src/avatar-label.js";
+import { avatarDesign } from "../src/avatar-design.js";
 import { avatarNameKey } from "./avatar-name-key.mjs";
 export const LIMITS = Object.freeze({
   participants: 31, classroomParticipants: 34, students: 30, stlBytes: 6 * 1024 * 1024,
@@ -103,6 +104,9 @@ export function publicAvatar(user) {
   if (avatarNickname(avatar.name) !== avatar.name || avatar.name.normalize('NFC') !== avatar.name ||
       (avatar.nameKey !== undefined && avatar.nameKey !== avatarNameKey(avatar.name))) avatar.namePending = true;
   delete avatar.nameKey;
+  const design = avatarDesign(avatar.design);
+  if (design) avatar.design = design;
+  else delete avatar.design;
   return { ...avatar, id: user.id, role: user.role };
 }
 export function requireAvatarName(user) {

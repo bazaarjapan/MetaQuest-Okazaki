@@ -8,7 +8,8 @@ import { newStudentPin, verifyStudentPassword } from "../worker/student-pin.mjs"
 import { randomToken, sha256 } from "../worker/school-common.mjs";
 import { CLASSROOM_ID } from "../worker/classroom-id.mjs";
 import { createUser, createSession, updateAvatar, first, createWorld, joinWorld, authorizeWorld, authorizeRoomSession, requestSession } from "../worker/school-store.mjs";
-const migrations = await Promise.all(["0001_school_worlds.sql","0002_single_classroom.sql","0003_unique_avatar_names.sql"].map(file=>readFile(new URL(`../migrations/${file}`,import.meta.url),"utf8")));
+import { avatarPresets } from "../src/avatar-design.js";
+const migrations = await Promise.all(["0001_school_worlds.sql","0002_single_classroom.sql","0003_unique_avatar_names.sql","0004_numbered_student_display_names.sql"].map(file=>readFile(new URL(`../migrations/${file}`,import.meta.url),"utf8")));
 const now=Math.floor(Date.now()/1000), origin="https://classroom.example";
 const pepper = randomToken();
 async function fixture(t) {
@@ -51,6 +52,8 @@ test("issuance is teacher-only, capped transactionally at 30, and stores no plai
   assert.equal(attempts.filter(row=>row.status==="fulfilled").length,1);
   assert.equal(attempts.find(row=>row.status==="fulfilled").value[0].loginId,"s30");
   assert.equal((await studentRoster(db,teacher)).length,30);
+  assert.deepEqual((await studentRoster(db,teacher)).map(({avatar})=>JSON.parse(avatar).name),
+    Array.from({length:30},(_,i)=>`生徒${String(i+1).padStart(2,"0")}`));
   assert.equal((await first(db,"SELECT COUNT(*) AS n FROM school_users WHERE role='student'")).n,31,"no orphan user after rolled back issuance");
   const persisted=(await db.prepare("SELECT * FROM school_student_credentials").bind().all()).results;
   assert.ok(persisted.every(row=>/^pin-hmac-sha256-v1\$[A-Za-z0-9_-]{43}$/.test(row.password_hash)));
@@ -75,22 +78,30 @@ test("both ID formats authenticate and a concurrent ID change invalidates the ol
   assert.equal(reset.loginId,"s01");
   assert.equal((await authenticateStudent(db,reset,now+3,"school",pepper)).user.id,issued.id);
 });
-test("first login requires a name; relogin retains identity, name and world; reset revokes old sessions",async t=>{
+test("numbered student directly enters; relogin retains identity, design and world; PIN reset revokes old sessions",async t=>{
   const {db,teacher}=await fixture(t);
   const [issued]=await issueStudents(db,teacher,{count:1},now,pepper);
-  const login=await authenticateStudent(db,issued,now,"test",pepper); assert.equal(login.user.namePending,true);
+  const login=await authenticateStudent(db,issued,now,"test",pepper);
+  assert.equal(login.user.name,"生徒01"); assert.equal(login.user.namePending,undefined);
   let user=await first(db,"SELECT * FROM school_users WHERE id=?",login.user.id);
-  await rejects(()=>enterClassroom(db,user,now),"name_required");
-  await rejects(()=>updateAvatar(db,user,{name:" "}),"name_required");
-  const updated=await updateAvatar(db,user,{name:"作品づくりさん"});assert.equal(updated.namePending,undefined);
+  assert.equal((await enterClassroom(db,user,now)).id,CLASSROOM_ID);
+  await rejects(()=>updateAvatar(db,user,{name:" "}),"invalid_name");
+  await rejects(()=>updateAvatar(db,teacher,{name:"生徒０１"}),"student_name_reserved");
+  const { design } = avatarPresets[1];
+  const [renamed,styled]=await Promise.all([updateAvatar(db,user,{name:"作品づくりさん"}),updateAvatar(db,user,{design})]);
+  assert.equal(renamed.name,"作品づくりさん"); assert.deepEqual(styled.design,design);
+  await rejects(()=>updateAvatar(db,user,{design:{...design,accessory:"alien"}}),"invalid_avatar_design");
+  await rejects(()=>updateAvatar(db,user,{design:{...design,role:"teacher"}}),"invalid_avatar_design");
   user=await first(db,"SELECT * FROM school_users WHERE id=?",user.id);
   assert.equal((await enterClassroom(db,user,now)).id,CLASSROOM_ID);
   const again=await authenticateStudent(db,issued,now,"test",pepper);assert.equal(again.user.id,user.id);assert.equal(again.user.name,"作品づくりさん");
+  assert.deepEqual(again.user.design,design);
   const replacement=await resetStudent(db,teacher,user.id,pepper);
   await rejects(()=>authenticateStudent(db,issued,now,"test",pepper),"invalid_student_login");
   const oldRequest=new Request(origin,{headers:{Cookie:`__Host-school-session=${login.token}`}});
   assert.equal(await requestSession(oldRequest,db,now,true),null);
-  assert.equal((await authenticateStudent(db,replacement,now,"test",pepper)).user.id,user.id);
+  assert.deepEqual((await authenticateStudent(db,replacement,now,"test",pepper)).user,again.user);
+  assert.equal((await updateAvatar(db,user,{design:null})).design,undefined);
   assert.ok(await first(db,"SELECT * FROM school_members WHERE user_id=?",user.id));
 });
 test("concurrent failed attempts lock only one credential across IPs; a correct PIN does not consume its budget",async t=>{
@@ -151,7 +162,7 @@ test("real API enforces Origin, challenge and CSRF before login; credentials ros
   assert.equal((await login(data.csrf)).status,401);
   const user=await good.json(), sessionCookie=good.headers.getSetCookie().find(v=>v.startsWith("__Host-school-session=")).split(";")[0];
   const roster=await worker.fetch(new Request(`${origin}/api/classroom/students`,{headers:{Cookie:sessionCookie}}),env);assert.equal(roster.status,403);
-  const enter=await worker.fetch(new Request(`${origin}/api/classroom/enter`,{method:"POST",headers:{Origin:origin,Cookie:sessionCookie,"X-CSRF-Token":user.csrf}}),env);assert.equal(enter.status,409);
+  const enter=await worker.fetch(new Request(`${origin}/api/classroom/enter`,{method:"POST",headers:{Origin:origin,Cookie:sessionCookie,"X-CSRF-Token":user.csrf}}),env);assert.equal(enter.status,200);
   assert.equal((await worker.fetch(new Request(`${origin}/api/config`),env).then(r=>r.json())).singleClassroom,true);
 });
 test("shared room prevents duplicate slot placement and permits teacher return without editing ownership",async()=>{
@@ -188,7 +199,7 @@ test("teachers and students share one atomic display-name namespace",async t=>{
   assert.equal(results.filter(r=>r.status==="fulfilled").length,1);
   assert.equal(results.find(r=>r.status==="rejected").reason.code,"name_taken");
   const winner=results.findIndex(r=>r.status==="fulfilled"),loser=1-winner;
-  assert.equal(JSON.parse((await first(db,"SELECT avatar_json FROM school_users WHERE id=?",users[loser].id)).avatar_json).namePending,true);
+  assert.equal(JSON.parse((await first(db,"SELECT avatar_json FROM school_users WHERE id=?",users[loser].id)).avatar_json).name,`生徒0${loser+1}`);
   await rejects(()=>updateAvatar(db,teacher,{name:"同じ名前"}),"name_taken");
   await updateAvatar(db,users[winner],{name:"Same Name"});
   await rejects(()=>updateAvatar(db,users[loser],{name:"  SAME NAME  "}),"name_taken");
@@ -310,4 +321,21 @@ test("migration retains earliest duplicate and preserves IDs, credentials, membe
   await updateAvatar(db,pending,{name:"重複解消"});
   assert.equal((await first(db,"SELECT id FROM school_users WHERE id=?",pending.id)).id,pending.id);
   assert.deepEqual(tables.map(table=>JSON.stringify(sql.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all())),before);
+});
+
+test("numbered-name migration assigns each issued seat across swaps and preserves a legacy teacher's conflicting name", async t=>{
+  const {db,sql,teacher}=await fixture(t);
+  const issued=await issueStudents(db,teacher,{count:3},now,pepper);
+  const setProfile=sql.prepare("UPDATE school_users SET avatar_json=? WHERE id=?");
+  const setName=(id,name)=>setProfile.run(JSON.stringify({name,nameKey:name,color:"#4a90e2"}),id);
+  setName(issued[0].id,"旧生徒"); setName(issued[1].id,"生徒01"); setName(issued[0].id,"生徒02");
+  setName(issued[2].id,"空色の生徒"); setName(teacher.id,"生徒03");
+  const credentials=sql.prepare("SELECT * FROM school_student_credentials ORDER BY slot");
+  const before=credentials.all();
+  sql.exec(migrations[3]);
+  assert.deepEqual(credentials.all(),before);
+  const profiles=issued.map(({id})=>JSON.parse(sql.prepare("SELECT avatar_json FROM school_users WHERE id=?").get(id).avatar_json));
+  assert.deepEqual(profiles.map(p=>p.name),["生徒01","生徒02","生徒03"]);
+  assert.deepEqual(profiles.map(p=>p.namePending),[undefined,undefined,true]);
+  assert.equal(JSON.parse(sql.prepare("SELECT avatar_json FROM school_users WHERE id=?").get(teacher.id).avatar_json).name,"生徒03");
 });

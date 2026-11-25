@@ -1,0 +1,48 @@
+#open-avatar { color: #15534a; border-color: #75a99b; background: #e4f2ec; }
+#open-avatar:hover:not(:disabled) { background: #d2eadf; }
+#avatar-dialog { width: min(1024px, calc(100% - 32px)); max-width: none; max-height: calc(100dvh - 32px); padding: 0; overflow: hidden; background: #f9fbfa; color: #183746; }
+#avatar-form { display: flex; flex-direction: column; max-height: calc(100dvh - 32px); }
+.avatar-heading, .avatar-footer { display: flex; align-items: center; justify-content: space-between; flex: none; gap: 12px; padding: 14px 24px; }
+.avatar-heading { border-bottom: 1px solid #dbe9e4; background: #fff; }
+.avatar-heading #avatar-title { margin: 0; font-size: clamp(19px, 2.4vw, 25px); letter-spacing: .025em; }
+.avatar-layout { overflow-y: auto; display: grid; grid-template-columns: minmax(210px, 29%) minmax(0, 1fr); gap: 24px; padding: 22px 24px; }
+.avatar-identity { min-width: 0; align-self: start; display: grid; gap: 14px; }
+.avatar-stage { position: relative; min-width: 0; display: grid; place-items: center; overflow: hidden; border-radius: 14px; background: radial-gradient(ellipse at 52% 37%, #426d65, #183d42 72%); border: 1px solid #315c56; }
+#avatar-preview { display: block; width: 100%; height: auto; aspect-ratio: 272 / 296; }
+#avatar-preview-name { position: absolute; top: 8px; max-width: calc(100% - 16px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: #193b43; color: #fff; border-radius: 6px; padding: 4px 8px; font-size: 12px; font-weight: 700; }
+#avatar-turn { position: absolute; right: 8px; bottom: 8px; min-height: 34px; padding: 5px 10px; color: #f5fffb; border-color: #96c6b9; background: #193e3e; font-size: 12px; }
+#avatar-turn:hover { background: #2d6460; }
+.avatar-field { min-width: 0; display: grid; gap: 4px; font-size: 13px; }
+.avatar-field strong { font-weight: 700; }
+.avatar-field small { color: #45636a; font-size: 11px; }
+.avatar-field :is(input, select) { width: 100%; min-width: 0; min-height: 40px; font: inherit; color: inherit; background: #fff; border: 1px solid #a9c4bf; border-radius: 8px; padding: 6px 9px; }
+.avatar-field input[type=color] { cursor: pointer; padding: 4px 9px; }
+#avatar-fields { border: 0; min-width: 0; margin: 0; padding: 0; }
+#avatar-fields legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+#avatar-fields h3 { margin: 0 0 8px; font-size: 15px; }
+#avatar-presets { display: grid; grid-template-columns: repeat(6, minmax(0,1fr)); gap: 7px; }
+.avatar-preset { display: grid; justify-items: center; align-content: start; gap: 3px; min-width: 0; border-color: #c5d8d2; padding: 4px 2px 6px; font-size: 11px; line-height: 1.2; background: #fff; }
+.avatar-preset[aria-pressed=true] { background: #e3f6ec; border-color: #18735d; box-shadow: inset 0 0 0 1px #18735d; }
+.avatar-preset canvas { width: 100%; max-width: 68px; height: 61px; object-fit: contain; background: #e5efeb; border-radius: 6px; }
+.avatar-detail-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 15px 0 5px; }
+#avatar-fields .avatar-detail-heading h3 { margin: 0; }
+#avatar-standard { min-height: 32px; padding: 4px 8px; font-size: 11px; }
+#avatar-parts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
+.avatar-footer { min-height: 67px; border-top: 1px solid #dbe9e4; background: #fff; }
+#avatar-status { margin: 0; font-size: 13px; color: #15534a; }
+#avatar-status[data-error=true] { color: #a32832; }
+#avatar-save { background: #176457; border-color: #176457; color: #fff; white-space: nowrap; min-height: 42px; }
+#avatar-save:hover:not(:disabled) { background: #0d5145; }
+@media (max-width: 740px) {
+  .avatar-layout { gap: 14px; padding: 14px; }
+  #avatar-presets { grid-template-columns: repeat(4, minmax(0,1fr)); }
+}
+@media (max-width: 600px) {
+  #avatar-dialog { width: calc(100% - 14px); max-height: calc(100dvh - 14px); }
+  #avatar-form { max-height: calc(100dvh - 14px); }
+  .avatar-heading, .avatar-footer { padding: 10px 12px; }
+  .avatar-layout { grid-template-columns: minmax(0,1fr); }
+  .avatar-identity { grid-template-columns: minmax(0, .8fr) minmax(0, 1fr); align-items: center; }
+  #avatar-preview { max-height: 160px; object-fit: contain; }
+  #avatar-parts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

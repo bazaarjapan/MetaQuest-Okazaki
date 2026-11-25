@@ -46,8 +46,8 @@ try{
  check('quick logout works while management automatically fetches roster',await evaluate("document.querySelector('#login-gate [data-login-role=teacher]').textContent.includes('先生の入り口')"));
  if(await evaluate("document.querySelector('#school-dialog').open"))await browser('click','#school-close');
  await browser('click','#login-gate [data-login-role=student]');await browser('fill','#student-login-id',credentials[0]);await browser('fill','#student-password',credentials[1]);await browser('click','#student-login-panel button');
- await until("document.querySelector('#school-avatar-name')");await browser('fill','#school-avatar-name','自動保存確認生徒');await browser('click','#school-avatar-save');await until('window.__okazaki.getState().activityAllowed');await browser('click','#school-close');
- check('student enters with ID password and first nickname only',await evaluate("window.__okazaki.getState().school.user.role==='student'"));
+ await until("window.__okazaki.getState().activityAllowed&&!document.querySelector('#school-dialog').open");
+ check('student enters with just ID and PIN and a numbered name',await evaluate("window.__okazaki.getState().school.user.name==='生徒01'"));
  await browser('upload','#stl-hotbar input[type=file]',f.cubeFile);await until('window.__okazaki.getState().workshop.current&&!window.__okazaki.getState().hotbar.pending');
  await browser('click','#simple-menu');await browser('click','#open-workshop');await browser('click','#workshop-transform summary');
  for(const [id,value] of [['object-scale',1],['object-x',f.cube.groundPositions[0].position[0]],['object-z',f.cube.groundPositions[0].position[2]]])await evaluate(`(()=>{const e=document.getElementById('${id}');e.value=${JSON.stringify(String(value))};e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));return true;})()`);

@@ -14,6 +14,7 @@ import { build } from "esbuild";
 import { Log, LogLevel, Miniflare, convertV4MiniflareOptions } from "miniflare";
 import WebSocket from "ws";
 import { createSchoolClient } from "../src/school-client.js";
+import { avatarPresets } from "../src/avatar-design.js";
 import { CORE_SOURCE_HASHES, loadCorePlacement } from "../worker/placement-source.mjs";
 import { LIMITS } from "../worker/school-common.mjs";
 import { normalizeSTLPositions, parseSTL } from "../src/stl-model.js";
@@ -200,6 +201,8 @@ try {
   for (const sql of addition.split(";").map(part=>part.trim()).filter(Boolean)) await db.prepare(sql).run();
   const names = await readFile(new URL("../migrations/0003_unique_avatar_names.sql", import.meta.url), "utf8");
   for (const sql of names.split(";").map(part=>part.trim()).filter(Boolean)) await db.prepare(sql).run();
+  const numbered = await readFile(new URL("../migrations/0004_numbered_student_display_names.sql", import.meta.url), "utf8");
+  for (const sql of numbered.split(";").map(part=>part.trim()).filter(Boolean)) await db.prepare(sql).run();
   const teacher = await seedPerson(db, "teacher", 0), students = [];
   for (let i = 0; i < LIMITS.students; i++) students.push(await seedPerson(db, "student", i + 1));
   const extra = await seedPerson(db, "student", 31);
@@ -418,7 +421,7 @@ try {
     await expectError(`/api/worlds/${world.id}/state`, victim, null, 401, "login_required");
     assert.equal((await expectJson(`/api/worlds/${world.id}/state`, teacher, null)).participants.length, 30);
   });
-  await check("single classroom: issue 30 IDs, real password login, required nickname, automatic membership and 34 live sockets", async () => {
+  await check("single classroom: 30 numbered names, real login, live avatar editing and 34 sockets", async () => {
     const issued = (await expectJson("/api/classroom/students", teacher, { count: 30 }, 201)).credentials;
     await expectError("/api/classroom/students", teacher, { count: 1 }, 409, "class_full");
     const shared = (await expectJson("/api/classroom/enter", teacher, {})).world;
@@ -427,10 +430,9 @@ try {
       const challengeResponse = await fetchApi("/api/session");
       const challenge = await challengeResponse.json(), cookie = challengeResponse.headers.get("Set-Cookie").split(";")[0];
       const response = await fetchApi("/api/auth/student", null, { ...entry, csrf: challenge.csrf }, { headers:{Cookie:cookie} });
-      assert.equal(response.status,200); const result = await response.json(); assert.equal(result.user.namePending,true);
+      assert.equal(response.status,200); const result = await response.json();
+      assert.equal(result.user.namePending, undefined); assert.equal(result.user.name, `生徒${String(index + 1).padStart(2, "0")}`);
       const person={id:result.user.id,csrf:result.csrf,cookie:response.headers.getSetCookie().find(value=>value.startsWith("__Host-school-session=")).split(";")[0]};
-      await expectError("/api/classroom/enter",person,{},409,"name_required");
-      await expectJson("/api/avatar",person,{name:`ID student ${index+1}`},200,{method:"PATCH"});
       assert.equal((await expectJson("/api/classroom/enter",person,{})).world.id,shared.id);
       return person;
     }));
@@ -440,6 +442,16 @@ try {
     const snapshot=await expectJson(`/api/worlds/${shared.id}/state`,teacher,null);
     assert.equal(snapshot.participants.length,34);
     assert.equal(snapshot.participants.filter(person=>person.role==="student").length,30);
+    const { design, color } = avatarPresets[3], observer = connections[0].probe;
+    const from = observer.messages.length;
+    await expectJson("/api/avatar", logins[0], { name: "ID student 1", color, design }, 200, { method: "PATCH" });
+    const roster = await observer.wait(message => message.type === "participants" &&
+      message.participants.some(person => person.id === logins[0].id && person.name === "ID student 1"), "live avatar change", from);
+    assert.deepEqual(roster.participants.find(person => person.id === logins[0].id).design, design);
+    const beforePose = observer.messages.length, player = connections[4].probe;
+    player.send({ type: "pose", position: [10, 40, 10], yaw: 0, seq: 0, restoreCommit: null });
+    const peerPose = await observer.wait(message => message.type === "pose" && message.participant.id === logins[0].id, "pose after avatar change", beforePose);
+    assert.equal(peerPose.participant.design, undefined);
     await expectError("/api/avatar",logins[0],{name:teacher.avatar.name},409,"name_taken",{method:"PATCH"});
     await expectError("/api/avatar",teacher,{name:"ID student 1"},409,"name_taken",{method:"PATCH"});
     const upload=await mf.dispatchFetch(`${origin}/api/worlds/${shared.id}/assets`,{method:"POST",headers:{Origin:origin,
@@ -455,6 +467,7 @@ try {
       {headers:{Cookie:challengeResponse.headers.get("Set-Cookie").split(";")[0]}});
     assert.equal(relogin.status,200);const result=await relogin.json();
     assert.equal(result.user.id,issued[0].id);assert.equal(result.user.name,"ID student 1");assert.equal(result.user.namePending,undefined);
+    assert.deepEqual(result.user.design, design);
     logins[0]={id:result.user.id,csrf:result.csrf,cookie:relogin.headers.getSetCookie().find(v=>v.startsWith("__Host-school-session=")).split(";")[0]};
     await expectJson("/api/classroom/enter",logins[0],{});
     const resumed=await connect(shared.id,logins[0]);connections.push(resumed);

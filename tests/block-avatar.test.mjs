@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as THREE from "three";
 import { createBlockAvatar } from "../src/block-avatar.js";
+import { avatarPresets } from "../src/avatar-design.js";
 
 test('animated leg corners never cross the foot plane',()=>{
   const avatar=createBlockAvatar(THREE);
@@ -63,6 +64,26 @@ test("remote instancing preserves detailed cube transforms and per-part colors t
     }
   }
   avatar.dispose(); remote.dispose();
+});
+
+test("custom avatars retain a single solid batch with cheaper distant variants and reversible defaults", () => {
+  const avatar = createBlockAvatar(THREE, { identity: "seat-one", batchBlocks: true });
+  avatar.update();
+  const original = avatar.group.getObjectByName("avatar-blocks").count;
+  const { design } = avatarPresets.find(preset => preset.design.accessory === "glasses");
+  avatar.setDesign(design);
+  avatar.update({ animation: "run", time: .1 });
+  const batch = avatar.group.getObjectByName("avatar-blocks"), nearCount = batch.count;
+  assert.ok(nearCount > original);
+  assert.deepEqual(avatar.getState().design, design);
+  avatar.update({ distant: true });
+  assert.ok(batch.count < nearCount);
+  avatar.update({ animation: "run", time: .1 });
+  assert.equal(batch.count, nearCount);
+  avatar.setDesign(null); avatar.update();
+  assert.equal(batch.count, original);
+  assert.equal(avatar.getState().design, null);
+  avatar.dispose();
 });
 
 test("invalid avatar coordinates do not corrupt pose; getState is an independent snapshot", () => {

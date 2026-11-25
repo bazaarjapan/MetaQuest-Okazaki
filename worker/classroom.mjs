@@ -37,16 +37,22 @@ export async function issueStudents(db, user, value, now, pepper) {
   if (!Number.isInteger(count) || count < 1 || count > 30) fail(400, "invalid_student_count");
   // One D1 batch transaction: concurrent teachers cannot issue beyond 30.
   const statements = [], results = [], issuedPins = new Set();
+  const nextSlot = "SELECT COALESCE(MAX(slot),0)+1 FROM school_student_credentials";
   for (let i=0; i<count; i++) {
     const id = crypto.randomUUID();
     let key;
     do { key = await newStudentPin(pepper); } while (issuedPins.has(key.password));
     issuedPins.add(key.password);
-    statements.push(db.prepare(`INSERT INTO school_users(id,google_sub,role,avatar_json,created_at) VALUES(?,?,'student',?,?)`)
-      .bind(id, `classroom:${id}`, JSON.stringify({ name: "名前未登録", color: "#4a90e2", namePending: true }), now));
+    statements.push(db.prepare(`INSERT INTO school_users(id,google_sub,role,avatar_json,created_at)
+      SELECT ?,?,'student',CASE WHEN EXISTS (
+        SELECT 1 FROM school_users WHERE COALESCE(json_extract(avatar_json,'$.namePending'),0)=0
+        AND COALESCE(json_extract(avatar_json,'$.nameKey'),lower(trim(json_extract(avatar_json,'$.name'))))=display_name
+      ) THEN json_object('name',display_name,'nameKey',display_name,'color','#4a90e2','namePending',json('true'),'nameConflict',json('true'))
+      ELSE json_object('name',display_name,'nameKey',display_name,'color','#4a90e2') END,?
+      FROM (SELECT printf('生徒%02d',(${nextSlot})) AS display_name)`).bind(id, `classroom:${id}`, now));
     statements.push(db.prepare(`INSERT INTO school_student_credentials(slot,user_id,login_id,salt,password_hash,created_at)
       SELECT next_slot,?,printf('s%02d',next_slot),?,?,? FROM
-        (SELECT COALESCE(MAX(slot),0)+1 AS next_slot FROM school_student_credentials)`).bind(id,key.salt,key.hash,now));
+        (SELECT (${nextSlot}) AS next_slot)`).bind(id,key.salt,key.hash,now));
     results.push({ id, password: key.password });
   }
   try { await db.batch(statements); }
