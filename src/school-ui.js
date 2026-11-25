@@ -203,7 +203,7 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
     if (state.singleClassroom) {
       const form = element("form", undefined, "school-section");
       form.id = "student-login-panel"; form.setAttribute("role", "tabpanel"); form.setAttribute("aria-labelledby", "student-login-tab"); studentPanel = form;
-      const id = inputField("ID", { id: "student-login-id", maxLength: 40 }); id.input.autocomplete = "username"; id.input.required = true; id.input.spellcheck = false; id.input.autocapitalize = "none";
+      const id = inputField("ID", { id: "student-login-id", maxLength: 40 }); id.input.autocomplete = "username"; id.input.required = true; id.input.spellcheck = false; id.input.autocapitalize = "none"; id.input.placeholder = "例：s01";
       const password = inputField("パスワード（数字4桁）", { id: "student-password", type: "password", maxLength: 24 });
       password.input.autocomplete = "current-password";
       password.input.inputMode = "numeric";
