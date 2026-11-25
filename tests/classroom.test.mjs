@@ -43,16 +43,37 @@ test("issuance is teacher-only, capped transactionally at 30, and stores no plai
   const student=await createUser(db,{sub:"google-student"},"student",now);
   await rejects(()=>issueStudents(db,student,{count:1},now,pepper),"teacher_required");
   const result=await issueStudents(db,teacher,{count:29},now,pepper);
-  assert.equal(result.length,29);assert.equal(new Set(result.map(row=>row.password)).size,29);
+  assert.equal(result.length,29);
+  assert.deepEqual(result.map(row=>row.loginId),Array.from({length:29},(_,i)=>"s"+String(i+1).padStart(2,"0")));
+ assert.equal(new Set(result.map(row=>row.password)).size,29);
   assert.ok(result.every(row=>/^[0-9]{4}$/.test(row.password)));
   const attempts=await Promise.allSettled([issueStudents(db,teacher,{count:1},now,pepper),issueStudents(db,teacher,{count:1},now,pepper)]);
   assert.equal(attempts.filter(row=>row.status==="fulfilled").length,1);
+  assert.equal(attempts.find(row=>row.status==="fulfilled").value[0].loginId,"s30");
   assert.equal((await studentRoster(db,teacher)).length,30);
   assert.equal((await first(db,"SELECT COUNT(*) AS n FROM school_users WHERE role='student'")).n,31,"no orphan user after rolled back issuance");
   const persisted=(await db.prepare("SELECT * FROM school_student_credentials").bind().all()).results;
   assert.ok(persisted.every(row=>/^pin-hmac-sha256-v1\$[A-Za-z0-9_-]{43}$/.test(row.password_hash)));
   assert.equal(new Set(persisted.map(row=>row.salt)).size,30);
   await rejects(()=>enterClassroom(db,student,now),"student_id_required");
+});
+test("both ID formats authenticate and a concurrent ID change invalidates the old login",async t=>{
+  const {db,teacher}=await fixture(t);
+  const [issued]=await issueStudents(db,teacher,{count:1},now,pepper);
+  const legacy={...issued,loginId:"s-abcdefghij"};
+  const change=id=>db.prepare("UPDATE school_student_credentials SET login_id=? WHERE user_id=?").bind(id,issued.id).run();
+  await change(legacy.loginId);
+  const before=await authenticateStudent(db,legacy,now,"school",pepper);
+  await rejects(()=>authenticateStudent(db,legacy,now+1,"school",pepper,()=>change(issued.loginId)),"invalid_student_login");
+  await rejects(()=>authenticateStudent(db,legacy,now+2,"school",pepper),"invalid_student_login");
+  for (const loginId of ["s00","s1","s31","s001"]) {
+    await rejects(()=>authenticateStudent(db,{...issued,loginId},now+2,"school",pepper),"invalid_student_login");
+  }
+  const after=await authenticateStudent(db,{...issued,loginId:"S01"},now+2,"school",pepper);
+  assert.equal(before.user.id,after.user.id);
+  const reset=await resetStudent(db,teacher,issued.id,pepper);
+  assert.equal(reset.loginId,"s01");
+  assert.equal((await authenticateStudent(db,reset,now+3,"school",pepper)).user.id,issued.id);
 });
 test("first login requires a name; relogin retains identity, name and world; reset revokes old sessions",async t=>{
   const {db,teacher}=await fixture(t);
