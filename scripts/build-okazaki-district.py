@@ -1,4 +1,4 @@
-"""Generate the editable 1 km Okazaki district and the game's sixteen GLBs using Blender 5.x.
+"""Generate the editable 2 km Okazaki district and the game's 64 GLBs using Blender 5.x.
 
 blender -b --factory-startup --python-exit-code 1 -P scripts/build-okazaki-district.py -- --rebuild
 blender -b --factory-startup --python-exit-code 1 -P scripts/build-okazaki-district.py -- --export-edited
@@ -24,6 +24,7 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, str(ROOT / "scripts/lib"))
 from district_survey import read_roofs, overlaps
 from district_gltf import pack_glb
+from district_surfaces import CERAMIC, GLASS, MEMBRANE, METAL, PLAIN, WALL, finish, make_material, weathering_map
 
 parser = argparse.ArgumentParser(description=__doc__)
 mode = parser.add_mutually_exclusive_group()
@@ -35,7 +36,7 @@ args = parser.parse_args(sys.argv[sys.argv.index("--") + 1 :] if "--" in sys.arg
 station = json.loads((ROOT / "public/city/manifest.json").read_text(encoding="utf8"))["station"]
 cx, cy, cz = station
 size = 250
-side = 4
+side = 8
 west, north = cx - size * side / 2, cz - size * side / 2
 bounds = [west, north, west + side * size, north + side * size]
 # Minimum measured X/Z and roof altitude identify the existing station
@@ -58,11 +59,13 @@ station_roofs = [
 
 # Restrained steel, clay and blue-grey roofs; bays use darker reveals with
 # pale frames that remain legible at classroom viewport resolutions.
-slates = ["525D68", "697780", "727F7E", "555B62", "696869", "805F56", "717D88", "5F6C70"]
-sheet = ["869C9D", "9CA5A1", "738B94", "8797A5", "ABABA4"]
-walls = ["ECE4D5", "D5D8CD", "E7D5BD", "C5D2CC", "DDD6C6", "E3D5C9"]
-feature = ["966D58", "71908B", "A69A72", "73889A", "AF8064"]
-glasses = ["6B8592", "688493", "738C97", "79969D"]
+slates = ["565B5D", "6C6F6C", "687274", "4B5459", "77746D", "775F55", "5D676C", "575855"]
+sheet = ["767E7F", "7E8885", "56686E", "67808A", "777B6B"]
+membranes = ["A2A5A0", "8C928E", "99928A", "969FA2", "B0ADA0"]
+walls = ["DED5C7", "C9C9BE", "E1D3BC", "C2C8C1", "D5CABE", "D8CEC6"]
+features = ["886C58", "637D75", "8B836C", "657982", "927565"]
+glasses = ["51636C", "495E69", "677A82", "54666B"]
+plain = finish(PLAIN)
 
 
 def clip(poly, distance):
@@ -129,14 +132,17 @@ class Cell:
             west + (col + 1) * size,
             north + (row + 1) * size,
         ]
+        self.center_x = west + (col + 0.5) * size
+        self.center_z = north + (row + 0.5) * size
         self.vertices = []
         self.vertex_ids = {}
         self.faces = []
         self.colors = []
+        self.finishes = []
         self.roofs = set()
         self.sources = set()
 
-    def face(self, poly, color, patch):
+    def face(self, poly, color, surface, patch):
         # Clip each overlay to its physical cell, including at the outer edge.
         x0, z0, x1, z1 = self.bounds
         for axis, low, high in ((0, x0, x1), (2, z0, z1)):
@@ -150,7 +156,7 @@ class Cell:
                 return
         ids = []
         for x, y, z in poly:
-            key = (round(x - cx, 5), round(cz - z, 5), round(y - cy, 5))
+            key = (round(x - self.center_x, 5), round(self.center_z - z, 5), round(y - cy, 5))
             i = self.vertex_ids.get(key)
             if i is None:
                 i = len(self.vertices)
@@ -162,6 +168,7 @@ class Cell:
             return
         self.faces.append(ids)
         self.colors.append(color)
+        self.finishes.append(surface)
         self.roofs.add(patch[0])
         self.sources.update(patch[1])
 
@@ -175,11 +182,14 @@ class Cell:
         indices = np.repeat(np.arange(len(self.faces)), [len(f) for f in self.faces])
         color.data.foreach_set("color_srgb", colors[indices].ravel())
         mesh.color_attributes.active_color = color
+        uv = mesh.uv_layers.new(name="Finish", do_init=False)
+        uv.uv.foreach_set("vector", np.array(self.finishes, dtype="f4")[indices].ravel())
         mesh.validate()
         mesh.update()
         mesh.materials.append(material)
         obj = bpy.data.objects.new(self.id, mesh)
         bpy.context.collection.objects.link(obj)
+        obj.location = (self.center_x - cx, cz - self.center_z, 0)
         obj["sourceRoofs"] = len(self.roofs)
         obj["sourceFiles"] = json.dumps(sorted(self.sources))
         return obj
@@ -190,7 +200,7 @@ class District:
         self.tiles = [[Cell(r, c) for c in range(side)] for r in range(side)]
         self.patch = None
 
-    def face(self, poly, color):
+    def face(self, poly, color, surface=plain):
         x, z = [p[0] for p in poly], [p[2] for p in poly]
         cs = range(
             max(0, math.floor((min(x) - west) / size)), min(side - 1, math.floor((max(x) - west) / size)) + 1
@@ -201,7 +211,7 @@ class District:
         )
         for r in rs:
             for c in cs:
-                self.tiles[r][c].face(poly, color, self.patch)
+                self.tiles[r][c].face(poly, color, surface, self.patch)
 
 
 def frontage_index():
@@ -244,10 +254,10 @@ def facade(d, pts, edges, ground, style, seed, streets):
                 continue
             score = max(0, dist - width / 2) + 8 * (1 - (vx * nx + vz * nz) / dist) - min(length, 30) * 0.14
             if best is None or score < best[0]:
-                best = (score, a, b, length)
+                best = (score, a, b, length, dist - width / 2)
     if best is None:
         return False
-    _, a, b, length = best
+    _, a, b, length, clearance = best
     top = min(a[1], b[1]) - 0.22
     height = top - ground
     if height < 2.05:
@@ -255,65 +265,72 @@ def facade(d, pts, edges, ground, style, seed, streets):
     ux, uz = (b[0] - a[0]) / length, (b[2] - a[2]) / length
     nx, nz = -uz, ux
 
-    def band(left, right, low, high, offset, color):
+    plaster, glass = finish(WALL, (ux, uz)), finish(GLASS, (ux, uz))
+
+    def point(u, y, offset):
+        return (a[0] + u * ux + offset * nx, y, a[2] + u * uz + offset * nz)
+
+    def band(left, right, low, high, offset, color, surface=plain):
         if right - left < 0.04 or high - low < 0.04:
             return
+        d.face([
+            point(left, low, offset), point(right, low, offset),
+            point(right, high, offset), point(left, high, offset),
+        ], color, surface)
 
-        def p(u, y):
-            return (a[0] + u * ux + offset * nx, y, a[2] + u * uz + offset * nz)
-
-        d.face([p(left, low), p(right, low), p(right, high), p(left, high)], color)
+    def ledge(left, right, height_y, depth, color):
+        d.face([
+            point(left, height_y, 0.06), point(left, height_y, depth),
+            point(right, height_y, depth), point(right, height_y, 0.06),
+        ], color)
+        band(left, right, height_y - 0.075, height_y, depth, color)
 
     margin = min(0.48, length * 0.10)
-    band(margin, length - margin, ground + 0.18, top, 0.035, walls[seed % len(walls)])
+    band(margin, length - margin, ground + 0.18, ground + 0.52, 0.038, "8F9189", plaster)
+    band(margin, length - margin, ground + 0.52, top, 0.056, walls[seed % len(walls)], plaster)
+    trim = features[seed % len(features)]
     if style in ("terrace", "sheet"):
-        floors = max(1, min(5, int(height / 3.05)))
+        floors = max(1, min(16, int(height / 3.06)))
+        rise = height / floors
+        bays = min(10, max(1, int((length - 2 * margin) / 2.75)))
+        slot = (length - 2 * margin) / bays
         for level in range(floors):
-            y = top - (level + 1) * min(3.15, height / floors) + 0.75
-            band(
-                margin + 0.12,
-                length - margin - 0.12,
-                y,
-                y + min(1.55, height / floors - 0.92),
-                0.065,
-                "445B65",
-            )
-            bays = min(10, max(2, int(length / 3.8)))
+            floor = ground + level * rise
+            shop = level == 0 and length >= 8 and rise >= 2.65
+            low = floor + (0.50 if shop else 0.84)
+            high = min(floor + (2.34 if shop else 2.37), floor + rise - 0.32)
+            band(margin+0.10, length-margin-0.10, low, high, 0.082, "515755")
             for k in range(bays):
-                x = margin + (length - 2 * margin) * k / bays
-                band(
-                    x + 0.12,
-                    x + (length - 2 * margin) / bays - 0.10,
-                    y + 0.13,
-                    y + min(1.38, height / floors - 1),
-                    0.083,
-                    glasses[(seed + k) % 4],
-                )
-            band(margin, length - margin, y - 0.11, y + 0.05, 0.11, "A6B3B1")
-        band(margin, length - margin, top - 0.21, top, 0.09, feature[seed % 5])
+                left = margin + slot * k + 0.20
+                band(left, left + slot - 0.36, low + 0.08, high - 0.08, 0.109,
+                     glasses[(seed + k + level) % len(glasses)], glass)
+            band(margin, length-margin, low - 0.07, low + 0.015, 0.137, "A6ACA5")
+            if shop and clearance > 0.9:
+                ledge(margin + slot * 0.4, length - margin - slot * 0.35, high + 0.24, 0.56, trim)
+        band(margin, length - margin, top - 0.22, top, 0.10, trim)
     else:
         bays = min(4, max(1, round((length - 2 * margin) / 3.0)))
-        for k in range(bays):
-            slot = (length - 2 * margin) / bays
-            center = margin + slot * (k + 0.5)
-            w = min(1.32, slot * 0.60)
-            low = top - min(1.75, height - 0.47)
-            high = top - 0.37
-            band(center - w / 2, center + w / 2, low, high, 0.061, "435A65")
-            band(
-                center - w / 2 + 0.075,
-                center + w / 2 - 0.07,
-                low + 0.12,
-                high - 0.07,
-                0.082,
-                glasses[(seed + k) % 4],
-            )
-            band(center - w / 2 - 0.065, center + w / 2 + 0.065, low - 0.08, low + 0.04, 0.12, "A5B2AF")
-        if height > 4.8:
-            x = margin + (length - 2 * margin) * (0.25 if seed % 2 else 0.75)
-            band(x - 0.53, x + 0.53, ground + 0.20, ground + 2.25, 0.068, feature[seed % 5])
-            band(x - 0.46, x + 0.46, ground + 0.33, ground + 2.06, 0.089, "5D5852")
-        band(margin, length - margin, top - 0.15, top, 0.09, feature[seed % 5])
+        slot = (length - 2 * margin) / bays
+        floors = 2 if height >= 5.55 else 1
+        door = seed % bays if bays > 1 and height >= 2.75 else -1
+        for level in range(floors):
+            floor = ground + level * height / floors
+            high = min(floor + 2.27, ground + (level + 1) * height / floors - 0.32)
+            for k in range(bays):
+                x = margin + slot * (k + 0.5)
+                if k == door and level == 0:
+                    band(x - 0.52, x + 0.52, ground + 0.23, high + 0.09, 0.102, trim)
+                    band(x - 0.43, x + 0.43, ground + 0.33, high, 0.126, "615950")
+                    if clearance > 0.7:
+                        ledge(x - 0.64, x + 0.64, high + 0.22, 0.38, trim)
+                    continue
+                half = min(0.74, slot * 0.33)
+                low = floor + 0.86
+                band(x - half, x + half, low, high, 0.085, "4A5658")
+                band(x - half + 0.085, x + half - 0.085, low + 0.10, high - 0.083, 0.111,
+                     glasses[(seed + k + level) % len(glasses)], glass)
+                ledge(x - half - 0.06, x + half + 0.06, low + 0.025, 0.18, "A6ACA5")
+        band(margin, length - margin, top - 0.15, top, 0.10, trim)
     return True
 
 
@@ -342,9 +359,13 @@ def roof_patch(d, data, seed, streets):
         style = "sheet"
     else:
         style = "terrace"
-    tone = (slates if style in ("hip", "gable", "measured") else sheet)[
-        seed % len(slates if style in ("hip", "gable", "measured") else sheet)
-    ]
+    if style == "terrace":
+        palette, roof_finish = membranes, finish(MEMBRANE, u)
+    elif style == "sheet" or seed % 5 == 1:
+        palette, roof_finish = sheet, finish(METAL, u)
+    else:
+        palette, roof_finish = slates, finish(CERAMIC, u)
+    tone = palette[seed % len(palette)]
     # Roof pitch is a decorative inference, confined to the measured footprint.
     # Clipping each source triangle to the roof planes preserves holes, setbacks
     # and concavities, including irregular low house footprints.
@@ -373,7 +394,7 @@ def roof_patch(d, data, seed, streets):
                     if not poly:
                         break
                 if len(poly) >= 3:
-                    d.face([world(p, hi[1] + 0.13 + altitude(p, plane)) for p in poly], tone)
+                    d.face([world(p, hi[1] + 0.13 + altitude(p, plane)) for p in poly], tone, roof_finish)
         for a, b in edges:
             qa, qb = q[a], q[b]
             # Subdivide boundary at each plane switch so gable ends fully close.
@@ -393,7 +414,7 @@ def roof_patch(d, data, seed, streets):
                 )
     else:
         for face in tri:
-            d.face([(x, y + 0.105, z) for x, y, z in face], tone)
+            d.face([(x, y + 0.105, z) for x, y, z in face], tone, roof_finish)
         # Crest of a roof is a narrow raised rim, kept inside the actual roof.
         for a, b in edges:
             p, r = pts[a], pts[b]
@@ -401,7 +422,7 @@ def roof_patch(d, data, seed, streets):
             dist = math.hypot(dx, dz)
             if dist < 0.3:
                 continue
-            lift = 0.12 if style == "measured" else 0.27
+            lift = 0.12 if style == "measured" else 0.34 if style == "terrace" else 0.20
             # Use the exact adjacent roof vertex to keep the rim inside concave corners.
             key = next(i for i in triangles if a in i and b in i)
             third = pts[next(i for i in key if i not in (a, b))]
@@ -474,14 +495,10 @@ def add_survey_reference(references, material):
 
 def create_source():
     bpy.ops.wm.read_factory_settings(use_empty=True)
-    material = bpy.data.materials.new("Okazaki neighbourhood paint")
-    material.use_nodes = True
-    material.use_backface_culling = True
-    shader = material.node_tree.nodes.get("Principled BSDF")
-    shader.inputs["Roughness"].default_value = 0.88
-    paint = material.node_tree.nodes.new("ShaderNodeVertexColor")
-    paint.layer_name = "Paint"
-    material.node_tree.links.new(paint.outputs["Color"], shader.inputs["Base Color"])
+    with TemporaryDirectory() as directory:
+        path = Path(directory) / "surfaces.png"
+        path.write_bytes(weathering_map())
+        material = make_material(path)
     district = District()
     roads = frontage_index()
     roofs, references = read_roofs(ROOT, bounds)
@@ -506,7 +523,7 @@ def create_source():
         "frontages": facades,
         "styles": dict(sorted(styles.items())),
         "source": "国土交通省 PLATEAU 岡崎市 2020年度 建築物 / 国土地理院 最適化ベクトルタイル 道路中心線",
-        "method": "実測屋根面・高さと道路中心線から外観を制作。屋根形状の補完、色、窓、笠木、屋上設備は授業用の表現。駅舎の専用モデルを優先。",
+        "method": "実測屋根面・高さと道路中心線に基づく。補完した屋根、外装と建具は授業用の表現。駅舎の専用モデルを優先。",
     }
     print("District survey:", survey, flush=True)
     bpy.context.scene["survey"] = json.dumps(survey, ensure_ascii=False)
@@ -518,7 +535,7 @@ def create_source():
             a.spaces.active.shading.color_type = "VERTEX"
             a.spaces.active.clip_end = 4000
             a.spaces.active.region_3d.view_perspective = "ORTHO"
-            a.spaces.active.region_3d.view_distance = 1140
+            a.spaces.active.region_3d.view_distance = 2280
             a.spaces.active.region_3d.view_rotation = Vector((-0.55, -0.8, -1.16)).to_track_quat("-Z", "Y")
             a.spaces.active.overlay.show_overlays = False
     args.blend.parent.mkdir(parents=True, exist_ok=True)
@@ -558,15 +575,16 @@ def export_district(staging):
                 export_format="GLB",
                 use_selection=True,
                 export_apply=True,
-                export_vertex_color="MATERIAL",
+                export_vertex_color="ACTIVE",
+                export_materials="NONE",
                 export_animations=False,
-                export_texcoords=False,
+                export_texcoords=True,
                 export_cameras=False,
                 export_lights=False,
             )
             data, triangles, (low, high) = pack_glb(path.read_bytes())
-            if not (0 < triangles <= 32000 and len(data) <= 4 * 1024 * 1024):
-                raise ValueError(f"Reduce {key} to at most 32,000 triangles and 4 MB for classroom devices.")
+            if not (0 < triangles <= 32000 and len(data) <= 1024 * 1024):
+                raise ValueError(f"Reduce {key} to at most 32,000 triangles and 1 MiB for classroom devices.")
             x0, z0 = west + c * size, north + r * size
             low = low + station
             high = high + station
@@ -593,11 +611,14 @@ def export_district(staging):
                     "sourceFiles": sources,
                 }
             )
+    surface_png = weathering_map()
+    (staging / "surfaces.png").write_bytes(surface_png)
     report = {
-        "version": 1,
+        "version": 2,
         "origin": station,
         "bounds": bounds,
         "tileSize": size,
+        "surfaces": {"file": "surfaces.png", "bytes": len(surface_png), "sha256": hashlib.sha256(surface_png).hexdigest()},
         "survey": json.loads(bpy.context.scene["survey"]),
         "tiles": tiles,
     }
@@ -606,6 +627,7 @@ def export_district(staging):
     )
     for tile in tiles:
         (staging / tile["file"]).replace(args.output / tile["file"])
+    (staging / "surfaces.png").replace(args.output / "surfaces.png")
     (staging / "manifest.json").replace(args.output / "manifest.json")
     print(
         "District totals:",

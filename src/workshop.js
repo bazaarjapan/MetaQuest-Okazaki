@@ -1,5 +1,5 @@
 import { parseSTL, normalizeSTLPositions, STL_LIMITS } from "./stl-model.js";
-import { createFinishGallery } from "./stl-finish-gallery.js";
+import { createFinishGallery, createSTLDesignPicker } from "./stl-finish-gallery.js";
 import { createSTLEditorPreview } from "./stl-editor-preview.js";
 import { createSTLThumbnailRenderer } from "./stl-thumbnail.js";
 import { validatePlacement } from "./placement.js";
@@ -126,6 +126,12 @@ export function createWorkshop(THREE, { scene, renderer, domElement, camera, sch
   let preview, previewFrame = 0;
   const previewPanel = q("stl-editor-preview");
   const gallery = createFinishGallery(q("stl-finish-gallery"), q("object-finish"));
+  const designs = createSTLDesignPicker(q("stl-design-picker"), q("object-finish"), q("object-surface"), design => {
+    q("object-color").value = design.color;
+    q("object-finish").value = design.finish;
+    q("object-surface").value = design.surface;
+    appearanceChanged();
+  });
   function resetPreview() {
     if (previewFrame) cancelAnimationFrame(previewFrame);
     previewFrame = 0;
@@ -236,6 +242,7 @@ export function createWorkshop(THREE, { scene, renderer, domElement, camera, sch
     }
     q("object-surface").disabled = !editable || q("object-finish").value === "solid";
     gallery?.refresh();
+    designs.refresh(editable, readAppearance());
     renderSaveAction();
     q("object-locate").disabled = !access().canEdit || !item || busy() || item === draft || isXR();
     q("object-name").textContent = item ? `選択中：${exhibitTitle(item)}` : "作品はまだ選ばれていません";
@@ -495,7 +502,11 @@ export function createWorkshop(THREE, { scene, renderer, domElement, camera, sch
         const model = await decodeAsset(asset, buffer, token); if (!accepts(token) || !model) return false;
         createDraft(asset, model); imported++;
       }
-      if (imported) setMessage(`${imported}個のSTLをクラウドに保存しました。配置はまだ下書きです。保存済み一覧から何度でも選べます。`);
+      if (imported) {
+        const collection = q("workshop-collection");
+        if (dialog.open && collection) collection.open = false;
+        setMessage(`${imported}個のSTLをクラウドに保存しました。配置はまだ下書きです。保存済み一覧から何度でも選べます。`);
+      }
       return imported > 0;
     } catch (error) { if (accepts(token)) setMessage(`${imported ? `${imported}個を保存しました。` : ""}${explainError(error)}`); return false; }
     finally { if (operation === marker) operation = null; q("stl-files").value = ""; renderList(); onChange(); scheduleSync(); }
@@ -806,6 +817,8 @@ export function createWorkshop(THREE, { scene, renderer, domElement, camera, sch
       displayAppearance(item, !item.valid);
     }
     if (message && !failures.size) setMessage("");
+    gallery?.refresh();
+    designs.refresh(true, appearance);
     renderSaveAction();
     requestPreview();
   }

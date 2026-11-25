@@ -61,7 +61,7 @@ test("shared object footprints reserve flat and vertically separated placements"
 
 // Explicit DOM/client unit fixtures, not evidence of production Google login.
 class Element {
-  constructor() { this.children = []; this.handlers = new Map(); this.style = {}; this.value = ""; this.textContent = ""; this.open = false; this.parentElement = { before() {} }; }
+  constructor() { this.children = []; this.handlers = new Map(); this.style = { setProperty() {} }; this.dataset = {}; this.value = ""; this.textContent = ""; this.open = false; this.parentElement = { before() {} }; }
   querySelector(selector) { return this.registry.get(selector.slice(1)); }
   append(...children) { this.children.push(...children); }
   after() {}
@@ -81,8 +81,13 @@ const source = new TextEncoder().encode("solid part\nfacet normal 0 1 0\nouter l
 async function fixture(t, initial = connected(), stl = source, triangles = 1) {
   const ids = ["workshop-dialog", "workshop-status", "workshop-save-hint", "workshop-list", "stl-files", "stl-up", "stl-units", "object-x", "object-z", "object-scale", "object-rx", "object-ry", "object-rz", "object-y", "object-pick", "object-remove", "object-apply", "workshop-close", "open-workshop", "canvas-hint"];
   ids.push("exhibit-title", "exhibit-description", "exhibit-save", "exhibit-author", "object-color", "object-finish", "object-surface", "object-locate", "object-location", "object-name");
-  ids.push("stl-editor-preview", "stl-editor-canvas", "stl-editor-dimensions", "ground-pick-controls", "ground-pick-hint", "ground-pick-cancel");
+  ids.push("stl-editor-preview", "stl-editor-canvas", "stl-editor-dimensions", "stl-design-picker", "ground-pick-controls", "ground-pick-hint", "ground-pick-cancel");
   const registry = new Map(ids.map((id) => [id, new Element()])); registry.get("workshop-dialog").registry = registry;
+  const designTabs = new Element(), designSamples = new Element();
+  registry.get("stl-design-picker").registry = new Map([["finish-groups", designTabs], ["stl-design-samples", designSamples]]);
+  registry.get("object-finish").children = ["windows","brick","roofTiles","wood","mosaic","stainedGlass","circuit","honeycomb","aurora"]
+    .map((value, index) => ({ value, index }));
+  registry.get("object-surface").children = ["all","walls","roof"].map(value => ({ value, textContent: value }));
   registry.get("stl-up").value = "y"; registry.get("stl-units").value = "m";
   const saved = { document: globalThis.document, window: globalThis.window, Option: globalThis.Option };
   globalThis.document = { querySelector: (selector) => registry.get(selector.slice(1)), createElement: () => new Element() };
@@ -122,13 +127,37 @@ async function fixture(t, initial = connected(), stl = source, triangles = 1) {
     onRequireLogin: () => { calls.login++; }, onLocate: item => { calls.located = item; return true; } });
   t.after(() => { workshop.destroy(); Object.assign(globalThis, saved); });
   await new Promise((resolve) => setImmediate(resolve));
-  return { workshop, client, calls, registry, metadata, scene, camera, canvas, terrainMeshes, state: () => state,
+  return { workshop, client, calls, registry, metadata, scene, camera, canvas, terrainMeshes, designTabs, designSamples, state: () => state,
     file: () => ({ name: "作品.stl", size: stl.byteLength, arrayBuffer: async () => stl.slice(0) }),
     settle: async (predicate = () => true) => {
       for (let i = 0; i < 8; i++) await new Promise((resolve) => setImmediate(resolve));
       for (let i = 0; i < 100 && !predicate(); i++) await new Promise((resolve) => setTimeout(resolve, 2));
     } };
 }
+test("a design preset previews all appearance fields and saves through the current action", async t => {
+  const f = await fixture(t);
+  assert.equal(f.registry.get("stl-design-picker").hidden, true);
+  await f.workshop.importFiles([f.file()]);
+  assert.equal(f.registry.get("stl-design-picker").hidden, false);
+  f.designSamples.children[2].dispatch("click");
+  const draft = f.workshop.getHeldDraft();
+  assert.deepEqual([draft.userData.stlColor, draft.userData.stlFinish, draft.userData.stlSurface], ["#7d8fa3", "roofTiles", "roof"]);
+  assert.equal(f.calls.edits, 0);
+  await f.workshop.commitSelected();
+  await f.settle();
+  const placed = f.workshop.getState().current;
+  f.designTabs.children[2].dispatch("click");
+  f.designSamples.children[2].dispatch("click");
+  assert.equal(f.registry.get("object-apply").textContent, "見た目を保存");
+  assert.equal(f.workshop.getState().current.finish, "roofTiles");
+  f.registry.get("object-apply").onclick();
+  await f.settle();
+  const saved = f.workshop.getState().current;
+  assert.deepEqual([saved.color, saved.finish, saved.surface], ["#b89cf5", "aurora", "all"]);
+  assert.deepEqual(saved.position, placed.position);
+  assert.deepEqual(f.calls.editTypes, ["object.create", "object.paint"]);
+});
+
 test("STL color flows through draft, commit, painting and reload without moving the work", async t => {
   const f = await fixture(t); await f.workshop.importFiles([f.file()]);
   assert.equal(await f.workshop.locateSelected(), false);

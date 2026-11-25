@@ -13,10 +13,11 @@ const [x, , z] = station;
 const bytes = new Uint8Array(32);
 const digest = createHash("sha256").update(bytes).digest("hex");
 const manifest = {
-  version: 1, tileSize: 250, origin: station, bounds: [x-500,z-500,x+500,z+500],
-  tiles: Array.from({length:16}, (_, i) => {
-    const row = Math.floor(i/4), col = i%4, id = `r${row}-c${col}`;
-    const x0 = x-500+250*col, z0 = z-500+250*row;
+  version: 2, tileSize: 250, origin: station, bounds: [x-1000,z-1000,x+1000,z+1000],
+  surfaces: {file: "surfaces.png", bytes: 64, sha256: digest},
+  tiles: Array.from({length:64}, (_, i) => {
+    const row = Math.floor(i/8), col = i%8, id = `r${row}-c${col}`;
+    const x0 = x-1000+250*col, z0 = z-1000+250*row;
     return {id, file: id+".glb", bounds: [x0,z0,x0+250,z0+250], bytes: bytes.length,
       triangles: 12000, sha256: digest, regionBuildings: [`b-${col}-${row}`], heightRange: [16,32]};
   }),
@@ -69,7 +70,7 @@ test("district respects distance, quality and headset limits and frees cells on 
   f.update({position:new Vector3(x+2500,20,z)});
   assert.equal(f.requests.length,0);
   await f.open({quality:"high"});
-  assert.equal(f.state().available,16);
+  assert.equal(f.state().available,64);
   assert.ok(f.state().resident.length > 7);
   assert.ok(f.state().triangles <= f.state().limits.triangles);
   const initial = f.state().resident.length;
@@ -85,6 +86,8 @@ test("district respects distance, quality and headset limits and frees cells on 
   assert.equal(f.scene.getObjectByName("station-district").children.length,0);
   await f.open();
   assert.ok(f.state().resident.length>0);
+  f.update({position:new Vector3(x,900,z)});
+  assert.deepEqual(f.state().resident,[],"high-altitude views keep the original city geometry");
   f.update({position:new Vector3(x-2000,20,z)});
   assert.deepEqual(f.state().resident,[]);
   assert.equal(f.state().errors,0);
@@ -98,7 +101,7 @@ test("district waits for original regional building geometry, stops stale decode
     parse: () => new Promise(resolve => pending.push(resolve))});
   await f.open();
   assert.equal(f.requests.length,1);
-  available.add("b-1-1");
+  available.add("b-3-3");
   f.update();
   await until(() => pending.length);
   assert.equal(f.state().loading.length,1);
@@ -115,7 +118,7 @@ test("district waits for original regional building geometry, stops stale decode
 });
 
 test("district only fetches distant detail in view, including either eye in immersive mode", async () => {
-  const f = fixture({hasBuilding:id=>id==="b-0-0" || id==="b-3-0"});
+  const f = fixture({hasBuilding:id=>id==="b-2-2" || id==="b-5-2"});
   const north = z - 375;
   const eyeAt = east => {
     const eye = new OrthographicCamera(-40,40,40,-40,.1,700);
@@ -126,15 +129,15 @@ test("district only fetches distant detail in view, including either eye in imme
   const west = eyeAt(x-375), east = eyeAt(x+375);
   const observer = new Vector3(x,20,north);
   await f.open({position:observer,camera:west});
-  assert.deepEqual(f.state().resident,["r0-c0"]);
+  assert.deepEqual(f.state().resident,["r2-c2"]);
   f.update({position:observer,camera:new ArrayCamera([west,east]),xr:true});
   await until(() => f.state().resident.length === 2);
-  assert.deepEqual(f.state().resident.sort(),["r0-c0","r0-c3"]);
+  assert.deepEqual(f.state().resident.sort(),["r2-c2","r2-c5"]);
 });
 
 test("manifest paths cannot escape the authored collection; a failed file retries without removing the city", async () => {
   let brokenManifest = true, wrongBytes = true;
-  const f = fixture({hasBuilding: id => id==="b-1-1", response: async url => {
+  const f = fixture({hasBuilding: id => id==="b-3-3", response: async url => {
     if (!url.endsWith(".json")) return new Response(wrongBytes ? bytes.slice(2) : bytes);
     const copy = structuredClone(manifest);
     if (brokenManifest) copy.tiles[0].file = "https://outside.invalid/x.glb";
@@ -158,9 +161,10 @@ test("manifest paths cannot escape the authored collection; a failed file retrie
   await until(() => f.state().resident.length === 1);
 });
 
-test("the shipped district loads through the normal GLB path in all 16 cells", async () => {
+test("the shipped district loads through the normal GLB path in all 64 cells", async () => {
   const scene = new Scene();
   const region = JSON.parse(await readFile(new URL("region/buildings.json",root)));
+  const authored = JSON.parse(await readFile(new URL("station/district/manifest.json",root)));
   let sourceBuildings = new Set();
   const district = createStationDistrict(scene, {hasBuilding: id => sourceBuildings.has(id),
     fetchImpl: async url => new Response(await readFile(new URL(url.split("?")[0].slice(1),root)))});
@@ -169,7 +173,7 @@ test("the shipped district loads through the normal GLB path in all 16 cells", a
   let time = 0;
   const check = () => district.update({station,position:camera.position,camera,enabled:true,
     quality:"performance",xr:false,time:time+=500});
-  for (const cell of manifest.tiles) {
+  for (const cell of authored.tiles) {
     const [x0,z0,x1,z1] = cell.bounds;
     const centerX = (x0+x1)/2, centerZ = (z0+z1)/2;
     camera.position.set(centerX,210,centerZ);
@@ -188,9 +192,12 @@ test("the shipped district loads through the normal GLB path in all 16 cells", a
       draws += Math.max(1, child.geometry.groups.length);
       assert.equal(child.material.transparent,false);
       assert.ok(child.material.vertexColors && !child.material.map);
+      const finish = child.geometry.getAttribute("uv");
+      assert.ok(finish?.normalized && finish.itemSize === 2, "the batched cell preserves its Finish UV channel");
     });
     assert.equal(draws,1,"each cell is a single opaque vertex-coloured mesh");
     assert.equal(triangles,district.getState().triangles);
+    assert.equal(district.getState().bytes,cell.bytes);
     const box = new Box3().setFromObject(group);
     assert.ok(!box.isEmpty() && box.max.y > box.min.y);
     assert.ok(box.min.x >= x0-.1 && box.max.x <= x1+.1 && box.min.z >= z0-.1 && box.max.z <= z1+.1,

@@ -11,7 +11,9 @@
 *.gz binary
 *.br binary
 *.zip binary
-# This generated manifest is pinned by byte digest in the Worker.
+# Keep published manifest hashes identical across checkouts.
+public/city/manifest.json text eol=lf
+public/region/buildings.json text eol=lf
 public/region/terrain.json text eol=lf
 public/field/vectors-*.json text eol=lf
 public/station/district/manifest.json text eol=lf

@@ -1,6 +1,6 @@
 import { createAvatarLabel } from "./avatar-label.js";
 import { createStationLandmark } from "./station-landmark.js";
-import { createStationDistrict } from "./station-district.js";
+import { createStationDistrict, stationDistrictHalfWidth } from "./station-district.js";
 import {createCitySurfaceMap,applyCityGroundMaterial} from './city-surface-map.js';
 import { createLocationHud } from "./location-hud.js";
 import * as THREE from "three";
@@ -617,10 +617,11 @@ async function loadRegion() {
   const selector = $("#region-cell");
   selector.replaceChildren(new Option("移動先の区画を選択…", ""));
   const nearby = document.createElement("optgroup");
-  nearby.label = "岡崎駅周辺の1 km四方";
+  nearby.label = "岡崎駅周辺の2 km四方";
+  const corner = stationDistrictHalfWidth * 0.75;
   for (const [id, name, east, south] of [
-    ["nw", "北西の街区", -350, -350], ["ne", "北東の街区", 350, -350],
-    ["sw", "南西の街区", -350, 350], ["se", "南東の街区", 350, 350],
+    ["nw", "北西の街区", -corner, -corner], ["ne", "北東の街区", corner, -corner],
+    ["sw", "南西の街区", -corner, corner], ["se", "南東の街区", corner, corner],
   ]) {
     const option = new Option(name, "district-" + id);
     option.dataset.east = east;
@@ -1487,7 +1488,7 @@ renderer.setAnimationLoop((time, frame) => {
     nearField.update({position:userPosition(),quality:quality.id,enabled:fieldStyle==='game'&&!state.qualityLoading,
       manifest:fieldManifest,core:terrainMesh,terrain:regionStreamer.getGroundMeshes(),time});
     const sceneryGeometryVersion=`${terrainMesh?.geometry.id}:${regionStreamer.getMeshes().map(m=>m.geometry.id).join(',')}`;
-    vectorStreets.update({position:userPosition(),quality:quality.id,enabled:fieldStyle==='game'&&!state.qualityLoading,terrain:[terrainMesh,...regionStreamer.getGroundMeshes()].filter(Boolean),terrainVersion:`${terrainMesh?.geometry.id}:${regionStreamer.getGroundMeshes().map(m=>m.geometry.id).join(',')}`});
+    vectorStreets.update({position:userPosition(),quality:quality.id,enabled:fieldStyle==='game'&&!state.qualityLoading,terrain:[terrainMesh,...regionStreamer.getGroundMeshes()].filter(Boolean),terrainVersion:`${terrainMesh?.geometry.id}:${regionStreamer.getGroundMeshes().map(m=>m.geometry.id).join(',')}`,xr:state.xr});
     const editingWorld=adaptiveUi.getState().open||Boolean(document.querySelector('dialog[open]'));
     streetScenery.update({position:userPosition(),quality:quality.id,enabled:fieldStyle==="game"&&!state.qualityLoading,time,objects:schoolState.objects,timeOfDay,terrainVersion:sceneryGeometryVersion,paused:editingWorld||document.hidden});
     ambientTraffic.update({position:userPosition(),quality:quality.id,active:activityAllowed&&ambientMotion&&fieldStyle==='game'&&!state.qualityLoading&&!document.hidden&&!editingWorld,time,objects:schoolState.objects,
