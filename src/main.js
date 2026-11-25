@@ -34,7 +34,9 @@ import { createAvatarEditor } from "./avatar-editor.js";
 import { createSchoolClient } from "./school-client.js";
 import { createSchoolUI } from "./school-ui.js";
 import { createActivityGate } from "./activity-gate.js";
-import { readFieldStyle,FIELD_STYLE_KEY,createFieldBuildingMaterial,decorateBuildingGeometry,gameTerrainFile,isCoreBuildingPart } from "./field-style.js";
+import { readFieldStyle,FIELD_STYLE_KEY,createFieldBuildingMaterial,gameTerrainFile,isCoreBuildingPart } from "./field-style.js";
+import { createFacadeAtlas } from "./facade-material.js";
+import { createFacadeDecorator } from "./facade-decorator.js";
 import { createHotbar } from "./hotbar.js";
 import { createHeldSTL } from "./held-stl.js";
 import { createSchoolPresence } from "./school-presence.js";
@@ -98,6 +100,9 @@ const gameStyleDescription = fieldStyleNote.textContent;
 const photoStyleDescription = '航空写真と元の建物の色で表示します。';
 if (fieldStyle === 'photo') fieldStyleNote.textContent = photoStyleDescription;
 const fieldUniform={value:fieldStyle==='game'?1:0};
+const facadeAtlas=createFacadeAtlas();
+const decorateBuilding = createFacadeDecorator(THREE);
+if(fieldStyle==='game')void facadeAtlas.load();
 const eveningUniform={value:0};
 const state = {
   ready: false,
@@ -177,6 +182,7 @@ const regionGroup = new THREE.Group();
 regionGroup.name = "streamed-okazaki-region";
 scene.add(regionGroup);
 const regionStreamer = createRegionStreamer(THREE, regionGroup,{fieldUniform,eveningUniform,citySurfaceUniforms:citySurfaceMap.uniforms,
+  facadeUniforms:facadeAtlas.uniforms,decorateBuilding,
   terrainLimit:q=>fieldStyle==='game'?Math.min(q==='high'?16:9,8):(q==='high'?16:9),
   terrainAnisotropy:()=>Math.min(quality.anisotropy,renderer.capabilities.getMaxAnisotropy()),
   terrainTexture:tile=>({url:fieldStyle==='game'&&fieldManifest?.region[tile.id]
@@ -532,11 +538,12 @@ async function loadCity() {
       ? new THREE.Color(1, 1, 1)
       : new THREE.Color(...p.color).multiplyScalar(0.84);
     const gameBuilding = isCoreBuildingPart(p);
-    if(gameBuilding)decorateBuildingGeometry(THREE,geometry);
+    if(gameBuilding)await decorateBuilding(geometry);
     const materialOptions={color,map,roughness:1,metalness:0};
     const mesh = new THREE.Mesh(
       geometry,
-      gameBuilding?createFieldBuildingMaterial(THREE,fieldUniform,{...materialOptions,eveningUniform,citySurfaceUniforms:citySurfaceMap.uniforms}):new THREE.MeshStandardMaterial(materialOptions),
+      gameBuilding?createFieldBuildingMaterial(THREE,fieldUniform,{...materialOptions,eveningUniform,
+        citySurfaceUniforms:citySurfaceMap.uniforms,facadeUniforms:facadeAtlas.uniforms}):new THREE.MeshStandardMaterial(materialOptions),
     );
     mesh.name = p.name;
     mesh.castShadow = p.texture !== "Texture-001.png";
@@ -802,6 +809,7 @@ $('#field-style').onchange=async event=>{
     if(requested==='game'&&!fieldManifest)fieldManifest=await fetchChecked('/field/manifest.json','json');
     const nextFile=terrainVariant(quality.id,requested),map=await loadTexture(nextFile),oldFile=terrainFile;
     fieldStyle=requested;
+    if(fieldStyle==='game')void facadeAtlas.load();
     terrainMesh.material.map=map;terrainMesh.material.needsUpdate=true;terrainFile=nextFile;
     fieldUniform.value=fieldStyle==='game'?1:0;
     if(oldFile!==nextFile){textures.get(oldFile)?.dispose();textures.delete(oldFile);}
@@ -1504,6 +1512,7 @@ renderer.setAnimationLoop((time, frame) => {
     const sceneryGeometryVersion=`${terrainMesh?.geometry.id}:${regionStreamer.getMeshes().map(m=>m.geometry.id).join(',')}`;
     vectorStreets.update({position:observer,quality:quality.id,enabled:fieldStyle==='game'&&!state.qualityLoading,terrain:[terrainMesh,...regionStreamer.getGroundMeshes()].filter(Boolean),terrainVersion:`${terrainMesh?.geometry.id}:${regionStreamer.getGroundMeshes().map(m=>m.geometry.id).join(',')}`,xr:state.xr});
     const editingWorld=adaptiveUi.getState().open||Boolean(document.querySelector('dialog[open]'));
+    facadeAtlas.setLightweight(state.xr || quality.id === 'performance');
     const sceneryEnabled = fieldStyle === "game" && !state.qualityLoading;
     const aroundDistrict = stationPosition && Math.max(Math.abs(observer.x - stationPosition[0]),
       Math.abs(observer.z - stationPosition[2])) <= stationDistrictHalfWidth + 420;
@@ -1613,6 +1622,7 @@ renderer.domElement.addEventListener("webglcontextlost", (e) => {
 window.__okazaki = {
   getState: () => ({
     field: {style:fieldStyle,available:Boolean(fieldManifest),coreFile:fieldManifest?.core.file,
+      facadeAtlasReady:facadeAtlas.uniforms.fieldFacadeReady.value===1,
       regionTiles:fieldManifest?Object.keys(fieldManifest.region).length:0,
       buildingGame:fieldUniform.value>.5,
       coreParts:city.children.map(mesh=>({name:mesh.name,gameBuilding:Boolean(mesh.material.userData.fieldBuilding),

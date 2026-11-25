@@ -65,6 +65,8 @@ export function createRegionStreamer(THREE, parentGroup, {
   fieldUniform = {value:0},
   eveningUniform = {value:0},
   citySurfaceUniforms = null,
+  facadeUniforms,
+  decorateBuilding = geometry => decorateBuildingGeometry(THREE, geometry),
   terrainTexture = tile => ({url:`/region/${tile.texture}`}),
   terrainLimit = quality => quality === 'high' ? 16 : 9,
   terrainAnisotropy = () => 2,
@@ -76,7 +78,7 @@ export function createRegionStreamer(THREE, parentGroup, {
   const loader = textureLoader ?? (typeof globalThis.createImageBitmap === "function" && typeof THREE.Texture === "function"
     ? loadBrowserTexture : new THREE.TextureLoader());
   const buildingMaterial = createFieldBuildingMaterial(THREE,fieldUniform,{
-    eveningUniform,citySurfaceUniforms,
+    eveningUniform,citySurfaceUniforms,facadeUniforms,
     color: new THREE.Color(0.72, 0.76, 0.78).multiplyScalar(0.84), roughness: 1, metalness: 0,
   });
   let tiles = new Map();
@@ -271,7 +273,8 @@ export function createRegionStreamer(THREE, parentGroup, {
       await verifyHash(data, tile.sha256);
       if (!live(task)) return;
       geometry = makeGeometry(data, tile);
-      if(tile.type==='building')decorateBuildingGeometry(THREE,geometry);
+      if (tile.type === 'building') await decorateBuilding(geometry, task.controller.signal);
+      if (!live(task)) return;
       let heightStats = null;
       if (tile.type === "terrain" && tile.heightMode === "live-gsi-dem") {
         heightStats = await heightLoader(THREE, geometry, tile, { signal: task.controller.signal, fetchImpl });

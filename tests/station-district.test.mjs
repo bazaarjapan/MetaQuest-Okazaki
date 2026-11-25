@@ -171,6 +171,7 @@ test("the shipped district loads through the normal GLB path in all 64 cells", a
   const camera = new OrthographicCamera(-95,95,95,-95,.1,600);
   camera.up.set(0,0,-1);
   let time = 0;
+  let removedFacades = 0;
   const check = () => district.update({station,position:camera.position,camera,enabled:true,
     quality:"performance",xr:false,time:time+=500});
   for (const cell of authored.tiles) {
@@ -194,9 +195,11 @@ test("the shipped district loads through the normal GLB path in all 64 cells", a
       assert.ok(child.material.vertexColors && !child.material.map);
       const finish = child.geometry.getAttribute("uv");
       assert.ok(finish?.normalized && finish.itemSize === 2, "the batched cell preserves its Finish UV channel");
+      assert.ok(child.geometry.index.array.every(i => finish.getX(i) < 4 / 6), "older wall and glazing bands are excluded");
     });
     assert.equal(draws,1,"each cell is a single opaque vertex-coloured mesh");
-    assert.equal(triangles,district.getState().triangles);
+    assert.ok(triangles>0 && triangles<=district.getState().triangles);
+    removedFacades += district.getState().triangles-triangles;
     assert.equal(district.getState().bytes,cell.bytes);
     const box = new Box3().setFromObject(group);
     assert.ok(!box.isEmpty() && box.max.y > box.min.y);
@@ -204,4 +207,5 @@ test("the shipped district loads through the normal GLB path in all 64 cells", a
       cell.id+" must stay on its source block at the same world origin");
     assert.equal(district.getState().errors,0);
   }
+  assert.ok(removedFacades>10000,"retain source cell hashes while retiring the older facade geometry");
 });

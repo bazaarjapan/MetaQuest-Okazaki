@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import * as THREE from 'three';
 import {buildingColorBytes,buildingAttributes,readFieldStyle,gameTerrainFile,isCoreBuildingPart,createFieldBuildingMaterial,decorateBuildingGeometry} from '../src/field-style.js';
+import {facadeFamily} from '../src/facade-layout.js';
+import {createFacadeDecorator} from '../src/facade-decorator.js';
+import {prepareBuildingGeometry} from '../src/facade-geometry.js';
 import {mapPoint,roadWidth,renderFieldSVG} from '../scripts/lib/field-map.mjs';
 
 test('all four actual station building material groups are styled, never the terrain',async()=>{
@@ -20,6 +23,8 @@ test('small, black and photo-textured actual meshes gain colors without changing
     const before=Buffer.from(buffer).toString('base64');decorateBuildingGeometry(THREE,g);
     assert.equal(g.attributes.fieldColor.count,g.attributes.position.count,p.name);
     assert.equal(g.attributes.fieldSpan.count,g.attributes.position.count,p.name);
+    assert.equal(g.attributes.fieldFacade.count,g.attributes.position.count,p.name);
+    assert.ok(g.attributes.fieldFacade.array.every(Number.isFinite),p.name);
     assert.ok(g.attributes.fieldSpan.array.every(Number.isFinite),p.name);
     assert.ok(g.attributes.fieldColor.array.every(c=>c>0),p.name);
     assert.equal(Buffer.from(buffer).toString('base64'),before,p.name);g.dispose();
@@ -33,7 +38,7 @@ test('shared shader bypasses original photos in game mode and retains photo/blac
   assert.match(shader.fragmentShader,/if\(fieldGame>\.5\)/);
   assert.equal(shader.uniforms.fieldGame,uniform);assert.equal(material.map,map);assert.equal(material.color.getHex(),0);
   uniform.value=0;assert.equal(shader.uniforms.fieldGame.value,0);assert.equal(material.map,map);
-  assert.equal(material.userData.fieldBuilding,true);assert.equal(material.customProgramCacheKey(),'okazaki-field-building-v7');material.dispose();map.dispose();
+  assert.equal(material.userData.fieldBuilding,true);assert.equal(material.customProgramCacheKey(),'okazaki-facade-atlas-v1');material.dispose();map.dispose();
 });
 
 test('facades retain low-wing roof heights even when they connect to a taller building',()=>{
@@ -41,9 +46,22 @@ test('facades retain low-wing roof heights even when they connect to a taller bu
   const before=[...p],result=buildingAttributes(p);
   assert.equal(result.spans[0],20);assert.ok(Math.abs(result.spans[1]-24.1)<.001);
   assert.ok(Math.abs(result.spans[15]-28.7)<.001);assert.deepEqual([...p],before);
-  assert.ok(Math.abs(result.ceilings[0]-24.1)<.001);assert.ok(Math.abs(result.ceilings[2]-28.7)<.001);
+  assert.ok(Math.abs(result.facades[0].top-24.1)<.001);assert.ok(Math.abs(result.facades[2].top-28.7)<.001);
   // Split wall/roof copies at the same vertical corner agree on the roof.
   assert.equal(result.spans[1],result.spans[5]);
+});
+
+test('diagonal facade plans share one full-width layout and never extend to a sloped roof or ground corner',()=>{
+  const turn=(x,y)=>[x/Math.sqrt(2),y,x/Math.sqrt(2)];
+  const points=new Float32Array([turn(0,10),turn(8,11),turn(8,18),turn(0,16),turn(4,21)].flat());
+  const result=buildingAttributes(points,new Uint32Array([0,1,2,0,2,3,3,2,4]));
+  const plan=result.facades[0];
+  assert.ok(plan&&plan===result.facades[1]&&plan===result.facades[2]);
+  assert.ok(Math.abs(plan.width-8)<.001);
+  assert.equal(plan.base,11);assert.equal(plan.top,16);
+  assert.deepEqual([facadeFamily({height:5,area:80,aspect:1,seed:1}),facadeFamily({height:9,area:130,aspect:1,seed:1}),
+    facadeFamily({height:18,area:273,aspect:2,seed:1}),facadeFamily({height:23,area:400,aspect:1.5,seed:1}),
+    facadeFamily({height:5,area:350,aspect:2,seed:1})],[1,2,3,4,5]);
 });
 
 test('evening window emission follows the shared uniform while photo mode remains unchanged',()=>{
@@ -72,6 +90,34 @@ test('facade vertex splitting preserves every indexed triangle and its source at
   }
   assert.ok(geometry.attributes.position.count>sourcePosition.length/3);
   geometry.dispose();
+});
+
+test('queued facade jobs transfer copies and do not install results after a tile is canceled',async()=>{
+  const geometry = new THREE.PlaneGeometry(8,5);
+  const [canceled, queued, live] = [geometry.clone(),geometry.clone(),geometry.clone()];
+  const worker = new EventTarget(), posted = [];
+  worker.postMessage = (data, transfer) => posted.push(structuredClone(data,{transfer}));
+  const finish = () => {
+    const {attributes,indices} = posted.at(-1);
+    const prepared = prepareBuildingGeometry(attributes,indices);
+    worker.dispatchEvent(new MessageEvent('message',{data:{prepared}}));
+  };
+  const decorate = createFacadeDecorator(THREE,()=>worker);
+  const first = new AbortController(), second = new AbortController();
+  const a = assert.rejects(decorate(canceled,first.signal),{name:'AbortError'});
+  const b = assert.rejects(decorate(queued,second.signal),{name:'AbortError'});
+  const c = decorate(live);
+  await Promise.resolve();
+  assert.equal(posted.length,1);
+  assert.notEqual(canceled.attributes.position.array.buffer.byteLength,0);
+  first.abort(); second.abort(); finish();
+  await Promise.all([a,b]);
+  assert.equal(posted.length,2);
+  assert.equal(canceled.hasAttribute('fieldFacade'),false);
+  assert.equal(queued.hasAttribute('fieldFacade'),false);
+  finish(); await c;
+  assert.ok(live.hasAttribute('fieldFacade'));
+  for(const mesh of [geometry,canceled,queued,live])mesh.dispose();
 });
 test('game field defaults without writable storage; photo choice persists',()=>{
   assert.equal(readFieldStyle(), 'game');assert.equal(readFieldStyle({getItem(){throw Error();}}),'game');

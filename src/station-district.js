@@ -1,5 +1,6 @@
 import { Box3, Frustum, Group, Matrix4, Vector3 } from "three";
 import { createDistrictSurfaceMaterial } from "./district-surfaces.js";
+import { keepDistrictRoofs } from "./district-roofs.js";
 
 const directory = "/station/district/";
 const cellSize = 250;
@@ -75,7 +76,9 @@ function release(model) {
 
 async function parseModel(bytes) {
   const { GLTFLoader } = await import("three/addons/loaders/GLTFLoader.js");
-  return (await new GLTFLoader().parseAsync(bytes, directory)).scene;
+  const { scene } = await new GLTFLoader().parseAsync(bytes, directory);
+  try { return keepDistrictRoofs(scene); }
+  catch (error) { release(scene); throw error; }
 }
 
 export function createStationDistrict(scene, { fetchImpl = fetch, parse = parseModel, hasBuilding = () => false } = {}) {
