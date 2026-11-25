@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { stationDistrictHalfWidth } from './station-district.js';
 
 // A bounded, local top-down view of the actual loaded geometry. Neither source
 // vertices nor collision geometry are changed. Both road layers and their baked
@@ -42,16 +43,39 @@ export function applyCityGroundMaterial(material,uniforms,gameUniform){
   before?.(shader);attachCitySurfaceShader(shader,uniforms);shader.uniforms.cityGame=gameUniform;
   shader.vertexShader='varying vec3 vCityGroundWorld;\n'+shader.vertexShader;
   shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvCityGroundWorld=(modelMatrix*vec4(position,1.)).xyz;');
-  shader.fragmentShader='uniform float cityGame; varying vec3 vCityGroundWorld;\n'+shader.fragmentShader;
+  shader.fragmentShader=`
+   uniform float cityGame;
+   uniform float cityLandDetail;
+   uniform vec2 cityLandCenter;
+   varying vec3 vCityGroundWorld;
+  `+shader.fragmentShader;
   shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
-   if(cityGame>.5)diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.53,.57,.51),cityBuilding(vCityGroundWorld.xz));`);
+   if (cityGame > .5) {
+     vec2 meadow = vCityGroundWorld.xz;
+     if (cityLandDetail > 0.0) {
+       vec2 extent = abs(meadow - cityLandCenter);
+       float inside = 1.0 - smoothstep(${stationDistrictHalfWidth-8}.0,${stationDistrictHalfWidth}.0,max(extent.x,extent.y));
+       float close = 1.0 - smoothstep(45.0,125.0,distance(cameraPosition,vCityGroundWorld));
+       vec3 turf = diffuseColor.rgb;
+       float green = smoothstep(.018,.064,min(turf.g - turf.r,turf.g - turf.b));
+       float coverage = inside * close * green * cityLandDetail;
+       if (coverage > 0.0) {
+         float patches = sin(dot(meadow,vec2(.72,.46))) * sin(dot(meadow,vec2(-.38,.89)));
+         float dry = smoothstep(.1,.95,patches + .22*sin(dot(meadow,vec2(.31,-.15))));
+         vec3 colours = mix(turf * vec3(.92,1.02,.92),turf * vec3(1.16,1.06,.79),dry);
+         diffuseColor.rgb = mix(turf,colours,coverage);
+       }
+     }
+     diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.53,.57,.51),cityBuilding(meadow));
+   }`);
  };
- material.customProgramCacheKey=()=>key+':city-ground-clearance-v1';material.needsUpdate=true;
+ material.customProgramCacheKey=()=>key+':city-ground-clearance-v2';material.needsUpdate=true;
 }
 
 export function createCitySurfaceMap(renderer){
  const empty=new THREE.DataTexture(new Uint8Array(4),1,1);empty.needsUpdate=true;
- const uniforms={cityBuildings:{value:empty},cityGround:{value:empty},cityOrigin:{value:new THREE.Vector2()},citySpan:{value:768},cityTexel:{value:1},cityReady:{value:0}};
+ const uniforms={cityBuildings:{value:empty},cityGround:{value:empty},cityOrigin:{value:new THREE.Vector2()},citySpan:{value:768},cityTexel:{value:1},cityReady:{value:0},
+  cityLandCenter:{value:new THREE.Vector2(1e8,1e8)},cityLandDetail:{value:0}};
  const groundScene=new THREE.Scene(),buildingScene=new THREE.Scene();
  const camera=new THREE.OrthographicCamera(-384,384,384,-384,.1,5000);camera.up.set(0,0,-1);
  const groundMaterial=new THREE.ShaderMaterial({side:THREE.DoubleSide,toneMapped:false,
@@ -80,6 +104,7 @@ export function createCitySurfaceMap(renderer){
  }
  function update({position,terrain=[],buildings=[],quality='high',xr=false,enabled=true,time=performance.now()}){
   if(disposed)return;
+  uniforms.cityLandDetail.value=enabled&&!xr&&quality!=='performance'?1:0;
   if(!enabled){
    uniforms.cityReady.value=0;
    if(size){buildingsTarget.dispose();groundTarget.dispose();buildingsTarget=groundTarget=null;size=0;groundScene.clear();buildingScene.clear();uniforms.cityBuildings.value=uniforms.cityGround.value=empty;signature='';center=null;}

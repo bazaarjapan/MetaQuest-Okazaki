@@ -150,11 +150,22 @@ assert.equal(effects.readUInt32BE(20), 256);
 const authoredModels = new Map([
   ["station/okazaki-station.glb", "97c0d75649da25c402dd30859240e07fbc5731235e2c287b3c5d40f0e0423681"],
 ]);
+const { streetKitAsset, streetKitParts } = await import("../src/street-kit.js");
+const streetKit = await readFile(new URL("station/street-kit.glb", publicRoot));
+assert.equal(streetKit.length, streetKitAsset.bytes);
+assert.equal(streetKit.toString("utf8", 0, 4), "glTF");
+const kitManifest = JSON.parse(streetKit.toString("utf8", 20, 20 + streetKit.readUInt32LE(12)));
+assert.ok(kitManifest.meshes.every(mesh => mesh.primitives.length === 1));
+assert.deepEqual(kitManifest.meshes.map(mesh => mesh.name).sort(), [...streetKitParts].sort());
+const kitTriangles = kitManifest.meshes.reduce((sum, mesh) => sum + kitManifest.accessors[mesh.primitives[0].indices].count / 3, 0);
+assert.equal(kitTriangles, streetKitAsset.triangles);
+assert.ok(kitTriangles <= 6000 && streetKit.length <= 640000 && !kitManifest.images?.length);
+authoredModels.set("station/street-kit.glb", streetKitAsset.sha256);
 for (const cell of district.tiles) {
   assert.match(cell.file, /^r[0-7]-c[0-7]\.glb$/);
   authoredModels.set("station/district/" + cell.file, cell.sha256);
 }
-assert.equal(authoredModels.size, 65, "Station and 64 distinct district cells");
+assert.equal(authoredModels.size, 66, "Station, street kit, and 64 distinct district cells");
 let publicFiles = 0;
 async function auditPublic(directory, prefix = "") {
   for (const entry of await readdir(directory, { withFileTypes: true })) {
