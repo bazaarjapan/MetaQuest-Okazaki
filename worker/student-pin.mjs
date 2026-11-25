@@ -1,5 +1,7 @@
 import { base64url, decode64url, fail, randomToken, sha256 } from "./school-common.mjs";
 
+export const validStudentLoginId = id => typeof id === "string" && /^s(?:0[1-9]|[12][0-9]|30|-[a-z0-9_-]{10})$/.test(id);
+
 const prefix = "pin-hmac-sha256-v1$";
 const text = new TextEncoder();
 

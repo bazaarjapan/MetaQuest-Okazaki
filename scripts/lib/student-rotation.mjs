@@ -1,7 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { newStudentPin, verifyStudentPassword } from '../../worker/student-pin.mjs';
-
-const validId = id => typeof id === 'string' && /^s-[a-z0-9_-]{10}$/.test(id);
+import { newStudentPin, validStudentLoginId, verifyStudentPassword } from '../../worker/student-pin.mjs';
 
 export async function makeStudentRotation(rows, pepper, { rotateIds = false } = {}) {
   const users = new Set(), slots = new Set(), passwords = new Set();
@@ -10,7 +8,7 @@ export async function makeStudentRotation(rows, pepper, { rotateIds = false } = 
   for (const row of rows) {
     if (row.role !== 'student' || !row.user_id || users.has(row.user_id) ||
         !Number.isInteger(row.slot) || row.slot < 1 || row.slot > 30 || slots.has(row.slot) ||
-        !validId(row.login_id) || !row.password_hash || !row.salt) {
+        !validStudentLoginId(row.login_id) || !row.password_hash || !row.salt) {
       throw Error('Invalid student rotation target');
     }
     users.add(row.user_id);
@@ -35,7 +33,7 @@ export async function makeStudentRotation(rows, pepper, { rotateIds = false } = 
 export async function verifyRotationPlan(plan, pepper, rotateIds) {
   if (!Array.isArray(plan) || plan.length < 1 || plan.length > 30) throw Error('Invalid saved plan');
   for (const entry of plan) {
-    if (!validId(entry.newLoginId) || (rotateIds ? entry.newLoginId === entry.login_id : entry.newLoginId !== entry.login_id) ||
+    if (!validStudentLoginId(entry.newLoginId) || (rotateIds ? entry.newLoginId === entry.login_id : entry.newLoginId !== entry.login_id) ||
         !/^[0-9]{4}$/.test(entry.password) || !entry.oldSalt ||
         !await verifyStudentPassword({ password_hash: entry.newHash, salt: entry.salt }, entry.password, pepper)) {
       throw Error('Private plan is incompatible with the requested operation or Worker secret');
