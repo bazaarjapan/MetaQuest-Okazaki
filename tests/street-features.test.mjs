@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {setTimeout as delay} from 'node:timers/promises';
 import {radarPoint,radarPeople} from '../src/world-radar.js';
 import {sceneryCandidates,sceneryLimits,createStreetScenery} from '../src/street-scenery.js';
 import {validExhibitText} from '../src/workshop-presentation.js';
@@ -7,6 +9,8 @@ import * as THREE from 'three';
 import {createSurfaceIndex} from '../src/placement.js';
 import {exhibitLabelWidth,exhibitDescriptionLines,createExhibitLabels} from '../src/exhibit-labels.js';
 import {cityFogRange} from '../src/city-atmosphere.js';
+import {createAmbientTraffic} from '../src/ambient-traffic.js';
+import {createStreetKitLoader,parseStreetKit,streetKitAsset} from '../src/street-kit.js';
 
 test('near exhibit descriptions wrap unicode safely and keep plates bounded',()=>{
  assert.deepEqual(exhibitDescriptionLines('駅の作品です'),['駅の作品です']);
@@ -82,4 +86,65 @@ test('scenery remains bounded, refuses unavailable terrain, and disappears in ph
  update(5000,{enabled:false});assert.equal(scenery.getState().visible,false);
  update(6000,{quality:'performance'});assert.equal(scenery.getState().visible,false);assert.deepEqual(sceneryLimits.performance,[0,0]);
  scenery.dispose();assert.equal(scene.children.length,0);
+});
+
+test('the Blender kit loads once, rejects corrupt bytes, and uses the XR prop budget', async () => {
+  const file = await readFile(new URL('../public/station/street-kit.glb', import.meta.url));
+  const scene = new THREE.Scene();
+  const slope = new Float32Array([-85,0,-85,85,0,85,85,0,-85,-85,0,-85,-85,0,85,85,0,85]);
+  for (let i=0; i<slope.length; i+=3) slope[i+1] = slope[i] * .04;
+  const ground = createSurfaceIndex(slope);
+  const getEnvironment = () => ({ terrain:ground, obstacles:[], bounds:[-85,-85,85,85] });
+  const scenery = createStreetScenery({scene,getEnvironment});
+  const traffic = createAmbientTraffic({scene,getEnvironment});
+  let requests = 0;
+  const loader = createStreetKitLoader(kit => { scenery.setKit(kit); traffic.setKit(kit); }, async (url, options) => {
+    requests++;
+    assert.match(url,/^\/station\/street-kit\.glb\?v=[a-f0-9]{64}$/);
+    assert.equal(options.redirect,"error");
+    return new Response(requests === 1 ? new Uint8Array(file.length) : file);
+  });
+  const waitFor = async status => {
+    for (let i=0; i<100 && loader.getStatus()!==status; i++) await delay(5);
+    assert.equal(loader.getStatus(), status);
+  };
+  loader.update(false, 0);
+  assert.equal(requests,0);
+  loader.update(true, 100);
+  await waitFor("unavailable");
+  loader.update(true, 15001);
+  assert.equal(scenery.getState().models,"simple");
+  assert.equal(requests,1);
+  loader.update(true, 15200);
+  await waitFor("ready");
+  loader.update(true, 40000);
+  assert.equal(requests,2);
+  scenery.setData({ trees:[[26,8,0],[-10,-12,0]], signals:[[12,14,0]], lights:[[10,10,0]], grass:[[-10,14,0]] });
+  traffic.setData({ roads:[[[-75,0],[75,0]]], rails:[[[-75,22],[75,22]]] });
+  const settings = { position:{x:0,y:2,z:12}, quality:"high", enabled:true, active:true, xr:true, time:0 };
+  for (let i=0; i<8; i++) {
+    scenery.update({...settings,time:i*100});
+    traffic.update({...settings,time:i*100});
+  }
+  assert.equal(scenery.getState().models,"blender");
+  assert.equal(scenery.getState().signals,1);
+  assert.equal(scene.getObjectByName("signal-lens").count,3);
+  assert.ok(scenery.getState().trees<=44 && scenery.getState().trees>0);
+  assert.equal(traffic.getState().models,"blender");
+  assert.ok(traffic.getState().cars>0 && traffic.getState().trainCarriages===3);
+  const car = ["car-kei","car-van"].map(name=>scene.getObjectByName(name)).find(mesh=>mesh.count);
+  const transform = new THREE.Matrix4();
+  car.getMatrixAt(0,transform);
+  const position = new THREE.Vector3().setFromMatrixPosition(transform);
+  assert.ok(Math.abs(position.y - position.x * .04 - .008) < .001, "wheels follow the road grade within the accepted sweep");
+  assert.ok(Math.abs(new THREE.Vector3(0,0,1).transformDirection(transform).y) > .03);
+  assert.equal(scene.getObjectByName("vehicle-contact-shadow").count,0,"XR skips the car contact overlay");
+  assert.ok(scene.getObjectByName("train-cab").count===2);
+  const checked = await parseStreetKit(file.buffer.slice(file.byteOffset,file.byteOffset+file.byteLength));
+  const triangles = [...checked.values()].reduce((sum, geometry) => sum+geometry.index.count/3,0);
+  assert.equal(triangles,streetKitAsset.triangles);
+  for (const geometry of checked.values()) geometry.dispose();
+  scenery.dispose();
+  traffic.dispose();
+  assert.equal(scene.children.length,0);
 });

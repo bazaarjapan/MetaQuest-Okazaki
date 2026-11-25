@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import {appendRoadMeasures,applyDistrictStreetFinish} from './district-street-material.js';
+import {appendRoadMeasures,applyDistrictStreetFinish,railProfile} from './district-street-material.js';
 import {createSurfaceIndex,projectSurfacePolygon} from './placement.js';
 import {attachCitySurfaceShader} from './city-surface-map.js';
 
@@ -22,15 +22,15 @@ export function streetSegments(data){
 }
 export function createVectorStreets({scene,fetchImpl=globalThis.fetch,getIndex=()=>null,citySurfaceUniforms=null}){
  const group=new THREE.Group();group.name='vector-streets';scene.add(group);
- const palette=[0xc9cfbf,0x586567,0x88918a,0x5c5c53,0xd7ded9,0xede5bd];
+ const palette=[0xc9c7b9,0x4e565c,0x838681,0xb0a897,0xcdd5d6,0xf1eccf];
  const center={value:new THREE.Vector3()},range={value:220};
  const districtStation={value:new THREE.Vector2(1e8,1e8)},districtStrength={value:1};
  const meshes=palette.map((color,i)=>{
-  const material=new THREE.MeshStandardMaterial({color,roughness:i===4?.35:1,metalness:i===4?.65:0,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
+  const material=new THREE.MeshStandardMaterial({color,roughness:i===4?.31:1,metalness:i===4?.28:0,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
   material.onBeforeCompile=shader=>{shader.uniforms.streetCenter=center;shader.uniforms.streetRange=range;shader.vertexShader='varying vec3 vStreetWorld;\n'+shader.vertexShader;shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvStreetWorld=(modelMatrix*vec4(position,1.)).xyz;');shader.fragmentShader='uniform vec3 streetCenter;uniform float streetRange;varying vec3 vStreetWorld;\n'+shader.fragmentShader;shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\ndiffuseColor.a*=1.-smoothstep(streetRange-35.,streetRange,length(vStreetWorld.xz-streetCenter.xz));');};
   const compile=material.onBeforeCompile;
   material.onBeforeCompile=shader=>{compile(shader);applyDistrictStreetFinish(shader,i,districtStation,districtStrength);if(citySurfaceUniforms&&[0,1,5].includes(i)){attachCitySurfaceShader(shader,citySurfaceUniforms);shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\ndiffuseColor.a*=1.-cityBuilding(vStreetWorld.xz);');}};
-  material.customProgramCacheKey=()=> 'draped-vector-streets-v3-'+i+(citySurfaceUniforms&&[0,1,5].includes(i)?'-clearance':'');
+  material.customProgramCacheKey=()=> 'draped-vector-streets-v4-'+i+(citySurfaceUniforms&&[0,1,5].includes(i)?'-clearance':'');
   const mesh=new THREE.Mesh(new THREE.BufferGeometry(),material);mesh.renderOrder=i+1;mesh.frustumCulled=false;group.add(mesh);return mesh;
  });
  let data=null,segments=[],version='',last=null,pending=null,shown=0,checks=0,manifest=null,revision=0,disposed=false;
@@ -52,7 +52,8 @@ export function createVectorStreets({scene,fetchImpl=globalThis.fetch,getIndex=(
  const clear=()=>{for(const g of pending?.geometries??[])g.dispose();pending=null;for(const mesh of meshes){mesh.geometry.dispose();mesh.geometry=new THREE.BufferGeometry();}shown=0;};
  function ground(mesh){const shared=getIndex(mesh);if(shared)return shared;if(!indexes.has(mesh.geometry))indexes.set(mesh.geometry,createSurfaceIndex(mesh.geometry.attributes.position.array,mesh.geometry.index?Uint32Array.from(mesh.geometry.index.array):null));return indexes.get(mesh.geometry);}
  function draw(buffers,grounds,layer,polygon,road=null){if(polygon.length<3)return;for(const index of grounds){
-  const positions=projectSurfacePolygon(index,polygon,.015+layer*.005,layer===4?.14:layer===3?.07:0);buffers[layer].push(...positions);
+  const offset=.015+layer*.005;
+  const positions=projectSurfacePolygon(index,polygon,offset,layer===4?railProfile.centerHeight-offset:layer===3?.055:0);buffers[layer].push(...positions);
   if(road)appendRoadMeasures(buffers[layer].measures,positions,road);
   // Build normals during the bounded projection jobs, not in one costly final
   // computeVertexNormals pass over the complete neighbourhood.
@@ -65,13 +66,15 @@ export function createVectorStreets({scene,fetchImpl=globalThis.fetch,getIndex=(
    return;
   }
   const {a,b,width,kind,along,length}=task,point=d=>[a[0]+(b[0]-a[0])*d/length,a[1]+(b[1]-a[1])*d/length];
+  const join=Math.min(.15,length*.25),start=point(-join),finish=point(length+join);
   if(kind==='road'){
-   draw(buffers,grounds,0,streetRectangle(a,b,width+1.2),task);draw(buffers,grounds,1,streetRectangle(a,b,width));
+   draw(buffers,grounds,0,streetRectangle(start,finish,width+1.44),task);
+   draw(buffers,grounds,1,streetRectangle(start,finish,width),task);
     if(width>=6)for(let d=Math.floor(along/9)*9-along;d<length;d+=9){const start=Math.max(0,d),end=Math.min(d+4,length);if(end<=start)continue;const mid=point((start+end)/2);if(!data.junctions.some(j=>Math.hypot(mid[0]-j.point[0],mid[1]-j.point[1])<j.radius))draw(buffers,grounds,5,streetRectangle(point(start),point(end),.16));}
   }else{
-   draw(buffers,grounds,2,streetRectangle(a,b,5));
-   for(let d=Math.floor(along/2.5)*2.5-along;d<length;d+=2.5){const start=Math.max(0,d),end=Math.min(d+.5,length);if(end>start)draw(buffers,grounds,3,streetRectangle(point(start),point(end),3.2));}
-   for(const side of [-1,1])draw(buffers,grounds,4,streetRectangle(a,b,.18,side*.85));
+   draw(buffers,grounds,2,streetRectangle(start,finish,4.8),task);
+   draw(buffers,grounds,3,streetRectangle(a,b,2.30),task);
+   for(const side of [-1,1])draw(buffers,grounds,4,streetRectangle(start,finish,railProfile.width,side*railProfile.halfGauge),task);
   }
  }
  return {
@@ -94,7 +97,7 @@ export function createVectorStreets({scene,fetchImpl=globalThis.fetch,getIndex=(
    while(pending&&pending.at<pending.tasks.length&&checks<6&&performance.now()-start<5){segment(pending.tasks[pending.at++],pending.buffers,pending.grounds);checks++;if(pending.buffers.reduce((sum,a)=>sum+a.length/9,0)>(quality==='high'?42000:24000))pending.at=pending.tasks.length;}
    if(pending&&pending.at===pending.tasks.length){
     // Stage one layer per frame, then atomically swap all six ready layers.
-    const i=pending.geometries.length,geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(pending.buffers[i],3));geometry.setAttribute('normal',new THREE.Float32BufferAttribute(pending.buffers[i].normals,3));if(i===0)geometry.setAttribute('streetMeasure',new THREE.Float32BufferAttribute(pending.buffers[i].measures,3));
+    const i=pending.geometries.length,geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(pending.buffers[i],3));geometry.setAttribute('normal',new THREE.Float32BufferAttribute(pending.buffers[i].normals,3));if(i<5)geometry.setAttribute('streetMeasure',new THREE.Float32BufferAttribute(pending.buffers[i].measures,3));
     pending.geometries.push(geometry);
     if(pending.geometries.length===meshes.length){meshes.forEach((mesh,i)=>{mesh.geometry.dispose();mesh.geometry=pending.geometries[i];mesh.visible=pending.buffers[i].length>0;});shown=pending.buffers.reduce((sum,a)=>sum+a.length/9,0);pending=null;}
    }

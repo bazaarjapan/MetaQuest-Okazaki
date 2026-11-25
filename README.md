@@ -12,6 +12,9 @@ blender -b --factory-startup --python-exit-code 1 -P scripts/build-okazaki-distr
 
 出力した64街区の位置・見た目と再生成したマニフェストを確認し、`scripts/check-region-assets.mjs` の地区マニフェスト用SHA-256を更新してください。
 
+道路と線路の位置は国土地理院のベクトルデータに合わせています。ゲーム風表示の近景には、舗装の色むら、車輪の通った跡、側溝、砕石、枕木を表示します。運行や信号の点灯、草木の配置は授業用の表現です。
+車両・信号機・街灯・草木の見た目は[街路モデルのBlenderファイル](art/okazaki-street-kit.blend)で編集できます。書き出しは `blender -b --factory-startup --python-exit-code 1 -P scripts/build-okazaki-street-kit.py` で行い、`src/street-kit.js` のファイルの容量・SHA-256・三角形数と検証結果を更新します。
+
 ゲーム風の街では「見学」→「岡崎駅東口」で、線路を東西にまたぐ駅舎と駅前を見渡せます。既存のPLATEAU駅舎に合わせ、Gemini 4 Neonで配色と案内表示を検討し、Blenderで外観を制作しました。駅周辺の構成は[岡崎市の東口駅前広場整備資料](https://www.city.okazaki.lg.jp/shisei/machi/1005061/1002812/1002829/1002846/1011433.html)と[東口ペデストリアンデッキの資料](https://www.city.okazaki.lg.jp/shisei/machi/1005061/1002812/1002829/1002846/1002845.html)を参照しています。色彩や細部は授業用に簡略化しています。外観を編集するには[Blenderファイル](art/okazaki-station.blend)を開き、編集内容を保存してください。保存した駅をアプリ用に書き出すには、リポジトリのルートから次を実行します。
 
 ```sh

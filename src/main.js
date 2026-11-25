@@ -41,6 +41,7 @@ import { createVRWorkshop } from "./vr-workshop.js";
 import { createVRControllerPointer } from "./vr-controller-pointer.js";
 import { createStreetScenery } from "./street-scenery.js";
 import { createAmbientTraffic } from "./ambient-traffic.js";
+import { createStreetKitLoader } from "./street-kit.js";
 import { createMovementAudio } from "./movement-audio.js";
 import { createCitySky, cityFogRange } from "./city-atmosphere.js";
 import { createWorldRadar } from "./world-radar.js";
@@ -244,6 +245,10 @@ const regionalPlacementEnvironment=createRegionalPlacementEnvironment({getCore:(
 const streetScenery=createStreetScenery({scene,getEnvironment:regionalPlacementEnvironment});
 const vectorStreets=createVectorStreets({scene,citySurfaceUniforms:citySurfaceMap.uniforms,getIndex:mesh=>mesh===terrainMesh?placementEnvironment.terrain:null});
 const ambientTraffic=createAmbientTraffic({scene,getEnvironment:regionalPlacementEnvironment});
+const streetKit = createStreetKitLoader(geometries => {
+  streetScenery.setKit(geometries);
+  ambientTraffic.setKit(geometries);
+});
 const movementAudio=createMovementAudio({storage:preferenceStorage,isAllowed:()=>activityAllowed});
 let ambientMotion=true;
 try{const saved=preferenceStorage?.getItem('okazaki-ambient-motion');ambientMotion=saved===null||saved===undefined?!matchMedia('(prefers-reduced-motion: reduce)').matches:saved!=='false';}catch{}
@@ -470,6 +475,7 @@ async function loadCity() {
   const manifest = await fetchChecked("/city/manifest.json", "json");
   stationPosition = manifest.station;
   vectorStreets.setDistrictCenter(stationPosition);
+  citySurfaceMap.uniforms.cityLandCenter.value.set(stationPosition[0],stationPosition[2]);
   // Detail assets are optional: the original published atlas remains a fallback.
   try { detail = await fetchChecked("/city/detail.json", "json"); } catch { detail = null; }
   for (const [i, p] of manifest.parts.entries()) {
@@ -1488,11 +1494,16 @@ renderer.setAnimationLoop((time, frame) => {
     nearField.update({position:userPosition(),quality:quality.id,enabled:fieldStyle==='game'&&!state.qualityLoading,
       manifest:fieldManifest,core:terrainMesh,terrain:regionStreamer.getGroundMeshes(),time});
     const sceneryGeometryVersion=`${terrainMesh?.geometry.id}:${regionStreamer.getMeshes().map(m=>m.geometry.id).join(',')}`;
-    vectorStreets.update({position:userPosition(),quality:quality.id,enabled:fieldStyle==='game'&&!state.qualityLoading,terrain:[terrainMesh,...regionStreamer.getGroundMeshes()].filter(Boolean),terrainVersion:`${terrainMesh?.geometry.id}:${regionStreamer.getGroundMeshes().map(m=>m.geometry.id).join(',')}`,xr:state.xr});
+    vectorStreets.update({position:observer,quality:quality.id,enabled:fieldStyle==='game'&&!state.qualityLoading,terrain:[terrainMesh,...regionStreamer.getGroundMeshes()].filter(Boolean),terrainVersion:`${terrainMesh?.geometry.id}:${regionStreamer.getGroundMeshes().map(m=>m.geometry.id).join(',')}`,xr:state.xr});
     const editingWorld=adaptiveUi.getState().open||Boolean(document.querySelector('dialog[open]'));
-    streetScenery.update({position:userPosition(),quality:quality.id,enabled:fieldStyle==="game"&&!state.qualityLoading,time,objects:schoolState.objects,timeOfDay,terrainVersion:sceneryGeometryVersion,paused:editingWorld||document.hidden});
-    ambientTraffic.update({position:userPosition(),quality:quality.id,active:activityAllowed&&ambientMotion&&fieldStyle==='game'&&!state.qualityLoading&&!document.hidden&&!editingWorld,time,objects:schoolState.objects,
-      terrainVersion:sceneryGeometryVersion});
+    const sceneryEnabled = fieldStyle === "game" && !state.qualityLoading;
+    const aroundDistrict = stationPosition && Math.max(Math.abs(observer.x - stationPosition[0]),
+      Math.abs(observer.z - stationPosition[2])) <= stationDistrictHalfWidth + 420;
+    streetKit.update(sceneryEnabled && quality.id !== "performance" && aroundDistrict && !document.hidden, time);
+    streetScenery.update({position:observer,quality:quality.id,enabled:sceneryEnabled,time,objects:schoolState.objects,timeOfDay,
+      terrainVersion:sceneryGeometryVersion,paused:editingWorld||document.hidden,xr:state.xr});
+    ambientTraffic.update({position:observer,quality:quality.id,active:activityAllowed&&ambientMotion&&sceneryEnabled&&!document.hidden&&!editingWorld,time,objects:schoolState.objects,
+      terrainVersion:sceneryGeometryVersion,xr:state.xr});
     const soundMovement = creative.getState();
     const onFootOrWings = !state.xr && soundMovement.mode === "creative";
     movementAudio.update({
@@ -1608,7 +1619,8 @@ window.__okazaki = {
     presence: presence.getState(),
     vrWorkshop: vrWorkshop.getState(),
     workshop: workshop.getState(),
-    streetScenery: streetScenery.getState(), traffic:ambientTraffic.getState(), audio:movementAudio.getState(), radar: radar.getState(), exhibits: exhibitLabels.getState(), timeOfDay,
+    streetScenery: streetScenery.getState(), streetKit: streetKit.getStatus(), traffic:ambientTraffic.getState(),
+    audio:movementAudio.getState(), radar: radar.getState(), exhibits: exhibitLabels.getState(), timeOfDay,
     hotbar: hotbar.getState(),
     heldSTL: heldSTL.getState(),
     creative: creative.getState(),
