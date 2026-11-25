@@ -24,12 +24,12 @@ export function createVectorStreets({scene,fetchImpl=globalThis.fetch,getIndex=(
  const group=new THREE.Group();group.name='vector-streets';scene.add(group);
  const palette=[0xc9cfbf,0x586567,0x88918a,0x5c5c53,0xd7ded9,0xede5bd];
  const center={value:new THREE.Vector3()},range={value:220};
- const districtStation={value:new THREE.Vector2(1e8,1e8)};
+ const districtStation={value:new THREE.Vector2(1e8,1e8)},districtStrength={value:1};
  const meshes=palette.map((color,i)=>{
   const material=new THREE.MeshStandardMaterial({color,roughness:i===4?.35:1,metalness:i===4?.65:0,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
   material.onBeforeCompile=shader=>{shader.uniforms.streetCenter=center;shader.uniforms.streetRange=range;shader.vertexShader='varying vec3 vStreetWorld;\n'+shader.vertexShader;shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvStreetWorld=(modelMatrix*vec4(position,1.)).xyz;');shader.fragmentShader='uniform vec3 streetCenter;uniform float streetRange;varying vec3 vStreetWorld;\n'+shader.fragmentShader;shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\ndiffuseColor.a*=1.-smoothstep(streetRange-35.,streetRange,length(vStreetWorld.xz-streetCenter.xz));');};
   const compile=material.onBeforeCompile;
-  material.onBeforeCompile=shader=>{compile(shader);applyDistrictStreetFinish(shader,i,districtStation);if(citySurfaceUniforms&&[0,1,5].includes(i)){attachCitySurfaceShader(shader,citySurfaceUniforms);shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\ndiffuseColor.a*=1.-cityBuilding(vStreetWorld.xz);');}};
+  material.onBeforeCompile=shader=>{compile(shader);applyDistrictStreetFinish(shader,i,districtStation,districtStrength);if(citySurfaceUniforms&&[0,1,5].includes(i)){attachCitySurfaceShader(shader,citySurfaceUniforms);shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\ndiffuseColor.a*=1.-cityBuilding(vStreetWorld.xz);');}};
   material.customProgramCacheKey=()=> 'draped-vector-streets-v3-'+i+(citySurfaceUniforms&&[0,1,5].includes(i)?'-clearance':'');
   const mesh=new THREE.Mesh(new THREE.BufferGeometry(),material);mesh.renderOrder=i+1;mesh.frustumCulled=false;group.add(mesh);return mesh;
  });
@@ -77,7 +77,8 @@ export function createVectorStreets({scene,fetchImpl=globalThis.fetch,getIndex=(
  return {
   setDistrictCenter(position){districtStation.value.set(position[0],position[2]);},
   setData,setManifest(value){manifest=value;},
-  update({position,quality='high',enabled=true,terrain=[],terrainVersion=''}){
+  update({position,quality='high',enabled=true,terrain=[],terrainVersion='',xr=false}){
+   districtStrength.value=xr?0:1;
    if(enabled&&quality!=='performance')loadNearby(position,quality==='high'?240:150);
    group.visible=Boolean(enabled&&quality!=='performance'&&data);checks=0;if(!group.visible){if(shown||pending)clear();pending=null;last=null;return;}
    const radius=quality==='high'?240:150;range.value=radius;center.value.copy(position);

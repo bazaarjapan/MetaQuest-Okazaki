@@ -136,19 +136,25 @@ const actualRegionFiles = await readdir(regionRoot);
 assert.deepEqual(actualRegionFiles.sort(), [...expectedRegionFiles].sort(), "No stale/unreferenced region assets, private cache or raw source metadata");
 
 // A public data audit prevents accidental copying of raw DEM pixels or official
-// B3DM batch metadata when rebuilding or deploying. Texture PNGs in the original
-// station model are imagery, not DEM, and are the only permitted public PNGs.
-const allowedPng = new Set(["city/Texture-000.png", "city/Texture-001.png"]);
+// B3DM batch metadata when rebuilding or deploying. Require public PNGs to be
+// either original imagery or the known, generated district weathering map.
+const allowedPng = new Set(["city/Texture-000.png", "city/Texture-001.png", "station/district/surfaces.png"]);
 const districtManifest = await readFile(new URL("station/district/manifest.json", publicRoot));
-assert.equal(hash(districtManifest), "1db4194d9e4294b5c87330b5478babba2bce92282824039dc41a80fa90db29a5", "Unexpected station district manifest");
+assert.equal(hash(districtManifest), "6706585aeaede4f2465b404aac998ff1a12d7aea8116abdc33a32e52b5c3ac72", "Unexpected station district manifest");
+const district = JSON.parse(districtManifest);
+const effects = await readFile(new URL("station/district/surfaces.png", publicRoot));
+assert.equal(effects.length, district.surfaces.bytes);
+assert.equal(hash(effects), district.surfaces.sha256);
+assert.equal(effects.readUInt32BE(16), 256);
+assert.equal(effects.readUInt32BE(20), 256);
 const authoredModels = new Map([
   ["station/okazaki-station.glb", "97c0d75649da25c402dd30859240e07fbc5731235e2c287b3c5d40f0e0423681"],
 ]);
-for (const cell of JSON.parse(districtManifest).tiles) {
-  assert.match(cell.file, /^r[0-3]-c[0-3]\.glb$/);
+for (const cell of district.tiles) {
+  assert.match(cell.file, /^r[0-7]-c[0-7]\.glb$/);
   authoredModels.set("station/district/" + cell.file, cell.sha256);
 }
-assert.equal(authoredModels.size, 17, "Station and 16 distinct district cells");
+assert.equal(authoredModels.size, 65, "Station and 64 distinct district cells");
 let publicFiles = 0;
 async function auditPublic(directory, prefix = "") {
   for (const entry of await readdir(directory, { withFileTypes: true })) {

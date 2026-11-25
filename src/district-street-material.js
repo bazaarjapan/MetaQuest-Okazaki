@@ -1,8 +1,11 @@
+import { stationDistrictHalfWidth } from "./station-district.js";
+
 // Decorations follow the surveyed street directions. All dimensions are metres.
 // The square and the camera distance fade to the existing city materials.
-export function applyDistrictStreetFinish(shader, layer, station) {
+export function applyDistrictStreetFinish(shader, layer, station, strength) {
   if (layer > 2) return;
   shader.uniforms.districtStation = station;
+  shader.uniforms.districtStreetStrength = strength;
   let finish;
   if (layer === 0) {
     shader.vertexShader = "attribute vec3 streetMeasure; varying vec3 vStreetMeasure;\n" + shader.vertexShader;
@@ -32,6 +35,7 @@ export function applyDistrictStreetFinish(shader, layer, station) {
   }
   shader.fragmentShader = `
     uniform vec2 districtStation;
+    uniform float districtStreetStrength;
     float districtGrain(vec2 cell) {
       vec3 p = fract(vec3(cell.xyx) * 0.1031);
       p += dot(p, p.yzx + 33.33);
@@ -47,11 +51,12 @@ export function applyDistrictStreetFinish(shader, layer, station) {
   ` + shader.fragmentShader;
   shader.fragmentShader = shader.fragmentShader.replace("#include <color_fragment>", `#include <color_fragment>
     vec2 stationOffset = abs(vStreetWorld.xz - districtStation);
-    float inside = 1.0 - smoothstep(497.0, 500.0, max(stationOffset.x, stationOffset.y));
+    float inside = 1.0 - smoothstep(${stationDistrictHalfWidth - 4}.0, ${stationDistrictHalfWidth}.0, max(stationOffset.x, stationOffset.y));
     float nearby = 1.0 - smoothstep(45.0, 85.0, length(vStreetWorld.xz - streetCenter.xz));
-    if (inside * nearby > 0.0) {
+    float districtMix = inside * nearby * districtStreetStrength;
+    if (districtMix > 0.0) {
       ${finish}
-      diffuseColor.rgb = mix(diffuseColor.rgb, finishColor, inside * nearby);
+      diffuseColor.rgb = mix(diffuseColor.rgb, finishColor, districtMix);
     }
   `);
 }

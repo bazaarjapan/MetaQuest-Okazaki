@@ -1,39 +1,518 @@
 {
-  "version": 1,
+  "version": 2,
   "origin": [
     95.924560546875,
     16.5,
     49.00273132324219
   ],
   "bounds": [
-    -404.075439453125,
-    -450.9972686767578,
-    595.924560546875,
-    549.0027313232422
+    -904.075439453125,
+    -950.9972686767578,
+    1095.924560546875,
+    1049.0027313232422
   ],
   "tileSize": 250,
+  "surfaces": {
+    "file": "surfaces.png",
+    "bytes": 251849,
+    "sha256": "c861882ef7b9ff348249663891e1b1f290a6aafdd88f03b46dafbd6551843c7e"
+  },
   "survey": {
-    "sourceRoofSurfaces": 2599,
-    "decoratedRoofSurfaces": 2586,
-    "frontages": 2498,
+    "sourceRoofSurfaces": 10963,
+    "decoratedRoofSurfaces": 10950,
+    "frontages": 10546,
     "styles": {
-      "gable": 400,
-      "hip": 1608,
+      "gable": 1796,
+      "hip": 7258,
       "measured": 119,
-      "sheet": 135,
+      "sheet": 517,
       "station": 13,
-      "terrace": 324
+      "terrace": 1260
     },
     "source": "国土交通省 PLATEAU 岡崎市 2020年度 建築物 / 国土地理院 最適化ベクトルタイル 道路中心線",
-    "method": "実測屋根面・高さと道路中心線から外観を制作。屋根形状の補完、色、窓、笠木、屋上設備は授業用の表現。駅舎の専用モデルを優先。"
+    "method": "実測屋根面・高さと道路中心線に基づく。補完した屋根、外装と建具は授業用の表現。駅舎の専用モデルを優先。"
   },
   "tiles": [
     {
       "id": "r0-c0",
       "file": "r0-c0.glb",
-      "bytes": 360552,
-      "triangles": 10921,
-      "sha256": "35d7a98a41a621b28bfcc9c33090bd10d7721cf84cc7bb65b0a57f132fd93b62",
+      "bytes": 176740,
+      "triangles": 4282,
+      "sha256": "dabb48ce1b8cbd1507df8dcaaca3e571b2cc30c35f69ee6544b3a0660c47e7d9",
+      "bounds": [
+        -904.075439453125,
+        -950.9972686767578,
+        -654.075439453125,
+        -700.9972686767578
+      ],
+      "heightRange": [
+        11.953125,
+        32.515625
+      ],
+      "regionBuildings": [
+        "b--2--2"
+      ],
+      "sourceRoofs": 64,
+      "sourceFiles": [
+        "region/b--2--2.bin"
+      ]
+    },
+    {
+      "id": "r0-c1",
+      "file": "r0-c1.glb",
+      "bytes": 406120,
+      "triangles": 10078,
+      "sha256": "f01a638e2bda0084ea84b4ebb3f3e71dbb62151d331e43c674a773da0105ddf7",
+      "bounds": [
+        -654.075439453125,
+        -950.9972686767578,
+        -404.075439453125,
+        -700.9972686767578
+      ],
+      "heightRange": [
+        12.4375,
+        36.828125
+      ],
+      "regionBuildings": [
+        "b--1--2",
+        "b--2--2"
+      ],
+      "sourceRoofs": 151,
+      "sourceFiles": [
+        "region/b--1--2.bin",
+        "region/b--2--2.bin"
+      ]
+    },
+    {
+      "id": "r0-c2",
+      "file": "r0-c2.glb",
+      "bytes": 426924,
+      "triangles": 10625,
+      "sha256": "dc62562bdc41b810c0948a5c17737d0a3bc8b3940e8a27629eb813a1c1a1295b",
+      "bounds": [
+        -404.075439453125,
+        -950.9972686767578,
+        -154.075439453125,
+        -700.9972686767578
+      ],
+      "heightRange": [
+        11.859375,
+        36.828125
+      ],
+      "regionBuildings": [
+        "b--1--2"
+      ],
+      "sourceRoofs": 167,
+      "sourceFiles": [
+        "region/b--1--2.bin"
+      ]
+    },
+    {
+      "id": "r0-c3",
+      "file": "r0-c3.glb",
+      "bytes": 451824,
+      "triangles": 11329,
+      "sha256": "66e3e1ee96e4378cd9b3da1f67bffbbfe11704c9a3d5aed03596810d4c634dd2",
+      "bounds": [
+        -154.075439453125,
+        -950.9972686767578,
+        95.924560546875,
+        -700.9972686767578
+      ],
+      "heightRange": [
+        12.21875,
+        28.46875
+      ],
+      "regionBuildings": [
+        "b--1--2",
+        "b-0--2"
+      ],
+      "sourceRoofs": 183,
+      "sourceFiles": [
+        "region/b--1--2.bin",
+        "region/b-0--2.bin"
+      ]
+    },
+    {
+      "id": "r0-c4",
+      "file": "r0-c4.glb",
+      "bytes": 569512,
+      "triangles": 14204,
+      "sha256": "9cdc740ab143ce1f9b78c527ea8ddb456b104339511c7d394d26844a66a493eb",
+      "bounds": [
+        95.924560546875,
+        -950.9972686767578,
+        345.924560546875,
+        -700.9972686767578
+      ],
+      "heightRange": [
+        12.875,
+        58.359375
+      ],
+      "regionBuildings": [
+        "b-0--2"
+      ],
+      "sourceRoofs": 209,
+      "sourceFiles": [
+        "region/b-0--2.bin"
+      ]
+    },
+    {
+      "id": "r0-c5",
+      "file": "r0-c5.glb",
+      "bytes": 609460,
+      "triangles": 15205,
+      "sha256": "0fe3fef533b21610f2462cf99c2b0a9f47fb0fbf583521d206ccfe07b2cd0b98",
+      "bounds": [
+        345.924560546875,
+        -950.9972686767578,
+        595.924560546875,
+        -700.9972686767578
+      ],
+      "heightRange": [
+        13.6875,
+        34.921875
+      ],
+      "regionBuildings": [
+        "b-0--2",
+        "b-1--2"
+      ],
+      "sourceRoofs": 225,
+      "sourceFiles": [
+        "region/b-0--2.bin",
+        "region/b-1--2.bin"
+      ]
+    },
+    {
+      "id": "r0-c6",
+      "file": "r0-c6.glb",
+      "bytes": 698544,
+      "triangles": 17506,
+      "sha256": "e0b62ce7214cdc666d1a99bd2f1e6b272420992e270291a185e9aad51d37f338",
+      "bounds": [
+        595.924560546875,
+        -950.9972686767578,
+        845.924560546875,
+        -700.9972686767578
+      ],
+      "heightRange": [
+        17.046875,
+        38.234375
+      ],
+      "regionBuildings": [
+        "b-1--2"
+      ],
+      "sourceRoofs": 256,
+      "sourceFiles": [
+        "region/b-1--2.bin"
+      ]
+    },
+    {
+      "id": "r0-c7",
+      "file": "r0-c7.glb",
+      "bytes": 637420,
+      "triangles": 15942,
+      "sha256": "46b0c004ff45d6d9ad482aabb5a0d0df2a4fc75743c51d27cafae1a992c17468",
+      "bounds": [
+        845.924560546875,
+        -950.9972686767578,
+        1095.924560546875,
+        -700.9972686767578
+      ],
+      "heightRange": [
+        19.453125,
+        63.640625
+      ],
+      "regionBuildings": [
+        "b-1--2",
+        "b-2--2"
+      ],
+      "sourceRoofs": 243,
+      "sourceFiles": [
+        "region/b-1--2.bin",
+        "region/b-2--2.bin"
+      ]
+    },
+    {
+      "id": "r1-c0",
+      "file": "r1-c0.glb",
+      "bytes": 582228,
+      "triangles": 14503,
+      "sha256": "44fcca245dbe3c70546c9a5d29df4cdcd7ef09ef3d138f67572fa213d1558c57",
+      "bounds": [
+        -904.075439453125,
+        -700.9972686767578,
+        -654.075439453125,
+        -450.9972686767578
+      ],
+      "heightRange": [
+        11.578125,
+        23.578125
+      ],
+      "regionBuildings": [
+        "b--2--1",
+        "b--2--2"
+      ],
+      "sourceRoofs": 216,
+      "sourceFiles": [
+        "region/b--2--1.bin",
+        "region/b--2--2.bin"
+      ]
+    },
+    {
+      "id": "r1-c1",
+      "file": "r1-c1.glb",
+      "bytes": 565720,
+      "triangles": 14301,
+      "sha256": "9c6e7887e831464d09d75aff77b1adfd3c674579e13468f55ee93fc44499112e",
+      "bounds": [
+        -654.075439453125,
+        -700.9972686767578,
+        -404.075439453125,
+        -450.9972686767578
+      ],
+      "heightRange": [
+        11.515625,
+        51.875
+      ],
+      "regionBuildings": [
+        "b--1--1",
+        "b--1--2",
+        "b--2--1",
+        "b--2--2"
+      ],
+      "sourceRoofs": 212,
+      "sourceFiles": [
+        "region/b--1--1.bin",
+        "region/b--1--2.bin",
+        "region/b--2--1.bin",
+        "region/b--2--2.bin"
+      ]
+    },
+    {
+      "id": "r1-c2",
+      "file": "r1-c2.glb",
+      "bytes": 572976,
+      "triangles": 14388,
+      "sha256": "a0613a29f89b6aa9e027ac0c2db82fbb0d520fe15ca46d714ac6ecd7b1964bc2",
+      "bounds": [
+        -404.075439453125,
+        -700.9972686767578,
+        -154.075439453125,
+        -450.9972686767578
+      ],
+      "heightRange": [
+        11.75,
+        24.28125
+      ],
+      "regionBuildings": [
+        "b--1--1",
+        "b--1--2"
+      ],
+      "sourceRoofs": 229,
+      "sourceFiles": [
+        "region/b--1--1.bin",
+        "region/b--1--2.bin"
+      ]
+    },
+    {
+      "id": "r1-c3",
+      "file": "r1-c3.glb",
+      "bytes": 397428,
+      "triangles": 9999,
+      "sha256": "853f97fb2175e764d6b7bad7e29711359fb4f23fc85ae0bcc567203a4d74a84c",
+      "bounds": [
+        -154.075439453125,
+        -700.9972686767578,
+        95.924560546875,
+        -450.9972686767578
+      ],
+      "heightRange": [
+        10.359375,
+        33.40625
+      ],
+      "regionBuildings": [
+        "b--1--1",
+        "b--1--2",
+        "b-0--1",
+        "b-0--2"
+      ],
+      "sourceRoofs": 150,
+      "sourceFiles": [
+        "region/b--1--1.bin",
+        "region/b--1--2.bin",
+        "region/b-0--1.bin",
+        "region/b-0--2.bin"
+      ]
+    },
+    {
+      "id": "r1-c4",
+      "file": "r1-c4.glb",
+      "bytes": 351808,
+      "triangles": 8863,
+      "sha256": "9e96e98e12937e847574dbba29cf7c6254276abbc5798668ad77ecdafbf1ba44",
+      "bounds": [
+        95.924560546875,
+        -700.9972686767578,
+        345.924560546875,
+        -450.9972686767578
+      ],
+      "heightRange": [
+        12.484375,
+        57.390625
+      ],
+      "regionBuildings": [
+        "b-0--1",
+        "b-0--2"
+      ],
+      "sourceRoofs": 125,
+      "sourceFiles": [
+        "region/b-0--1.bin",
+        "region/b-0--2.bin"
+      ]
+    },
+    {
+      "id": "r1-c5",
+      "file": "r1-c5.glb",
+      "bytes": 388936,
+      "triangles": 9708,
+      "sha256": "02d1645200ab71c46bff3e8b7ab3df579a2e8968f7f90bc67217c62ea891c67f",
+      "bounds": [
+        345.924560546875,
+        -700.9972686767578,
+        595.924560546875,
+        -450.9972686767578
+      ],
+      "heightRange": [
+        14.703125,
+        44.359375
+      ],
+      "regionBuildings": [
+        "b-0--1",
+        "b-0--2",
+        "b-1--1",
+        "b-1--2"
+      ],
+      "sourceRoofs": 135,
+      "sourceFiles": [
+        "region/b-0--1.bin",
+        "region/b-0--2.bin",
+        "region/b-1--1.bin",
+        "region/b-1--2.bin"
+      ]
+    },
+    {
+      "id": "r1-c6",
+      "file": "r1-c6.glb",
+      "bytes": 444996,
+      "triangles": 11158,
+      "sha256": "1e7807e3f9cbfc33892247faba02dc7e5e65ead4d185bfca0307f594542872eb",
+      "bounds": [
+        595.924560546875,
+        -700.9972686767578,
+        845.924560546875,
+        -450.9972686767578
+      ],
+      "heightRange": [
+        16.6875,
+        37.140625
+      ],
+      "regionBuildings": [
+        "b-1--1",
+        "b-1--2"
+      ],
+      "sourceRoofs": 159,
+      "sourceFiles": [
+        "region/b-1--1.bin",
+        "region/b-1--2.bin"
+      ]
+    },
+    {
+      "id": "r1-c7",
+      "file": "r1-c7.glb",
+      "bytes": 347772,
+      "triangles": 8524,
+      "sha256": "3103231c67bfb04f7e857974d236fc70571874a8024e7e66fb6b8ce870bfb840",
+      "bounds": [
+        845.924560546875,
+        -700.9972686767578,
+        1095.924560546875,
+        -450.9972686767578
+      ],
+      "heightRange": [
+        18.984375,
+        45.421875
+      ],
+      "regionBuildings": [
+        "b-1--1",
+        "b-1--2",
+        "b-2--1",
+        "b-2--2"
+      ],
+      "sourceRoofs": 127,
+      "sourceFiles": [
+        "region/b-1--1.bin",
+        "region/b-1--2.bin",
+        "region/b-2--1.bin",
+        "region/b-2--2.bin"
+      ]
+    },
+    {
+      "id": "r2-c0",
+      "file": "r2-c0.glb",
+      "bytes": 602044,
+      "triangles": 15046,
+      "sha256": "f459c8b6fc521cc96e0e8700a9ac4cea92ad296d5f4488b5bd51acac12db479d",
+      "bounds": [
+        -904.075439453125,
+        -450.9972686767578,
+        -654.075439453125,
+        -200.9972686767578
+      ],
+      "heightRange": [
+        10.90625,
+        26.609375
+      ],
+      "regionBuildings": [
+        "b--2--1"
+      ],
+      "sourceRoofs": 209,
+      "sourceFiles": [
+        "region/b--2--1.bin"
+      ]
+    },
+    {
+      "id": "r2-c1",
+      "file": "r2-c1.glb",
+      "bytes": 616624,
+      "triangles": 15406,
+      "sha256": "2756f41e50ea3384519f1e82b2a4bc440e1b9656e73199f00b6cbf350de91cab",
+      "bounds": [
+        -654.075439453125,
+        -450.9972686767578,
+        -404.075439453125,
+        -200.9972686767578
+      ],
+      "heightRange": [
+        10.734375,
+        24.46875
+      ],
+      "regionBuildings": [
+        "b--1--1",
+        "b--2--1"
+      ],
+      "sourceRoofs": 224,
+      "sourceFiles": [
+        "region/b--1--1.bin",
+        "region/b--2--1.bin"
+      ]
+    },
+    {
+      "id": "r2-c2",
+      "file": "r2-c2.glb",
+      "bytes": 505396,
+      "triangles": 12514,
+      "sha256": "0ae2a33803b89379e058179a8433541d8197a6a7e84c00f57b2f675ec5008b0b",
       "bounds": [
         -404.075439453125,
         -450.9972686767578,
@@ -56,11 +535,11 @@
       ]
     },
     {
-      "id": "r0-c1",
-      "file": "r0-c1.glb",
-      "bytes": 294560,
-      "triangles": 8851,
-      "sha256": "f4b1f0b33160b1601b2276037fceb05f8e1fb5ed5f747795087a8e992af16875",
+      "id": "r2-c3",
+      "file": "r2-c3.glb",
+      "bytes": 420192,
+      "triangles": 10293,
+      "sha256": "62302e11860f20bba4dc0425a3af976c6caf48e44700b376a62e2de8f54416b0",
       "bounds": [
         -154.075439453125,
         -450.9972686767578,
@@ -85,11 +564,11 @@
       ]
     },
     {
-      "id": "r0-c2",
-      "file": "r0-c2.glb",
-      "bytes": 332780,
-      "triangles": 9928,
-      "sha256": "a6d20362e6ba153d22ef2aaf0981fa32aff7bb46837abbd70484f7abb551c3f1",
+      "id": "r2-c4",
+      "file": "r2-c4.glb",
+      "bytes": 480092,
+      "triangles": 11717,
+      "sha256": "05143689407bf35a8e9d223a3f3845595104dc3b20c4e1a1935bff2718921190",
       "bounds": [
         95.924560546875,
         -450.9972686767578,
@@ -98,7 +577,7 @@
       ],
       "heightRange": [
         13.125,
-        44.296875
+        44.359375
       ],
       "regionBuildings": [
         "b-0--1"
@@ -112,11 +591,11 @@
       ]
     },
     {
-      "id": "r0-c3",
-      "file": "r0-c3.glb",
-      "bytes": 362088,
-      "triangles": 11145,
-      "sha256": "0f628f6680e06bf804ec68b464c805765840f2040fd590884d1a963d5bc183c9",
+      "id": "r2-c5",
+      "file": "r2-c5.glb",
+      "bytes": 529712,
+      "triangles": 13217,
+      "sha256": "21d688c52c0384b7d36d7befd3469c8cf385dfef0247e8f01b78b063150738ca",
       "bounds": [
         345.924560546875,
         -450.9972686767578,
@@ -125,7 +604,7 @@
       ],
       "heightRange": [
         14.921875,
-        44.296875
+        44.359375
       ],
       "regionBuildings": [
         "b-0--1",
@@ -140,11 +619,117 @@
       ]
     },
     {
-      "id": "r1-c0",
-      "file": "r1-c0.glb",
-      "bytes": 243140,
-      "triangles": 7540,
-      "sha256": "35b94e319333b52d8ef4ce834b942db8f487c4d73515bd93661757aa0d773ae6",
+      "id": "r2-c6",
+      "file": "r2-c6.glb",
+      "bytes": 567248,
+      "triangles": 14250,
+      "sha256": "cd4a281435f98aaec0c8385ea5c0103db78e1dcec9b459790443478aa1e0b045",
+      "bounds": [
+        595.924560546875,
+        -450.9972686767578,
+        845.924560546875,
+        -200.9972686767578
+      ],
+      "heightRange": [
+        16.5,
+        34.09375
+      ],
+      "regionBuildings": [
+        "b-1--1"
+      ],
+      "sourceRoofs": 212,
+      "sourceFiles": [
+        "region/b-1--1.bin"
+      ]
+    },
+    {
+      "id": "r2-c7",
+      "file": "r2-c7.glb",
+      "bytes": 681568,
+      "triangles": 17080,
+      "sha256": "205dec4f20b88e9624d8e287a963a38834fcd6fb45deb5de638f719d7f66e4ef",
+      "bounds": [
+        845.924560546875,
+        -450.9972686767578,
+        1095.924560546875,
+        -200.9972686767578
+      ],
+      "heightRange": [
+        18.1875,
+        43.359375
+      ],
+      "regionBuildings": [
+        "b-1--1",
+        "b-2--1"
+      ],
+      "sourceRoofs": 277,
+      "sourceFiles": [
+        "region/b-1--1.bin",
+        "region/b-2--1.bin"
+      ]
+    },
+    {
+      "id": "r3-c0",
+      "file": "r3-c0.glb",
+      "bytes": 603788,
+      "triangles": 15180,
+      "sha256": "e709d721aae6f6e80da71c430d7bdcd69a0b103a30160f459bd6e348e5bf3332",
+      "bounds": [
+        -904.075439453125,
+        -200.9972686767578,
+        -654.075439453125,
+        49.00273132324219
+      ],
+      "heightRange": [
+        10.859375,
+        23.765625
+      ],
+      "regionBuildings": [
+        "b--2--1",
+        "b--2-0"
+      ],
+      "sourceRoofs": 232,
+      "sourceFiles": [
+        "region/b--2--1.bin",
+        "region/b--2-0.bin"
+      ]
+    },
+    {
+      "id": "r3-c1",
+      "file": "r3-c1.glb",
+      "bytes": 656936,
+      "triangles": 16361,
+      "sha256": "34a73584e09d33d2d6ca7c74e256bb3669e684837075722bf83dba6b9b0abc00",
+      "bounds": [
+        -654.075439453125,
+        -200.9972686767578,
+        -404.075439453125,
+        49.00273132324219
+      ],
+      "heightRange": [
+        8.09375,
+        25.265625
+      ],
+      "regionBuildings": [
+        "b--1--1",
+        "b--1-0",
+        "b--2--1",
+        "b--2-0"
+      ],
+      "sourceRoofs": 243,
+      "sourceFiles": [
+        "region/b--1--1.bin",
+        "region/b--1-0.bin",
+        "region/b--2--1.bin",
+        "region/b--2-0.bin"
+      ]
+    },
+    {
+      "id": "r3-c2",
+      "file": "r3-c2.glb",
+      "bytes": 343488,
+      "triangles": 8660,
+      "sha256": "e45a4b327acc1da81c867508f3090440ab175c1ffd634295da994ca93d448a10",
       "bounds": [
         -404.075439453125,
         -200.9972686767578,
@@ -168,11 +753,11 @@
       ]
     },
     {
-      "id": "r1-c1",
-      "file": "r1-c1.glb",
-      "bytes": 305752,
-      "triangles": 9301,
-      "sha256": "77646de8d6132e3eb8b4eedf0ccc0d4e786a8ad360873df1d65757205aab6556",
+      "id": "r3-c3",
+      "file": "r3-c3.glb",
+      "bytes": 425260,
+      "triangles": 10548,
+      "sha256": "f95d0988e07e9f39e263b20e43ed72b1c528bc28d2749a757651b063a001049f",
       "bounds": [
         -154.075439453125,
         -200.9972686767578,
@@ -190,11 +775,11 @@
       ]
     },
     {
-      "id": "r1-c2",
-      "file": "r1-c2.glb",
-      "bytes": 222940,
-      "triangles": 6686,
-      "sha256": "e41dede0d6fef994617dfb6fe86b8592f61d8f7d2335ffb206cb24aa6e75803d",
+      "id": "r3-c4",
+      "file": "r3-c4.glb",
+      "bytes": 334584,
+      "triangles": 8126,
+      "sha256": "13aa080f58c4509cd5911f5c525533cfa9509e5d272f5d35944f782f6560cbe2",
       "bounds": [
         95.924560546875,
         -200.9972686767578,
@@ -203,7 +788,7 @@
       ],
       "heightRange": [
         15.4375,
-        62.34375
+        62.40625
       ],
       "regionBuildings": [
         "b-0--1",
@@ -217,11 +802,11 @@
       ]
     },
     {
-      "id": "r1-c3",
-      "file": "r1-c3.glb",
-      "bytes": 251284,
-      "triangles": 7746,
-      "sha256": "d819a190c5df5bec194a8d5624d7e56aa3dbf77bda8bd70e921b8e5793fc32cb",
+      "id": "r3-c5",
+      "file": "r3-c5.glb",
+      "bytes": 361588,
+      "triangles": 9050,
+      "sha256": "24a23e01f5be61ebce8a8c8ddeff207d9ffacff2525e9f7cb941ab5410be7d6b",
       "bounds": [
         345.924560546875,
         -200.9972686767578,
@@ -247,11 +832,117 @@
       ]
     },
     {
-      "id": "r2-c0",
-      "file": "r2-c0.glb",
-      "bytes": 368000,
-      "triangles": 11326,
-      "sha256": "938d043fc1012e66e6c1f0a4d24216a60a2cdf37b76147f5c2c317ea77b0a288",
+      "id": "r3-c6",
+      "file": "r3-c6.glb",
+      "bytes": 399980,
+      "triangles": 9985,
+      "sha256": "3da23e99ac5a9c81393237223c5d3703c1a9ed1f1a9c386efcb41711c5217dbb",
+      "bounds": [
+        595.924560546875,
+        -200.9972686767578,
+        845.924560546875,
+        49.00273132324219
+      ],
+      "heightRange": [
+        17.078125,
+        37.28125
+      ],
+      "regionBuildings": [
+        "b-1--1",
+        "b-1-0"
+      ],
+      "sourceRoofs": 155,
+      "sourceFiles": [
+        "region/b-1--1.bin",
+        "region/b-1-0.bin"
+      ]
+    },
+    {
+      "id": "r3-c7",
+      "file": "r3-c7.glb",
+      "bytes": 476336,
+      "triangles": 11788,
+      "sha256": "87c52a362fed9fa0ab0cbf50b3baaaacc1c10e09a1e4990db02a0493fa2b88a5",
+      "bounds": [
+        845.924560546875,
+        -200.9972686767578,
+        1095.924560546875,
+        49.00273132324219
+      ],
+      "heightRange": [
+        18.265625,
+        38.5
+      ],
+      "regionBuildings": [
+        "b-1--1",
+        "b-1-0",
+        "b-2--1",
+        "b-2-0"
+      ],
+      "sourceRoofs": 192,
+      "sourceFiles": [
+        "region/b-1--1.bin",
+        "region/b-1-0.bin",
+        "region/b-2--1.bin",
+        "region/b-2-0.bin"
+      ]
+    },
+    {
+      "id": "r4-c0",
+      "file": "r4-c0.glb",
+      "bytes": 673400,
+      "triangles": 16942,
+      "sha256": "a0e1a3cf0469cc4340ea21e287ca118adf4e32e31f07133d14815dc33503b6bf",
+      "bounds": [
+        -904.075439453125,
+        49.00273132324219,
+        -654.075439453125,
+        299.0027313232422
+      ],
+      "heightRange": [
+        10.359375,
+        24.1875
+      ],
+      "regionBuildings": [
+        "b--2-0"
+      ],
+      "sourceRoofs": 279,
+      "sourceFiles": [
+        "region/b--2-0.bin"
+      ]
+    },
+    {
+      "id": "r4-c1",
+      "file": "r4-c1.glb",
+      "bytes": 353800,
+      "triangles": 8772,
+      "sha256": "9d84170be4eab356a9ffadd3b4d94c30790a38ce3b803b1db5f5afcf1fb5d21b",
+      "bounds": [
+        -654.075439453125,
+        49.00273132324219,
+        -404.075439453125,
+        299.0027313232422
+      ],
+      "heightRange": [
+        10.296875,
+        28.984375
+      ],
+      "regionBuildings": [
+        "b--1-0",
+        "b--2-0"
+      ],
+      "sourceRoofs": 141,
+      "sourceFiles": [
+        "region/b--1-0.bin",
+        "region/b--2-0.bin"
+      ]
+    },
+    {
+      "id": "r4-c2",
+      "file": "r4-c2.glb",
+      "bytes": 530604,
+      "triangles": 13246,
+      "sha256": "4c11fd104edb41d82bd84cea797200bf21377255781abf27fbfa15e9dcbf04b4",
       "bounds": [
         -404.075439453125,
         49.00273132324219,
@@ -272,11 +963,11 @@
       ]
     },
     {
-      "id": "r2-c1",
-      "file": "r2-c1.glb",
-      "bytes": 319096,
-      "triangles": 9768,
-      "sha256": "23b911de37faabeb0c3d74bee9767724e20ad4e4e7dfbcdff158d4b6338d94ff",
+      "id": "r4-c3",
+      "file": "r4-c3.glb",
+      "bytes": 445348,
+      "triangles": 11103,
+      "sha256": "c74c19e9a743f2385358c800388c79fa1cc76343e2979e520074a0e7600f3888",
       "bounds": [
         -154.075439453125,
         49.00273132324219,
@@ -294,11 +985,11 @@
       ]
     },
     {
-      "id": "r2-c2",
-      "file": "r2-c2.glb",
-      "bytes": 187792,
-      "triangles": 5653,
-      "sha256": "61e46575c4c96cf351149781347a2639b63ec88980cfa4894f2399dd2c251b95",
+      "id": "r4-c4",
+      "file": "r4-c4.glb",
+      "bytes": 264856,
+      "triangles": 6501,
+      "sha256": "8d4185884f2c57a9c1572ef8d5abdc2f7fad0f0c50c672a047542cdbf3a0af0f",
       "bounds": [
         95.924560546875,
         49.00273132324219,
@@ -319,11 +1010,11 @@
       ]
     },
     {
-      "id": "r2-c3",
-      "file": "r2-c3.glb",
-      "bytes": 320876,
-      "triangles": 9726,
-      "sha256": "4332a4d7e03a1dc73b225eb7fbe6c88b30d3848283124a0d6210e6bf66a9a489",
+      "id": "r4-c5",
+      "file": "r4-c5.glb",
+      "bytes": 482596,
+      "triangles": 11828,
+      "sha256": "81ae81342e217a691d2d47e02cd44492207aa9199747f280f1c90c0e2353ee70",
       "bounds": [
         345.924560546875,
         49.00273132324219,
@@ -345,11 +1036,115 @@
       ]
     },
     {
-      "id": "r3-c0",
-      "file": "r3-c0.glb",
-      "bytes": 424276,
-      "triangles": 13107,
-      "sha256": "2c7518bcd6467e0685a1530b41e61cad3d5043de61af91e933e6fde95a43d2c0",
+      "id": "r4-c6",
+      "file": "r4-c6.glb",
+      "bytes": 469308,
+      "triangles": 11740,
+      "sha256": "e4580e5e34f0a1c328432ef7ccc4a2602e260d6859e4646198baf9dcd131ae01",
+      "bounds": [
+        595.924560546875,
+        49.00273132324219,
+        845.924560546875,
+        299.0027313232422
+      ],
+      "heightRange": [
+        17.65625,
+        60.109375
+      ],
+      "regionBuildings": [
+        "b-1-0"
+      ],
+      "sourceRoofs": 165,
+      "sourceFiles": [
+        "region/b-1-0.bin"
+      ]
+    },
+    {
+      "id": "r4-c7",
+      "file": "r4-c7.glb",
+      "bytes": 524724,
+      "triangles": 13139,
+      "sha256": "302ccb40d49b3897b38b8916f58955d8c58ac56558db0d1c075d490d7e21c2f3",
+      "bounds": [
+        845.924560546875,
+        49.00273132324219,
+        1095.924560546875,
+        299.0027313232422
+      ],
+      "heightRange": [
+        19.296875,
+        37.109375
+      ],
+      "regionBuildings": [
+        "b-1-0",
+        "b-2-0"
+      ],
+      "sourceRoofs": 210,
+      "sourceFiles": [
+        "region/b-1-0.bin",
+        "region/b-2-0.bin"
+      ]
+    },
+    {
+      "id": "r5-c0",
+      "file": "r5-c0.glb",
+      "bytes": 600676,
+      "triangles": 15001,
+      "sha256": "c090ce655a3dcfddacac5d6fc335536a9d4ee456343c354dd383d26a93ebb0f5",
+      "bounds": [
+        -904.075439453125,
+        299.0027313232422,
+        -654.075439453125,
+        549.0027313232422
+      ],
+      "heightRange": [
+        10.296875,
+        24.921875
+      ],
+      "regionBuildings": [
+        "b--2-0",
+        "b--2-1"
+      ],
+      "sourceRoofs": 227,
+      "sourceFiles": [
+        "region/b--2-0.bin",
+        "region/b--2-1.bin"
+      ]
+    },
+    {
+      "id": "r5-c1",
+      "file": "r5-c1.glb",
+      "bytes": 334032,
+      "triangles": 8354,
+      "sha256": "a484c7600dbb5fb36013c5811fe6f706b19dab63c6e97623d89f1b2a803d6385",
+      "bounds": [
+        -654.075439453125,
+        299.0027313232422,
+        -404.075439453125,
+        549.0027313232422
+      ],
+      "heightRange": [
+        10.6875,
+        26.578125
+      ],
+      "regionBuildings": [
+        "b--1-0",
+        "b--2-0",
+        "b--2-1"
+      ],
+      "sourceRoofs": 126,
+      "sourceFiles": [
+        "region/b--1-0.bin",
+        "region/b--2-0.bin",
+        "region/b--2-1.bin"
+      ]
+    },
+    {
+      "id": "r5-c2",
+      "file": "r5-c2.glb",
+      "bytes": 606952,
+      "triangles": 15234,
+      "sha256": "25ebe6b698e64dab450bcc0f9e38382b9c611075dc979fa6125e3035598ec8a7",
       "bounds": [
         -404.075439453125,
         299.0027313232422,
@@ -372,11 +1167,11 @@
       ]
     },
     {
-      "id": "r3-c1",
-      "file": "r3-c1.glb",
-      "bytes": 276408,
-      "triangles": 8479,
-      "sha256": "5339a4badf3e0b9131f1d1a57f6ea322b35d3192c74118aed104db175ef5ee48",
+      "id": "r5-c3",
+      "file": "r5-c3.glb",
+      "bytes": 396184,
+      "triangles": 9876,
+      "sha256": "eec6bda4eb9dc202d431cc7e51e1620d895af26e121f781c3b3eb46d00b38898",
       "bounds": [
         -154.075439453125,
         299.0027313232422,
@@ -385,7 +1180,7 @@
       ],
       "heightRange": [
         13.53125,
-        56.078125
+        56.140625
       ],
       "regionBuildings": [
         "b--1-0",
@@ -403,11 +1198,11 @@
       ]
     },
     {
-      "id": "r3-c2",
-      "file": "r3-c2.glb",
-      "bytes": 285044,
-      "triangles": 8722,
-      "sha256": "aac3d3912ab1b31ed779a7c9e22cbaa27fb4bb25c36aefd40985e562b6999a5c",
+      "id": "r5-c4",
+      "file": "r5-c4.glb",
+      "bytes": 413896,
+      "triangles": 10271,
+      "sha256": "b4193b281477e75303378dae5c0fabac782b4673bcb2862572180fd9b46cfa64",
       "bounds": [
         95.924560546875,
         299.0027313232422,
@@ -430,11 +1225,11 @@
       ]
     },
     {
-      "id": "r3-c3",
-      "file": "r3-c3.glb",
-      "bytes": 581880,
-      "triangles": 18087,
-      "sha256": "6ee8e81d6a7bda84c676676880ea266c36feb9ddc2837f33d225aa93c49ed311",
+      "id": "r5-c5",
+      "file": "r5-c5.glb",
+      "bytes": 841392,
+      "triangles": 21194,
+      "sha256": "6af3ddff6736ef13ec9e0473e2b7ccef3fe51462a5552867e0e1475149a951d1",
       "bounds": [
         345.924560546875,
         299.0027313232422,
@@ -457,6 +1252,482 @@
         "region/b-0-1.bin",
         "region/b-1-0.bin",
         "region/b-1-1.bin"
+      ]
+    },
+    {
+      "id": "r5-c6",
+      "file": "r5-c6.glb",
+      "bytes": 899416,
+      "triangles": 22708,
+      "sha256": "fc250a5399cda93445358c8c7081e0769e874805fe143d22ab0dca60f13afd71",
+      "bounds": [
+        595.924560546875,
+        299.0027313232422,
+        845.924560546875,
+        549.0027313232422
+      ],
+      "heightRange": [
+        19.671875,
+        39.65625
+      ],
+      "regionBuildings": [
+        "b-1-0",
+        "b-1-1"
+      ],
+      "sourceRoofs": 349,
+      "sourceFiles": [
+        "region/b-1-0.bin",
+        "region/b-1-1.bin"
+      ]
+    },
+    {
+      "id": "r5-c7",
+      "file": "r5-c7.glb",
+      "bytes": 475856,
+      "triangles": 11808,
+      "sha256": "75b43b5b614316dda2f1f5c1d5761c29a86c6db54043dbb9cf4b6b5f68e91d3a",
+      "bounds": [
+        845.924560546875,
+        299.0027313232422,
+        1095.924560546875,
+        549.0027313232422
+      ],
+      "heightRange": [
+        23.296875,
+        47.390625
+      ],
+      "regionBuildings": [
+        "b-1-0",
+        "b-1-1",
+        "b-2-0",
+        "b-2-1"
+      ],
+      "sourceRoofs": 178,
+      "sourceFiles": [
+        "region/b-1-0.bin",
+        "region/b-1-1.bin",
+        "region/b-2-0.bin",
+        "region/b-2-1.bin"
+      ]
+    },
+    {
+      "id": "r6-c0",
+      "file": "r6-c0.glb",
+      "bytes": 487876,
+      "triangles": 12161,
+      "sha256": "545514e2993c54d6eeaf33508c52e0108552f12add75389a3e741bccb4408ca8",
+      "bounds": [
+        -904.075439453125,
+        549.0027313232422,
+        -654.075439453125,
+        799.0027313232422
+      ],
+      "heightRange": [
+        10.28125,
+        24.609375
+      ],
+      "regionBuildings": [
+        "b--2-1"
+      ],
+      "sourceRoofs": 184,
+      "sourceFiles": [
+        "region/b--2-1.bin"
+      ]
+    },
+    {
+      "id": "r6-c1",
+      "file": "r6-c1.glb",
+      "bytes": 44712,
+      "triangles": 1082,
+      "sha256": "e0d39a6f173f2d2a0044f358f8fb50ef15ff8dc63338396f7571f2fe3a76e29d",
+      "bounds": [
+        -654.075439453125,
+        549.0027313232422,
+        -404.075439453125,
+        799.0027313232422
+      ],
+      "heightRange": [
+        10.484375,
+        24.859375
+      ],
+      "regionBuildings": [
+        "b--2-1"
+      ],
+      "sourceRoofs": 15,
+      "sourceFiles": [
+        "region/b--2-1.bin"
+      ]
+    },
+    {
+      "id": "r6-c2",
+      "file": "r6-c2.glb",
+      "bytes": 332604,
+      "triangles": 8466,
+      "sha256": "9c4c1933558efb8658c2c2b45f5d41acfc729808825598a1b66111e2cb3980b8",
+      "bounds": [
+        -404.075439453125,
+        549.0027313232422,
+        -154.075439453125,
+        799.0027313232422
+      ],
+      "heightRange": [
+        9.8125,
+        25.296875
+      ],
+      "regionBuildings": [
+        "b--1-1"
+      ],
+      "sourceRoofs": 145,
+      "sourceFiles": [
+        "region/b--1-1.bin"
+      ]
+    },
+    {
+      "id": "r6-c3",
+      "file": "r6-c3.glb",
+      "bytes": 503188,
+      "triangles": 12600,
+      "sha256": "f477e70a849473ed4a8ce5a8665e5d6bd46a94323aae4dbcbdf4191f24bafb39",
+      "bounds": [
+        -154.075439453125,
+        549.0027313232422,
+        95.924560546875,
+        799.0027313232422
+      ],
+      "heightRange": [
+        11.96875,
+        31.953125
+      ],
+      "regionBuildings": [
+        "b--1-1",
+        "b-0-1"
+      ],
+      "sourceRoofs": 186,
+      "sourceFiles": [
+        "region/b--1-1.bin",
+        "region/b-0-1.bin"
+      ]
+    },
+    {
+      "id": "r6-c4",
+      "file": "r6-c4.glb",
+      "bytes": 633132,
+      "triangles": 15864,
+      "sha256": "c68bfc8851d4f45dcd7c231e742ad407118f882bed11f4ef46a89d4e50fea727",
+      "bounds": [
+        95.924560546875,
+        549.0027313232422,
+        345.924560546875,
+        799.0027313232422
+      ],
+      "heightRange": [
+        13.53125,
+        36.390625
+      ],
+      "regionBuildings": [
+        "b-0-1"
+      ],
+      "sourceRoofs": 256,
+      "sourceFiles": [
+        "region/b-0-1.bin"
+      ]
+    },
+    {
+      "id": "r6-c5",
+      "file": "r6-c5.glb",
+      "bytes": 595772,
+      "triangles": 14837,
+      "sha256": "e8ddc5206bb23e89869a1b96016b5cb7e56bdf1ca295f4aece99e8a1d6b42269",
+      "bounds": [
+        345.924560546875,
+        549.0027313232422,
+        595.924560546875,
+        799.0027313232422
+      ],
+      "heightRange": [
+        17.15625,
+        39.421875
+      ],
+      "regionBuildings": [
+        "b-0-1",
+        "b-1-1"
+      ],
+      "sourceRoofs": 204,
+      "sourceFiles": [
+        "region/b-0-1.bin",
+        "region/b-1-1.bin"
+      ]
+    },
+    {
+      "id": "r6-c6",
+      "file": "r6-c6.glb",
+      "bytes": 438324,
+      "triangles": 10969,
+      "sha256": "279330bda755c8eda997bc2dc24090d78e1c6c094924eead5adb268685328c42",
+      "bounds": [
+        595.924560546875,
+        549.0027313232422,
+        845.924560546875,
+        799.0027313232422
+      ],
+      "heightRange": [
+        19.828125,
+        54.15625
+      ],
+      "regionBuildings": [
+        "b-1-1"
+      ],
+      "sourceRoofs": 173,
+      "sourceFiles": [
+        "region/b-1-1.bin"
+      ]
+    },
+    {
+      "id": "r6-c7",
+      "file": "r6-c7.glb",
+      "bytes": 668164,
+      "triangles": 16669,
+      "sha256": "8857d0fbf02927f5a4be79df6eecb901d01a141426fe2486f7745c7fc40158a9",
+      "bounds": [
+        845.924560546875,
+        549.0027313232422,
+        1095.924560546875,
+        799.0027313232422
+      ],
+      "heightRange": [
+        29.796875,
+        54.5625
+      ],
+      "regionBuildings": [
+        "b-1-1",
+        "b-2-1"
+      ],
+      "sourceRoofs": 254,
+      "sourceFiles": [
+        "region/b-1-1.bin",
+        "region/b-2-1.bin"
+      ]
+    },
+    {
+      "id": "r7-c0",
+      "file": "r7-c0.glb",
+      "bytes": 522708,
+      "triangles": 13140,
+      "sha256": "abf7beb1f8157e5dfef8df141f4381eac58737bc1adae03d9794c06211630a6a",
+      "bounds": [
+        -904.075439453125,
+        799.0027313232422,
+        -654.075439453125,
+        1049.0027313232422
+      ],
+      "heightRange": [
+        9.59375,
+        24.25
+      ],
+      "regionBuildings": [
+        "b--2-1",
+        "b--2-2"
+      ],
+      "sourceRoofs": 213,
+      "sourceFiles": [
+        "region/b--2-1.bin",
+        "region/b--2-2.bin"
+      ]
+    },
+    {
+      "id": "r7-c1",
+      "file": "r7-c1.glb",
+      "bytes": 106212,
+      "triangles": 2665,
+      "sha256": "cbb2d09acdff1804d3f8e665555323910920d7a25d1d1bc56c111cb498bb08b9",
+      "bounds": [
+        -654.075439453125,
+        799.0027313232422,
+        -404.075439453125,
+        1049.0027313232422
+      ],
+      "heightRange": [
+        9.59375,
+        20.6875
+      ],
+      "regionBuildings": [
+        "b--1-1",
+        "b--2-1",
+        "b--2-2"
+      ],
+      "sourceRoofs": 37,
+      "sourceFiles": [
+        "region/b--1-1.bin",
+        "region/b--2-1.bin",
+        "region/b--2-2.bin"
+      ]
+    },
+    {
+      "id": "r7-c2",
+      "file": "r7-c2.glb",
+      "bytes": 383380,
+      "triangles": 9625,
+      "sha256": "4b0b7df72cd7e74669910a743c0841ec07c9a7fccc6f2d76995fedff3560d749",
+      "bounds": [
+        -404.075439453125,
+        799.0027313232422,
+        -154.075439453125,
+        1049.0027313232422
+      ],
+      "heightRange": [
+        9.46875,
+        31.125
+      ],
+      "regionBuildings": [
+        "b--1-1",
+        "b--1-2"
+      ],
+      "sourceRoofs": 153,
+      "sourceFiles": [
+        "region/b--1-1.bin",
+        "region/b--1-2.bin"
+      ]
+    },
+    {
+      "id": "r7-c3",
+      "file": "r7-c3.glb",
+      "bytes": 620812,
+      "triangles": 15454,
+      "sha256": "3963833ed5f48814c5867a4216c625bfbb1759910b47b2cf8fe2b169dfd9a10f",
+      "bounds": [
+        -154.075439453125,
+        799.0027313232422,
+        95.924560546875,
+        1049.0027313232422
+      ],
+      "heightRange": [
+        11.1875,
+        26.921875
+      ],
+      "regionBuildings": [
+        "b--1-1",
+        "b--1-2",
+        "b-0-1",
+        "b-0-2"
+      ],
+      "sourceRoofs": 230,
+      "sourceFiles": [
+        "region/b--1-1.bin",
+        "region/b--1-2.bin",
+        "region/b-0-1.bin",
+        "region/b-0-2.bin"
+      ]
+    },
+    {
+      "id": "r7-c4",
+      "file": "r7-c4.glb",
+      "bytes": 702248,
+      "triangles": 17693,
+      "sha256": "33141634e5898ae80e05ccbd6481764c4d5b7ce8205d195434cdc8bd6a3ee956",
+      "bounds": [
+        95.924560546875,
+        799.0027313232422,
+        345.924560546875,
+        1049.0027313232422
+      ],
+      "heightRange": [
+        13.546875,
+        33.859375
+      ],
+      "regionBuildings": [
+        "b-0-1",
+        "b-0-2"
+      ],
+      "sourceRoofs": 287,
+      "sourceFiles": [
+        "region/b-0-1.bin",
+        "region/b-0-2.bin"
+      ]
+    },
+    {
+      "id": "r7-c5",
+      "file": "r7-c5.glb",
+      "bytes": 320568,
+      "triangles": 8033,
+      "sha256": "9745e8f54c84d8454f628031a800e963c95556c3a50c7521948ad1d552f0c767",
+      "bounds": [
+        345.924560546875,
+        799.0027313232422,
+        595.924560546875,
+        1049.0027313232422
+      ],
+      "heightRange": [
+        20.71875,
+        59.453125
+      ],
+      "regionBuildings": [
+        "b-0-1",
+        "b-0-2",
+        "b-1-1",
+        "b-1-2"
+      ],
+      "sourceRoofs": 128,
+      "sourceFiles": [
+        "region/b-0-1.bin",
+        "region/b-0-2.bin",
+        "region/b-1-1.bin",
+        "region/b-1-2.bin"
+      ]
+    },
+    {
+      "id": "r7-c6",
+      "file": "r7-c6.glb",
+      "bytes": 421716,
+      "triangles": 10641,
+      "sha256": "d120b637eaeda0f09000cade861551a9fb9ce34068069460da4c5f999b18ebcf",
+      "bounds": [
+        595.924560546875,
+        799.0027313232422,
+        845.924560546875,
+        1049.0027313232422
+      ],
+      "heightRange": [
+        24.578125,
+        47.6875
+      ],
+      "regionBuildings": [
+        "b-1-1",
+        "b-1-2"
+      ],
+      "sourceRoofs": 152,
+      "sourceFiles": [
+        "region/b-1-1.bin",
+        "region/b-1-2.bin"
+      ]
+    },
+    {
+      "id": "r7-c7",
+      "file": "r7-c7.glb",
+      "bytes": 483268,
+      "triangles": 12163,
+      "sha256": "6dc08123f2695941800a8fd557538b2844bc8d8f1302a4eac441a9421872704d",
+      "bounds": [
+        845.924560546875,
+        799.0027313232422,
+        1095.924560546875,
+        1049.0027313232422
+      ],
+      "heightRange": [
+        27.390625,
+        50.15625
+      ],
+      "regionBuildings": [
+        "b-1-1",
+        "b-1-2",
+        "b-2-1",
+        "b-2-2"
+      ],
+      "sourceRoofs": 178,
+      "sourceFiles": [
+        "region/b-1-1.bin",
+        "region/b-1-2.bin",
+        "region/b-2-1.bin",
+        "region/b-2-2.bin"
       ]
     }
   ]
