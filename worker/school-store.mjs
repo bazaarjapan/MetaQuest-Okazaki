@@ -1,6 +1,7 @@
 import { LIMITS, cleanName, cleanAvatarName, requireAvatarName, fail, parseCookies, publicAvatar, randomToken, sha256, validId } from "./school-common.mjs";
 import { avatarNameKey } from "./avatar-name-key.mjs";
 import { managesWorld } from "./classroom-id.mjs";
+import { avatarDesign } from "../src/avatar-design.js";
 
 export const SESSION_COOKIE = "__Host-school-session";
 export const PREAUTH_COOKIE = "__Host-school-preauth";
@@ -133,21 +134,36 @@ export async function joinWorld(db, session, code, now) {
   return world;
 }
 export async function updateAvatar(db, session, value) {
-  const current = await first(db, "SELECT * FROM school_users WHERE id=?", session.id);
-  if (!current) fail(401, "login_required");
-  const previous = publicAvatar(current);
-  if (previous.namePending && (typeof value.name !== "string" || !value.name.trim())) fail(400, "name_required");
-  const name = cleanAvatarName(value.name, previous.name);
-  const color = value.color ?? previous.color;
-  if (typeof color !== "string" || !/^#[a-f0-9]{6}$/i.test(color)) fail(400, "invalid_avatar_color");
-  try {
-    const updated = await first(db, "UPDATE school_users SET avatar_json=? WHERE id=? RETURNING *", JSON.stringify({ name, color, nameKey: avatarNameKey(name) }), session.id);
-    return publicAvatar(updated);
-  } catch (error) {
-    // D1 wraps SQLite errors; match only our named unique index, not outages.
-    if (String(error.message).includes("school_users_unique_avatar_name")) fail(409, "name_taken");
-    throw error;
+  const requestedDesign = avatarDesign(value.design);
+  if (value.design != null && !requestedDesign) fail(400, "invalid_avatar_design");
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const current = await first(db, "SELECT * FROM school_users WHERE id=?", session.id);
+    if (!current) fail(401, "login_required");
+    const previous = publicAvatar(current);
+    if (previous.namePending && (typeof value.name !== "string" || !value.name.trim())) fail(400, "name_required");
+    const name = cleanAvatarName(value.name, previous.name);
+    const color = value.color ?? previous.color;
+    if (typeof color !== "string" || !/^#[a-f0-9]{6}$/i.test(color)) fail(400, "invalid_avatar_color");
+    const nameKey = avatarNameKey(name);
+    const reservedSlot = /^生徒(0[1-9]|[12][0-9]|30)$/u.exec(nameKey.normalize("NFKC"));
+    if (reservedSlot && (name !== previous.name || previous.namePending) && !await first(db,
+      "SELECT slot FROM school_student_credentials WHERE slot=? AND user_id=?", Number(reservedSlot[1]), session.id)) {
+      fail(409, "student_name_reserved");
+    }
+    const design = value.design === undefined ? previous.design : requestedDesign;
+    const avatar = { name, color, nameKey, ...(design ? { design } : {}) };
+    try {
+      // Re-read omitted fields if another edit won between the read and write.
+      const updated = await first(db, "UPDATE school_users SET avatar_json=? WHERE id=? AND avatar_json=? RETURNING *",
+        JSON.stringify(avatar), session.id, current.avatar_json);
+      if (updated) return publicAvatar(updated);
+    } catch (error) {
+      // D1 wraps SQLite errors; match only our named unique index, not outages.
+      if (String(error.message).includes("school_users_unique_avatar_name")) fail(409, "name_taken");
+      throw error;
+    }
   }
+  fail(409, "avatar_edit_conflict");
 }
 export async function reserveAsset(db, session, worldId, asset, now) {
   const cutoff = reservationClock(now) - assetReservationPolicy.leaseSeconds;

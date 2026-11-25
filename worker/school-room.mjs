@@ -133,7 +133,7 @@ export class SchoolRoom {
     for (const [socket] of previous) this.remove(socket, 1000, "connected in another tab");
     const pair = this.makePair(), [client, server] = Object.values(pair);
     const attachment = { userId: caller.session.id, sessionHash: caller.context.sessionHash,
-      expiresAt: caller.session.expires_at, avatar: publicAvatar(caller.session),
+      expiresAt: caller.session.expires_at, avatar: publicAvatar(caller.session), avatarJson: caller.session.avatar_json,
       pose: { position: [...savedPose.position], yaw: savedPose.yaw }, poseRestoreCommit: this.poseRestoreCommit(), lastSeq: -1,
       lastPoseAt: -1e15, lastEditAt: -1e15, lastPingAt: -1e15, lastSeenAt: this.now(), rateWindowAt: this.now(), rateCount: 0 };
     this.ctx.acceptWebSocket(server);
@@ -172,7 +172,7 @@ export class SchoolRoom {
     return [...this.sessions.values()].map((attachment) => ({ ...attachment.avatar, ...attachment.pose, position: [...attachment.pose.position] }));
   }
   async snapshot(world, session) {
-    await this.pruneExpired();
+    if (await this.pruneExpired()) this.broadcastPresence();
     const assets = await all(this.env.DB, "SELECT * FROM school_assets WHERE world_id=? AND status='ready' ORDER BY created_at,rowid", world.id);
     const teacher = managesWorld(world, session);
     const saved = teacher ? await all(this.env.DB, "SELECT id,revision,created_at FROM school_snapshots WHERE world_id=? ORDER BY created_at DESC,id DESC LIMIT 20", world.id) : [];
@@ -203,12 +203,22 @@ export class SchoolRoom {
       JOIN school_members m ON m.user_id=u.id AND m.world_id=?
       WHERE s.expires_at>? AND s.token_hash IN (${hashes.map(() => "?").join(",")})`, this.state.worldId, now, ...hashes);
     const byHash = new Map(rows.map((row) => [row.token_hash, row]));
+    let profileChanged = false;
     for (const [socket, attachment] of this.sessions) {
       const session = byHash.get(attachment.sessionHash);
       const avatar = session?.id === attachment.userId ? publicAvatar(session) : null;
       if (!avatar || avatar.namePending || !(attachment.expiresAt > now && this.now() - attachment.lastSeenAt <= 60000)) this.remove(socket, 1008, "session expired");
-      else { attachment.avatar = avatar; socket.serializeAttachment(attachment); }
+      else if (this.refreshAvatar(attachment, session, avatar)) {
+        profileChanged = true; socket.serializeAttachment(attachment);
+      }
     }
+    return profileChanged;
+  }
+  refreshAvatar(attachment, session, avatar) {
+    if (attachment.avatarJson === session.avatar_json) return false;
+    attachment.avatarJson = session.avatar_json;
+    attachment.avatar = avatar ?? publicAvatar(session);
+    return true;
   }
   async scheduleAlarm() {
     if (!this.ctx.storage.setAlarm || !this.sessions.size) return;
@@ -244,7 +254,10 @@ export class SchoolRoom {
           throw error;
         }
         const { session, world } = authorization;
-        attachment.avatar = publicAvatar(session);
+        if (this.refreshAvatar(attachment, session)) {
+          socket.serializeAttachment(attachment);
+          this.broadcastPresence();
+        }
         if (value.type === "ping") {
           const pingAt = this.now();
           if (!Number.isFinite(pingAt)) fail(429, "ping_rate_limit");
@@ -280,7 +293,10 @@ export class SchoolRoom {
           attachment.poseRestoreCommit = this.poseRestoreCommit();
           attachment.lastSeq = pose.seq; attachment.lastPoseAt = this.now(); attachment.lastSeenAt = this.now();
           socket.serializeAttachment(attachment);
-          this.broadcast({ type: "pose", participant: { ...attachment.avatar, ...attachment.pose }, revision: this.state.revision });
+          // Visual parts ride the roster updates only. They do not multiply by
+          // participant count and pose frequency on every simulated frame.
+          const { design, ...avatar } = attachment.avatar;
+          this.broadcast({ type: "pose", participant: { ...avatar, ...attachment.pose }, revision: this.state.revision });
           return;
         }
         if (!["object.create", "object.update", "object.delete", "object.paint", "object.describe"].includes(value.type) || !validId(value.requestId)) fail(400, "invalid_command");
@@ -416,7 +432,7 @@ export class SchoolRoom {
   }
   async save(caller) {
     const now = Math.floor(this.now() / 1000), id = crypto.randomUUID();
-    await this.pruneExpired();
+    if (await this.pruneExpired()) this.broadcastPresence();
     const members = await all(this.env.DB, "SELECT user_id,pose_json FROM school_members WHERE world_id=?", this.state.worldId);
     // Offline members' accepted current positions belong in the checkpoint too,
     // not only the last teacher checkpoint mirrored into D1 or open sockets.

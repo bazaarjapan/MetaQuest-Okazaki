@@ -76,10 +76,9 @@ try{
  session=sessions[1];await launch(fixtures.origin);await until("document.querySelector('#student-login-id')");
  if(!await evaluate("document.querySelector('#school-dialog').open"))await browser('click','#login-gate [data-login-role=student]');
  await browser('fill','#student-login-id',secret[0]);await browser('fill','#student-password',secret[1]);
- await browser('click','#school-dialog form button');await until("document.querySelector('#school-avatar-name')");
- await browser('fill','#school-avatar-name','レーダー検証生徒');await browser('click','#school-avatar-save');
- await until('window.__okazaki?.getState().activityAllowed');
- await browser('click','#school-close');await browser('set','viewport','1280','800');
+ await browser('click','#school-dialog form button');
+ await until("window.__okazaki?.getState().activityAllowed&&!document.querySelector('#school-dialog').open");
+ await browser('set','viewport','1280','800');
  await browser('upload','#stl-hotbar input[type=file]',fixtures.cubeFile);
  await until('window.__okazaki.getState().workshop.current && !window.__okazaki.getState().hotbar.pending');
  await browser('click','#simple-menu');await browser('click','#open-workshop');

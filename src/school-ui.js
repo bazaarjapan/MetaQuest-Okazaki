@@ -9,6 +9,9 @@ const ERROR_TEXT = {
   student_id_required: "Googleログインは登録済みの先生専用です。生徒は先生が発行したID・パスワードを使ってください。",
   name_required: "最初にアバターの名前を入力してください。",
   name_taken: "その名前は先生または別の生徒が使っています。別の名前にしてください（英字の大文字・小文字は区別しません）。",
+  student_name_reserved: "生徒01〜生徒30は、それぞれのIDの初期表示名です。別の名前にしてください。",
+  invalid_avatar_design: "選んだデザインを保存できませんでした。編集画面を開き直してください。",
+  avatar_edit_conflict: "同じアカウントで別の変更がありました。少し待ってからもう一度保存してください。",
   invalid_avatar_name: "名前は20文字以内で、見える文字を使ってください。メールアドレスや見えない制御文字は使えません。",
   invalid_name: "名前を1〜20文字で入力してください。",
   classroom_not_ready: "先生がログインするとワールドが準備されます。",
@@ -69,7 +72,7 @@ function actionButton(text, handler, id) {
 }
 const loadGoogleIdentity = createGoogleIdentityLoader();
 
-export function createSchoolUI({ client, button, onBeforeOpen = () => {},
+export function createSchoolUI({ client, button, onBeforeOpen = () => {}, onEditAvatar,
   onLocateObject = async () => false, getViewPosition = () => ({x:0,z:0}), getStation = () => null }) {
   const dialog = element("dialog", undefined, "school-dialog"); dialog.id = "school-dialog";
   dialog.setAttribute("aria-labelledby", "school-title");
@@ -217,7 +220,10 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
       form.append(id.label, password.label, submit);
       form.addEventListener("submit", event => { event.preventDefault(); void perform(async () => {
         const secret = password.input.value.normalize("NFKC"); password.input.value = "";
-        try { await client.loginStudent(id.input.value, secret); }
+        try {
+          await client.loginStudent(id.input.value, secret);
+          if (state.user?.role === "student" && !state.user.namePending && state.world) dialog.close();
+        }
         catch (error) {
           if (dialog.open && loginRole === "student" && !state.user && error.code === "invalid_student_login") {
             password.input.setAttribute("aria-invalid", "true");
@@ -248,8 +254,12 @@ export function createSchoolUI({ client, button, onBeforeOpen = () => {},
     if (state.singleClassroom) selectLoginRole(loginRole);
   }
   function renderAccount() {
-    const section = element(state.user.namePending?'section':'details', undefined, "school-section");
-    section.append(element(state.user.namePending?'h3':'summary', state.user.namePending?'最初に、表示する名前を決めましょう':'名前・色の変更'));
+    const section = element("section", undefined, "school-section");
+    if (!state.user.namePending && onEditAvatar) {
+      section.append(command("キャラクター・表示名を変更", onEditAvatar, "school-open-avatar"));
+      content.append(section); return;
+    }
+    section.append(element("h3", state.user.namePending ? "最初に、表示する名前を決めましょう" : "名前・色の変更"));
     const row = element("div", undefined, "school-row");
     if (state.user.namePending) section.append(element("p", state.user.nameConflict
       ? "以前の名前がほかの人と重複しています。別の名前を決めてください。あなたのSTL・配置場所はそのまま残っています。"

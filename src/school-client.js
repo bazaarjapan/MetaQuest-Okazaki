@@ -319,7 +319,11 @@ export function createSchoolClient(options = {}) {
         }
         const index = state.participants.findIndex((item) => item.id === value.participant.id);
         const participants = [...state.participants];
-        if (index >= 0) participants[index] = value.participant;
+        if (index >= 0) {
+          const design = participants[index].design;
+          participants[index] = design && !Object.hasOwn(value.participant, "design")
+            ? { ...value.participant, design } : value.participant;
+        }
         else participants.push(value.participant);
         state.participants = participants;
         emit("pose", value.participant.id);
@@ -411,7 +415,8 @@ export function createSchoolClient(options = {}) {
   }
   function leaveWorld() { clearRoom(); state.error = null; emit("room"); }
   async function updateAvatar(avatar) {
-    assertUser(); const epoch = authEpoch, result = await request("/api/avatar", { method: "PATCH", body: { name: avatar.name, color: avatar.color } });
+    assertUser(); const epoch = authEpoch, result = await request("/api/avatar", { method: "PATCH",
+      body: { name: avatar.name, color: avatar.color, design: avatar.design } });
     if (epoch !== authEpoch) throw new SchoolClientError("login_cancelled");
     state.user = result.user; emit("auth");
     if (state.singleClassroom && !state.world) await enterClassroom();

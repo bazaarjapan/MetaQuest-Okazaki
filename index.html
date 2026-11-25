@@ -72,6 +72,7 @@
         <section id="panel-observe" role="tabpanel" aria-labelledby="tab-observe">
         <div class="observe-actions" role="group" aria-label="作品と街の操作">
           <button id="open-workshop" disabled>STL作品（ログイン）</button>
+          <button id="open-avatar" type="button" aria-haspopup="dialog" disabled>キャラクター</button>
           <button id="home" disabled>開始地点に戻る</button>
           <button id="fullscreen" aria-label="3D画面を全画面表示">全画面</button>
         </div>
@@ -290,6 +291,45 @@
         <div class="workshop-actions"><button id="object-apply" aria-describedby="workshop-save-hint" disabled>この場所に配置</button></div>
         <p id="workshop-status" role="status"></p>
       </div>
+    </dialog>
+    <dialog id="avatar-dialog" aria-labelledby="avatar-title">
+      <form id="avatar-form">
+        <div class="avatar-heading">
+          <h2 id="avatar-title">マイキャラクター</h2>
+          <button id="avatar-close" type="button" aria-label="キャラクター編集を閉じる">閉じる</button>
+        </div>
+        <div class="avatar-layout">
+          <div class="avatar-identity">
+            <div class="avatar-stage">
+              <canvas id="avatar-preview" width="272" height="296" role="img" aria-label="編集中のキャラクター"></canvas>
+              <output id="avatar-preview-name" for="avatar-name" aria-hidden="true"></output>
+              <button id="avatar-turn" type="button">後ろを見る</button>
+            </div>
+            <label class="avatar-field" for="avatar-name"><strong>表示名</strong>
+              <input id="avatar-name" required maxlength="40" autocomplete="off" spellcheck="false" aria-describedby="avatar-name-note">
+              <small id="avatar-name-note">頭の上に表示されます。20文字まで。</small>
+            </label>
+          </div>
+          <fieldset id="avatar-fields">
+            <legend>デザイン</legend>
+            <h3 id="avatar-presets-title">見本から選ぶ</h3>
+            <div id="avatar-presets" role="group" aria-labelledby="avatar-presets-title"></div>
+            <div class="avatar-detail-heading">
+              <h3 id="avatar-parts-title">パーツを変える</h3>
+              <button id="avatar-standard" type="button">標準の見た目に戻す</button>
+            </div>
+            <div id="avatar-parts" aria-labelledby="avatar-parts-title" role="group">
+              <label class="avatar-field avatar-color" for="avatar-shirt"><strong>服の色</strong>
+                <input id="avatar-shirt" type="color" value="#4a90e2">
+              </label>
+            </div>
+          </fieldset>
+        </div>
+        <div class="avatar-footer">
+          <p id="avatar-status" role="status" aria-live="polite"></p>
+          <button id="avatar-save" type="submit" disabled>変更を保存</button>
+        </div>
+      </form>
     </dialog>
     <dialog id="help-dialog" aria-labelledby="help-title">
       <div class="help-heading">

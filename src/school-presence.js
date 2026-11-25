@@ -92,6 +92,7 @@ export function createSchoolPresence(THREE, { scene, client,
       actor.color = color;
       actor.avatar.setColor(color);
     }
+    actor.avatar.setDesign(participant.design);
     if (actor.name === null || actor.rawName !== participant.name) {
       actor.rawName = participant.name;
       actor.label.setName(participant.name);
@@ -155,7 +156,8 @@ export function createSchoolPresence(THREE, { scene, client,
         const avatar = actor.avatar.getState();
         return { id: actor.id, name: actor.name, distant: actor.distant,
         color: actor.color, position: actor.position.toArray(), target: actor.target.toArray(),
-        yaw: actor.yaw, animation: avatar.animation, meshes: avatar.meshCount, label: actor.label.getState(), appearance: avatar.appearance };
+        yaw: actor.yaw, animation: avatar.animation, meshes: avatar.meshCount,
+        label: actor.label.getState(), appearance: avatar.appearance, design: avatar.design };
       }) }),
     dispose() {
       if (disposed) return;
