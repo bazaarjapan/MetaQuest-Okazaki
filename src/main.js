@@ -34,8 +34,9 @@ import { createAvatarEditor } from "./avatar-editor.js";
 import { createSchoolClient } from "./school-client.js";
 import { createSchoolUI } from "./school-ui.js";
 import { createActivityGate } from "./activity-gate.js";
-import { readFieldStyle,FIELD_STYLE_KEY,createFieldBuildingMaterial,decorateBuildingGeometry,gameTerrainFile,isCoreBuildingPart } from "./field-style.js";
+import { readFieldStyle,FIELD_STYLE_KEY,createFieldBuildingMaterial,gameTerrainFile,isCoreBuildingPart } from "./field-style.js";
 import { createFacadeAtlas } from "./facade-material.js";
+import { createFacadeDecorator } from "./facade-decorator.js";
 import { createHotbar } from "./hotbar.js";
 import { createHeldSTL } from "./held-stl.js";
 import { createSchoolPresence } from "./school-presence.js";
@@ -100,6 +101,7 @@ const photoStyleDescription = '航空写真と元の建物の色で表示しま�
 if (fieldStyle === 'photo') fieldStyleNote.textContent = photoStyleDescription;
 const fieldUniform={value:fieldStyle==='game'?1:0};
 const facadeAtlas=createFacadeAtlas();
+const decorateBuilding = createFacadeDecorator(THREE);
 if(fieldStyle==='game')void facadeAtlas.load();
 const eveningUniform={value:0};
 const state = {
@@ -180,7 +182,7 @@ const regionGroup = new THREE.Group();
 regionGroup.name = "streamed-okazaki-region";
 scene.add(regionGroup);
 const regionStreamer = createRegionStreamer(THREE, regionGroup,{fieldUniform,eveningUniform,citySurfaceUniforms:citySurfaceMap.uniforms,
-  facadeUniforms:facadeAtlas.uniforms,
+  facadeUniforms:facadeAtlas.uniforms,decorateBuilding,
   terrainLimit:q=>fieldStyle==='game'?Math.min(q==='high'?16:9,8):(q==='high'?16:9),
   terrainAnisotropy:()=>Math.min(quality.anisotropy,renderer.capabilities.getMaxAnisotropy()),
   terrainTexture:tile=>({url:fieldStyle==='game'&&fieldManifest?.region[tile.id]
@@ -536,7 +538,7 @@ async function loadCity() {
       ? new THREE.Color(1, 1, 1)
       : new THREE.Color(...p.color).multiplyScalar(0.84);
     const gameBuilding = isCoreBuildingPart(p);
-    if(gameBuilding)decorateBuildingGeometry(THREE,geometry);
+    if(gameBuilding)await decorateBuilding(geometry);
     const materialOptions={color,map,roughness:1,metalness:0};
     const mesh = new THREE.Mesh(
       geometry,

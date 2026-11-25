@@ -4,6 +4,8 @@ import {readFile} from 'node:fs/promises';
 import * as THREE from 'three';
 import {buildingColorBytes,buildingAttributes,readFieldStyle,gameTerrainFile,isCoreBuildingPart,createFieldBuildingMaterial,decorateBuildingGeometry} from '../src/field-style.js';
 import {facadeFamily} from '../src/facade-layout.js';
+import {createFacadeDecorator} from '../src/facade-decorator.js';
+import {prepareBuildingGeometry} from '../src/facade-geometry.js';
 import {mapPoint,roadWidth,renderFieldSVG} from '../scripts/lib/field-map.mjs';
 
 test('all four actual station building material groups are styled, never the terrain',async()=>{
@@ -88,6 +90,34 @@ test('facade vertex splitting preserves every indexed triangle and its source at
   }
   assert.ok(geometry.attributes.position.count>sourcePosition.length/3);
   geometry.dispose();
+});
+
+test('queued facade jobs transfer copies and do not install results after a tile is canceled',async()=>{
+  const geometry = new THREE.PlaneGeometry(8,5);
+  const [canceled, queued, live] = [geometry.clone(),geometry.clone(),geometry.clone()];
+  const worker = new EventTarget(), posted = [];
+  worker.postMessage = (data, transfer) => posted.push(structuredClone(data,{transfer}));
+  const finish = () => {
+    const {attributes,indices} = posted.at(-1);
+    const prepared = prepareBuildingGeometry(attributes,indices);
+    worker.dispatchEvent(new MessageEvent('message',{data:{prepared}}));
+  };
+  const decorate = createFacadeDecorator(THREE,()=>worker);
+  const first = new AbortController(), second = new AbortController();
+  const a = assert.rejects(decorate(canceled,first.signal),{name:'AbortError'});
+  const b = assert.rejects(decorate(queued,second.signal),{name:'AbortError'});
+  const c = decorate(live);
+  await Promise.resolve();
+  assert.equal(posted.length,1);
+  assert.notEqual(canceled.attributes.position.array.buffer.byteLength,0);
+  first.abort(); second.abort(); finish();
+  await Promise.all([a,b]);
+  assert.equal(posted.length,2);
+  assert.equal(canceled.hasAttribute('fieldFacade'),false);
+  assert.equal(queued.hasAttribute('fieldFacade'),false);
+  finish(); await c;
+  assert.ok(live.hasAttribute('fieldFacade'));
+  for(const mesh of [geometry,canceled,queued,live])mesh.dispose();
 });
 test('game field defaults without writable storage; photo choice persists',()=>{
   assert.equal(readFieldStyle(), 'game');assert.equal(readFieldStyle({getItem(){throw Error();}}),'game');
